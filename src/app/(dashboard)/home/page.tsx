@@ -229,7 +229,14 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Sección 1: Análisis Mensual (Tendencias) */}
+      {/* Sección 1: KPIs de Ejecución (Principal) */}
+      <section>
+        <KPIDashboardSection metrics={data.totals} showCharts={false} />
+      </section>
+
+      <Separator className="opacity-50" />
+
+      {/* Sección 2: Análisis Mensual (Tendencias) */}
       <section className="space-y-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-1">
@@ -257,26 +264,6 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Mini Grilla de métricas adicionales si están habilitadas */}
-        <div className="grid gap-4 md:grid-cols-2">
-          {selectedTypes.includes("SALES_ORDER") && (
-            <KPICard
-              title="Ticket Promedio (OV)"
-              value={formatUSD(data.totals.avg_ticket)}
-              icon={DollarSign}
-              variant="premium"
-            />
-          )}
-          {(selectedTypes.includes("SALES_ORDER") && selectedTypes.includes("INVOICE")) && (
-            <KPICard
-              title="Tasa de Conversión (OV a FAC)"
-              value={`${data.totals.conversion.toFixed(1)}%`}
-              icon={TrendingUp}
-              variant="premium"
-            />
-          )}
-        </div>
-
         <div className="w-full">
           <BarChartMonthly data={chartData} />
         </div>
@@ -284,9 +271,13 @@ export default function HomePage() {
 
       <Separator className="opacity-50" />
 
-      {/* Sección 2: KPIs de Ejecución (Ventas & Riesgo) */}
-      <section>
-        <KPIDashboardSection metrics={data.totals} />
+      {/* Sección 3: Análisis de Backlog (Aging & Concentración) */}
+      <section className="space-y-6">
+        <div className="space-y-1">
+          <h2 className="text-2xl font-bold tracking-tight">Análisis Detallado de Backlog</h2>
+          <p className="text-sm text-muted-foreground">Distribución por antigüedad y categorías de riesgo.</p>
+        </div>
+        <KPIDashboardSection metrics={data.totals} showGrid={false} />
       </section>
     </div>
   );
