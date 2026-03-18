@@ -197,115 +197,115 @@ export function TechServiceAnalysis({ data, yearA, yearB }: TechServiceAnalysisP
 
         {/* PARTE 2: Financial Matrix (Tabla) */}
         <div className="overflow-hidden rounded-2xl border border-black/5 bg-white/30 dark:bg-black/10 dark:border-white/5 shadow-sm">
-          <table className="w-full text-left text-sm border-collapse">
+          <table className="w-full text-left text-base border-collapse">
             <thead>
-              <tr className="bg-slate-50/50 dark:bg-white/5 border-b border-black/5 dark:border-white/10 uppercase tracking-tighter text-[11px] font-bold text-slate-500">
-                <th className="px-8 py-5 border-r border-black/5 dark:border-white/5">Estructura de Ingresos</th>
+              <tr className="bg-slate-50/50 dark:bg-white/5 border-b border-black/5 dark:border-white/10 uppercase tracking-tight text-[13px] font-bold text-slate-500">
+                <th className="px-8 py-6 border-r border-black/5 dark:border-white/5">Estructura de Ingresos</th>
                 {data.map((q) => (
-                  <th key={q.quarter} className="px-6 py-5 text-right font-black">{q.quarter}</th>
+                  <th key={q.quarter} className="px-6 py-6 text-right font-black">{q.quarter}</th>
                 ))}
-                <th className="px-8 py-5 text-right bg-indigo-500/5 text-indigo-600 dark:text-indigo-400 font-black">YTD Total</th>
+                <th className="px-8 py-6 text-right bg-indigo-500/5 text-indigo-600 dark:text-indigo-400 font-black">YTD Total</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-black/5 dark:divide-white/5 font-sans">
+            <tbody className="divide-y divide-black/5 dark:divide-white/5 font-sans leading-relaxed">
               {/* Bloque ST */}
               <tr className="group hover:bg-white/40 transition-colors">
-                <td className="px-8 py-5 font-bold text-slate-700 dark:text-slate-200 border-r border-black/5 dark:border-white/5">
+                <td className="px-8 py-6 font-bold text-slate-700 dark:text-slate-200 border-r border-black/5 dark:border-white/5">
                   Servicio Técnico (Mano de Obra)
                 </td>
                 {data.map((q) => (
-                  <td key={`st-${q.quarter}`} className="px-6 py-5 text-right font-mono tabular-nums text-slate-600 dark:text-slate-400">
+                  <td key={`st-${q.quarter}`} className="px-6 py-6 text-right font-mono tabular-nums text-slate-600 dark:text-slate-400">
                     {formatUSD(q.st)}
                   </td>
                 ))}
-                <td className="px-8 py-5 text-right font-black font-mono tabular-nums text-indigo-600 dark:text-indigo-400 bg-indigo-500/5">
+                <td className="px-8 py-6 text-right font-black font-mono tabular-nums text-indigo-600 dark:text-indigo-400 bg-indigo-500/5">
                   {formatUSD(totals.st)}
                 </td>
               </tr>
-              <tr className="text-[11px] bg-slate-50/20">
-                <td className="px-8 py-2 text-slate-400 border-r border-black/5 dark:border-white/5 pl-12 font-medium">
+              <tr className="text-[12.5px] bg-slate-50/20">
+                <td className="px-8 py-3 text-slate-400 border-r border-black/5 dark:border-white/5 pl-12 font-medium">
                   Crecimiento YoY
                 </td>
                 {data.map((q) => (
-                  <td key={`yoy-st-${q.quarter}`} className="px-6 py-2 text-right font-mono tabular-nums">
+                  <td key={`yoy-st-${q.quarter}`} className="px-6 py-3 text-right font-mono tabular-nums">
                     {formatYoY(getYoY(q.st, q.st_prev))}
                   </td>
                 ))}
-                <td className="px-8 py-2 text-right font-mono tabular-nums bg-indigo-500/5">
+                <td className="px-8 py-3 text-right font-mono tabular-nums bg-indigo-500/5">
                   {formatYoY(getYoY(totals.st, totals.st_prev))}
                 </td>
               </tr>
 
               {/* Bloque C&R */}
               <tr className="group hover:bg-white/40 transition-colors border-t border-black/5 dark:border-white/5">
-                <td className="px-8 py-5 font-bold text-slate-700 dark:text-slate-200 border-r border-black/5 dark:border-white/5">
+                <td className="px-8 py-6 font-bold text-slate-700 dark:text-slate-200 border-r border-black/5 dark:border-white/5">
                   Consumibles y Repuestos
                 </td>
                 {data.map((q) => (
-                  <td key={`cr-${q.quarter}`} className="px-6 py-5 text-right font-mono tabular-nums text-slate-600 dark:text-slate-400">
+                  <td key={`cr-${q.quarter}`} className="px-6 py-6 text-right font-mono tabular-nums text-slate-600 dark:text-slate-400">
                     {formatUSD(q.cr)}
                   </td>
                 ))}
-                <td className="px-8 py-5 text-right font-black font-mono tabular-nums text-indigo-600 dark:text-indigo-400 bg-indigo-500/5">
+                <td className="px-8 py-6 text-right font-black font-mono tabular-nums text-indigo-600 dark:text-indigo-400 bg-indigo-500/5">
                   {formatUSD(totals.cr)}
                 </td>
               </tr>
-              <tr className="text-[11px] bg-slate-50/20">
-                <td className="px-8 py-2 text-slate-400 border-r border-black/5 dark:border-white/5 pl-12 font-medium">
+              <tr className="text-[12.5px] bg-slate-50/20">
+                <td className="px-8 py-3 text-slate-400 border-r border-black/5 dark:border-white/5 pl-12 font-medium">
                   Crecimiento YoY
                 </td>
                 {data.map((q) => (
-                  <td key={`yoy-cr-${q.quarter}`} className="px-6 py-2 text-right font-mono tabular-nums">
+                  <td key={`yoy-cr-${q.quarter}`} className="px-6 py-3 text-right font-mono tabular-nums">
                     {formatYoY(getYoY(q.cr, q.cr_prev))}
                   </td>
                 ))}
-                <td className="px-8 py-2 text-right font-mono tabular-nums bg-indigo-500/5">
+                <td className="px-8 py-3 text-right font-mono tabular-nums bg-indigo-500/5">
                   {formatYoY(getYoY(totals.cr, totals.cr_prev))}
                 </td>
               </tr>
 
               {/* Totales Brutos */}
               <tr className="bg-slate-900/[0.03] dark:bg-white/[0.05] border-t-2 border-black/10 dark:border-white/10">
-                <td className="px-8 py-6 font-black text-slate-900 dark:text-white border-r border-black/5 dark:border-white/5">
+                <td className="px-8 py-7 font-black text-slate-900 dark:text-white border-r border-black/5 dark:border-white/5 text-lg">
                   TOTAL SERVICIO TÉCNICO
                 </td>
                 {data.map((q) => (
-                  <td key={`total-${q.quarter}`} className="px-6 py-6 text-right font-black font-mono tabular-nums text-slate-900 dark:text-white">
+                  <td key={`total-${q.quarter}`} className="px-6 py-7 text-right font-black font-mono tabular-nums text-slate-900 dark:text-white text-lg">
                     {formatUSD(q.total)}
                   </td>
                 ))}
-                <td className="px-8 py-6 text-right font-black font-mono tabular-nums text-indigo-600 dark:text-indigo-400 bg-indigo-500/10">
+                <td className="px-8 py-7 text-right font-black font-mono tabular-nums text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 text-lg">
                   {formatUSD(totals.total)}
                 </td>
               </tr>
               
               {/* Fila Acumulado YTD */}
               <tr className="bg-emerald-500/[0.02] dark:bg-emerald-500/[0.05] border-t border-emerald-500/20">
-                <td className="px-8 py-6 font-black text-emerald-700 dark:text-emerald-400 border-r border-black/5 dark:border-white/5 flex items-center gap-2">
-                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
+                <td className="px-8 py-7 font-black text-emerald-700 dark:text-emerald-400 border-r border-black/5 dark:border-white/5 flex items-center gap-2 text-lg">
+                  <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_15px_rgba(16,185,129,0.5)]" />
                   ACUMULADO ANUAL (YTD)
                 </td>
                 {data.map((q) => (
-                  <td key={`acum-${q.quarter}`} className="px-6 py-6 text-right font-black font-mono tabular-nums text-emerald-600 dark:text-emerald-400">
+                  <td key={`acum-${q.quarter}`} className="px-6 py-7 text-right font-black font-mono tabular-nums text-emerald-600 dark:text-emerald-400 text-lg">
                     {formatUSD(q.acum)}
                   </td>
                 ))}
-                <td className="px-8 py-6 text-right font-black font-mono tabular-nums text-emerald-700 dark:text-emerald-400 bg-emerald-500/10">
+                <td className="px-8 py-7 text-right font-black font-mono tabular-nums text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 text-lg">
                   {formatUSD(totals.total)}
                 </td>
               </tr>
 
               {/* Crecimiento Acumulado */}
-              <tr className="text-xs bg-emerald-500/[0.05] border-t border-emerald-500/10">
-                <td className="px-8 py-3 text-emerald-600/70 dark:text-emerald-400/60 border-r border-black/5 dark:border-white/5 pl-12 font-bold italic">
+              <tr className="text-sm bg-emerald-500/[0.05] border-t border-emerald-500/10">
+                <td className="px-8 py-4 text-emerald-600/70 dark:text-emerald-400/60 border-r border-black/5 dark:border-white/5 pl-12 font-bold italic">
                   VAR. ACUMULADA VS AÑO ANTERIOR
                 </td>
                 {data.map((q) => (
-                  <td key={`yoy-acum-${q.quarter}`} className="px-6 py-3 text-right font-black tabular-nums">
+                  <td key={`yoy-acum-${q.quarter}`} className="px-6 py-4 text-right font-black tabular-nums">
                     {formatYoY(getYoY(q.acum, q.acum_prev))}
                   </td>
                 ))}
-                <td className="px-8 py-3 text-right font-black font-mono tabular-nums border-l border-emerald-500/10">
+                <td className="px-8 py-4 text-right font-black font-mono tabular-nums border-l border-emerald-500/10">
                   {formatYoY(getYoY(totals.total, totals.total_prev))}
                 </td>
               </tr>
