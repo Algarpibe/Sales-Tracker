@@ -1,0 +1,25 @@
+# SalesTracker Pro - Workspace Rules
+
+## 🎨 UI & Aesthetic Standards (Antigravity Premium)
+- **Glassmorphism**: Use `bg-background/60` with `backdrop-blur-xl` or `backdrop-blur-2xl` for all container surfaces.
+- **Shadows**: Implement soft, deep shadows like `shadow-[0_20px_50px_rgba(0,0,0,0.05)]`.
+- **Borders**: Prefer subtle glowing top/side borders: `border-t-primary/20`, `border-t-cyan-500/20`, etc.
+- **Animations**: Use `framer-motion` for subtle entrance/hover effects and interactive background mesh elements.
+- **Layouts**: Dashboard modules (Analytics, KPIs) must use `max-w-full px-4` to maximize screen real estate.
+
+## 🏗️ Architecture & Best Practices
+- **Framework**: Next.js 16+ with App Router.
+- **Output Mode**: Always keep `output: "standalone"` in `next.config.ts`.
+- **Dockerfile**: Use the multi-stage build optimized for `server.js` (standalone mode).
+- **Environment Variables**: Use `NEXT_PUBLIC_` for variables needed in client-side bundles (like Supabase URL/Anon Key).
+- **Data Fetching**: Prefer Server Actions for mutations and `supabase-js` for fetching within Server Components.
+- **Form Handling**: Use `react-hook-form` and `zod` for validation.
+
+## 💡 Code Quality
+- Ensure all components are responsive (mobile-first approach).
+- Strictly adhere to TypeScript types; avoid `any`.
+- Homogenize styling across all modules: Analytics, KPIs, and Home must share the same premium look.
+- Use `lucide-react` for icons.
+
+---
+*Follow these rules to maintain the "Antigravity Pop" premium feel throughout the application.*
