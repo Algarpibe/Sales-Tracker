@@ -35,7 +35,10 @@ import {
   Plus,
   X,
   Check,
-  Filter
+  Filter,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { GroupingManager } from "./grouping-manager";
@@ -67,6 +70,10 @@ export function GroupingAnalysisCard({ categories, recordType: initialRecordType
   const [recordType, setRecordType] = useState<RecordType>(initialRecordType);
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
   const [popoverOpen, setPopoverOpen] = useState(false);
+  const [sortConfig, setSortConfig] = useState<{
+    key: string;
+    direction: "asc" | "desc";
+  } | null>(null);
 
   // Sync with prop if it changes from outside
   useEffect(() => {
@@ -99,6 +106,58 @@ export function GroupingAnalysisCard({ categories, recordType: initialRecordType
     if (selectedGroupIds.length === 0) return data.rows;
     return data.rows.filter(row => selectedGroupIds.includes(row.groupId));
   }, [data, selectedGroupIds]);
+
+  // Sort rows
+  const sortedRows = useMemo(() => {
+    let sortableRows = [...filteredRows];
+    if (sortConfig !== null) {
+      sortableRows.sort((a, b) => {
+        let aValue: any;
+        let bValue: any;
+
+        if (sortConfig.key === "name") {
+          aValue = a.groupName.toLowerCase();
+          bValue = b.groupName.toLowerCase();
+        } else if (sortConfig.key.startsWith("year_")) {
+          const parts = sortConfig.key.split("_");
+          const year = parseInt(parts[1]);
+          const sub = parts[2] === "amount" ? "amount" : "percentage";
+          aValue = a.years[year]?.[sub] || 0;
+          bValue = b.years[year]?.[sub] || 0;
+        } else if (sortConfig.key === "avg_amount") {
+          aValue = a.average.amount;
+          bValue = b.average.amount;
+        } else if (sortConfig.key === "avg_pcnt") {
+          aValue = a.average.percentage;
+          bValue = b.average.percentage;
+        }
+
+        if (aValue < bValue) return sortConfig.direction === "asc" ? -1 : 1;
+        if (aValue > bValue) return sortConfig.direction === "asc" ? 1 : -1;
+        return 0;
+      });
+    }
+    return sortableRows;
+  }, [filteredRows, sortConfig]);
+
+  const onSort = (key: string) => {
+    let direction: "asc" | "desc" = "desc";
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === "desc") {
+      direction = "asc";
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const SortIcon = ({ columnKey }: { columnKey: string }) => {
+    if (sortConfig?.key !== columnKey) {
+      return <ArrowUpDown className="ml-1 h-3 w-3 opacity-30 group-hover:opacity-60 transition-opacity" />;
+    }
+    return sortConfig.direction === "asc" ? (
+      <ArrowUp className="ml-1 h-3 w-3 text-primary animate-in fade-in zoom-in-50 duration-300" />
+    ) : (
+      <ArrowDown className="ml-1 h-3 w-3 text-primary animate-in fade-in zoom-in-50 duration-300" />
+    );
+  };
 
   // Pie chart data from averages
   const pieData = useMemo(() => {
@@ -308,7 +367,14 @@ export function GroupingAnalysisCard({ categories, recordType: initialRecordType
             <Table className="relative min-w-[1000px]">
               <TableHeader className="bg-black/5 dark:bg-white/5 backdrop-blur-md sticky top-0 z-10">
                 <TableRow className="border-b-0 hover:bg-transparent text-foreground/80">
-                  <TableHead className="font-bold text-foreground text-base sticky left-0 bg-inherit/90 backdrop-blur-md border-r border-white/5 pr-6 py-4">Grupo</TableHead>
+                  <TableHead 
+                    className="font-bold text-foreground text-sm uppercase tracking-wider sticky left-0 bg-inherit/90 backdrop-blur-md border-r border-white/5 pr-6 py-4 cursor-pointer hover:text-primary transition-colors group"
+                    onClick={() => onSort("name")}
+                  >
+                    <div className="flex items-center">
+                      Grupo <SortIcon columnKey="name" />
+                    </div>
+                  </TableHead>
                   {data.years.map(year => (
                     <TableHead key={year} className="text-center font-bold text-foreground text-base py-4" colSpan={2}>
                       {year}
@@ -318,22 +384,50 @@ export function GroupingAnalysisCard({ categories, recordType: initialRecordType
                     PROMEDIO
                   </TableHead>
                 </TableRow>
-                <TableRow className="border-b-0 hover:bg-transparent text-xs uppercase tracking-tighter text-muted-foreground">
+                <TableRow className="border-b-0 hover:bg-transparent text-[10px] uppercase tracking-wider text-muted-foreground/60 select-none">
                   <TableHead className="sticky left-0 bg-inherit/90 backdrop-blur-md border-r border-white/5" />
                   {data.years.map(year => (
                     <React.Fragment key={`sub-${year}`}>
-                      <TableHead className="text-center border-l border-white/5">Monto</TableHead>
-                      <TableHead className="text-center">%</TableHead>
+                      <TableHead 
+                        className="text-center border-l border-white/5 cursor-pointer hover:bg-white/5 hover:text-foreground transition-all group"
+                        onClick={() => onSort(`year_${year}_amount`)}
+                      >
+                        <div className="flex items-center justify-center">
+                          Monto <SortIcon columnKey={`year_${year}_amount`} />
+                        </div>
+                      </TableHead>
+                      <TableHead 
+                        className="text-center cursor-pointer hover:bg-white/5 hover:text-foreground transition-all group"
+                        onClick={() => onSort(`year_${year}_percentage`)}
+                      >
+                        <div className="flex items-center justify-center">
+                          % <SortIcon columnKey={`year_${year}_percentage`} />
+                        </div>
+                      </TableHead>
                     </React.Fragment>
                   ))}
                   <React.Fragment key="sub-avg">
-                    <TableHead className="text-center bg-primary/5 border-l border-white/5">Monto</TableHead>
-                    <TableHead className="text-center bg-primary/5">%</TableHead>
+                    <TableHead 
+                      className="text-center bg-primary/5 border-l border-white/5 cursor-pointer hover:bg-primary/10 hover:text-primary transition-all group"
+                      onClick={() => onSort("avg_amount")}
+                    >
+                      <div className="flex items-center justify-center font-bold">
+                        Monto <SortIcon columnKey="avg_amount" />
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="text-center bg-primary/5 cursor-pointer hover:bg-primary/10 hover:text-primary transition-all group"
+                      onClick={() => onSort("avg_pcnt")}
+                    >
+                      <div className="flex items-center justify-center font-bold">
+                        % <SortIcon columnKey="avg_pcnt" />
+                      </div>
+                    </TableHead>
                   </React.Fragment>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredRows.map((row, idx) => (
+                {sortedRows.map((row, idx) => (
                   <TableRow key={row.groupId} className={cn("group transition-colors", idx % 2 === 0 ? "bg-white/5 hover:bg-white/10" : "bg-transparent hover:bg-white/5")}>
                     <TableCell className="font-semibold text-foreground text-sm sticky left-0 bg-inherit/90 backdrop-blur-md border-r border-white/5 flex items-center gap-2 py-4">
                       <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: row.color }} />
