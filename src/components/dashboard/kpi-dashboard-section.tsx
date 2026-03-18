@@ -33,40 +33,29 @@ export function KPIDashboardSection({
   return (
     <div className="space-y-8">
       {showGrid && (
-        <>
-          {/* Cabecera Sección */}
-          <div className="space-y-1">
-            <h2 className="text-2xl font-bold tracking-tight">Ventas & Riesgo (KPIs)</h2>
-            <p className="text-sm text-muted-foreground">
-              Indicadores ejecutivos y análisis de liquidez pendiente.
-            </p>
-          </div>
-
-          {/* Grid de KPIs - Fila 1 */}
-          <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
-            <KPICard 
-              title="Ventas Comprometidas (OV)" 
-              value={formatUSD(metrics.sales_orders)} 
-              icon={ShoppingCart} 
-              variant="premium"
-            />
-            <KPICard 
-              title="Total Facturado" 
-              value={formatUSD(metrics.invoices)} 
-              icon={FileText} 
-              variant="premium"
-            />
-            <BacklogCard 
-              value={formatUSD(metrics.backlog)} 
-              percentageGoal={backlogPercentageOfSales} 
-              className="lg:col-span-1"
-            />
-            <ExecutionCard 
-              percentage={metrics.execution_rate} 
-              className="lg:col-span-1"
-            />
-          </div>
-        </>
+        <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
+          <KPICard 
+            title="Ventas Comprometidas (OV)" 
+            value={formatUSD(metrics.sales_orders)} 
+            icon={ShoppingCart} 
+            variant="premium"
+          />
+          <KPICard 
+            title="Total Facturado" 
+            value={formatUSD(metrics.invoices)} 
+            icon={FileText} 
+            variant="premium"
+          />
+          <BacklogCard 
+            value={formatUSD(metrics.backlog)} 
+            percentageGoal={backlogPercentageOfSales} 
+            className="lg:col-span-1"
+          />
+          <ExecutionCard 
+            percentage={metrics.execution_rate} 
+            className="lg:col-span-1"
+          />
+        </div>
       )}
 
       {/* Grid de Gráficos - Fila 2 */}
