@@ -277,7 +277,7 @@ export function GroupingAnalysisCard({ categories, recordType: initialRecordType
           
           {/* Group Multi-Select Filter */}
           <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
-            <PopoverTrigger>
+            <PopoverTrigger render={
               <Button 
                 variant="outline" 
                 size="sm"
@@ -289,7 +289,7 @@ export function GroupingAnalysisCard({ categories, recordType: initialRecordType
                   : `${selectedGroupIds.length} Grupos`}
                 <Plus className="h-3 w-3 ml-1 opacity-50" />
               </Button>
-            </PopoverTrigger>
+            } />
             <PopoverContent className="w-[300px] p-0 bg-background/95 backdrop-blur-xl border-white/10 shadow-2xl" align="end">
               <Command>
                 <CommandInput placeholder="Filtrar grupos..." className="h-9" />
