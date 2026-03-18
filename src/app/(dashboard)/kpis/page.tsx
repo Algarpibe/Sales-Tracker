@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { getYearRange, formatUSD } from "@/lib/constants";
+import { getYearRange } from "@/lib/constants";
 import {
   Select,
   SelectContent,
@@ -12,16 +12,9 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 
-// Componentes Estándar
-import { KPICard } from "@/components/cards/kpi-card";
-import { ShoppingCart, FileText } from "lucide-react";
-
 // Componentes Premium (Antigravity)
-import { BacklogCard } from "@/components/cards/premium/backlog-card";
-import { ExecutionCard } from "@/components/cards/premium/execution-card";
-import { AgingCard } from "@/components/cards/premium/aging-card";
-import { ConcentrationCard } from "@/components/cards/premium/concentration-card";
 import { MeshBackground } from "@/components/ui/mesh-background";
+import { KPIDashboardSection } from "@/components/dashboard/kpi-dashboard-section";
 
 export default function KPIsPage() {
   const [year, setYear] = useState(new Date().getFullYear());
@@ -100,7 +93,8 @@ export default function KPIsPage() {
 
               // Cálculo estimado de días de antigüedad
               const ageMonths = (currentYearDB - year) * 12 + (currentMonth - m);
-              const ageDays = Math.max(0, ageMonths * 30);
+              const ageMonthsFloat = ageMonths; // keep it simple
+              const ageDays = Math.max(0, ageMonthsFloat * 30);
 
               if (ageDays <= 30) lowRisk += netBacklog;
               else if (ageDays <= 90) mediumRisk += netBacklog;
@@ -155,73 +149,36 @@ export default function KPIsPage() {
     );
   }
 
-  const backlogPercentageOfSales = metrics.sales_orders > 0 
-    ? (metrics.backlog / metrics.sales_orders) * 100 
-    : 0;
-
   return (
     <div className="relative min-h-screen">
       <MeshBackground />
       <div className="space-y-8 max-w-full px-4 mx-auto relative z-10 pb-20">
-      {/* Cabecera */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="space-y-1">
-          <h1 className="text-3xl font-bold tracking-tight">Ventas &amp; Riesgo (KPIs)</h1>
-          <p className="text-muted-foreground">
-            Indicadores ejecutivos y análisis de liquidez pendiente para {year}.
-          </p>
+        {/* Cabecera */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-1">
+            <h1 className="text-3xl font-bold tracking-tight">Ventas &amp; Riesgo (KPIs)</h1>
+            <p className="text-muted-foreground">
+              Indicadores ejecutivos y análisis de liquidez pendiente para {year}.
+            </p>
+          </div>
+          <Select value={String(year)} onValueChange={(v) => setYear(Number(v))}>
+            <SelectTrigger className="w-[160px] bg-card/50 backdrop-blur-sm">
+              <SelectValue placeholder="Año fiscal" />
+            </SelectTrigger>
+            <SelectContent>
+              {getYearRange().map((y) => (
+                <SelectItem key={y} value={String(y)}>
+                  {y}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
-        <Select value={String(year)} onValueChange={(v) => setYear(Number(v))}>
-          <SelectTrigger className="w-[160px] bg-card/50 backdrop-blur-sm">
-            <SelectValue placeholder="Año fiscal" />
-          </SelectTrigger>
-          <SelectContent>
-            {getYearRange().map((y) => (
-              <SelectItem key={y} value={String(y)}>
-                {y}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
 
-      {/* Fila 1: Resumen Ejecutivo */}
-      <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
-        {/* Usando tarjetas estándar para los totales base */}
-        <KPICard 
-          title="Ventas Comprometidas (OV)" 
-          value={formatUSD(metrics.sales_orders)} 
-          icon={ShoppingCart} 
-          variant="premium"
-        />
-        <KPICard 
-          title="Total Facturado" 
-          value={formatUSD(metrics.invoices)} 
-          icon={FileText} 
-          variant="premium"
-        />
-        {/* Componentes Premium para los KPIs core */}
-        <BacklogCard 
-          value={formatUSD(metrics.backlog)} 
-          percentageGoal={backlogPercentageOfSales} 
-          className="lg:col-span-1"
-        />
-        <ExecutionCard 
-          percentage={metrics.execution_rate} 
-          className="lg:col-span-1"
-        />
-      </div>
-
-      {/* Fila 2: Análisis de Riesgo y Origen */}
-      <div className="grid gap-6 grid-cols-1 lg:grid-cols-5">
-        <div className="lg:col-span-3 h-full">
-          <AgingCard data={metrics.aging} className="h-full" />
-        </div>
-        <div className="lg:col-span-2 h-full">
-          <ConcentrationCard data={metrics.concentration} className="h-full" />
-        </div>
-      </div>
+        {/* Dashboard Section */}
+        <KPIDashboardSection metrics={metrics} />
       </div>
     </div>
   );
 }
+
