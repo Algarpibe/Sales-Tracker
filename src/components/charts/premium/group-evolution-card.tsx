@@ -216,7 +216,7 @@ export function GroupEvolutionCard({ savedGroups, recordType: initialRecordType 
 
           {/* Group Multi-Select */}
           <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
-            <PopoverTrigger>
+            <PopoverTrigger render={
               <Button 
                 variant="outline" 
                 className="bg-background/40 border-white/10 hover:bg-background/60 h-10 gap-2 font-medium"
@@ -225,7 +225,7 @@ export function GroupEvolutionCard({ savedGroups, recordType: initialRecordType 
                 {selectedGroupIds.length === 0 ? "Seleccionar Grupos..." : `${selectedGroupIds.length} Grupos Seleccionados`}
                 <Plus className="h-3 w-3 ml-1 opacity-50" />
               </Button>
-            </PopoverTrigger>
+            } />
             <PopoverContent className="w-[300px] p-0 bg-background/95 backdrop-blur-xl border-white/10 shadow-2xl" align="end">
               <Command>
                 <CommandInput placeholder="Buscar grupos..." className="h-11" />
