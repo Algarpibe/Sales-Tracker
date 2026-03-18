@@ -20,7 +20,6 @@ import { useState } from "react";
 
 const navItems = [
   { href: "/home", label: "Inicio", icon: Home },
-  { href: "/kpis", label: "KPIs Premium", icon: Target },
   { href: "/tablas", label: "Tablas", icon: BarChart3 },
   { href: "/analytics", label: "Análisis", icon: TrendingUp },
   { href: "/import", label: "Importar", icon: FileUp },
