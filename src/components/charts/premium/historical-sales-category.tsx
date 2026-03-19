@@ -24,7 +24,7 @@ import { createClient } from "@/lib/supabase/client";
 
 // --- Types ---
 type RecordType = "SALES_ORDER" | "INVOICE";
-type ViewMode = "ANNUAL" | "MONTHLY";
+type ViewMode = "ANNUAL" | "MONTHLY" | "QUARTERLY";
 
 interface CategoryInfo {
   id: string;
@@ -56,6 +56,7 @@ export function HistoricalSalesCategory() {
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
   const [annualData, setAnnualData] = useState<Record<string, any>[]>([]);
   const [monthlyData, setMonthlyData] = useState<Record<number, Record<string, any>[]>>({});
+  const [quarterlyData, setQuarterlyData] = useState<Record<number, Record<string, any>[]>>({});
   const [openPopover, setOpenPopover] = useState(false);
   const [availableYears, setAvailableYears] = useState<number[]>([]);
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
@@ -135,6 +136,8 @@ export function HistoricalSalesCategory() {
 
         // --- 3. Monthly Aggregation for each year ---
         const monthlyRecords: Record<number, Record<string, any>[]> = {};
+        const quarterlyRecords: Record<number, Record<string, any>[]> = {};
+
         years.forEach(year => {
           // Initialize 12 months
           const yearMonths = MONTHS.map((m, idx) => ({ month: m, monthIdx: idx + 1 }));
@@ -155,8 +158,28 @@ export function HistoricalSalesCategory() {
             });
             return dataPoint;
           });
+
+          // --- 4. Quarterly Aggregation ---
+          const qs = [
+            { label: "T1", months: [1, 2, 3] },
+            { label: "T2", months: [4, 5, 6] },
+            { label: "T3", months: [7, 8, 9] },
+            { label: "T4", months: [10, 11, 12] },
+          ];
+
+          quarterlyRecords[year] = qs.map(q => {
+            const dataPoint: Record<string, any> = { quarter: q.label };
+            q.months.forEach(mIdx => {
+              Object.entries(yearGrouped[mIdx]).forEach(([catId, total]) => {
+                dataPoint[catId] = (dataPoint[catId] || 0) + (Math.round(total * 100) / 100);
+              });
+            });
+            return dataPoint;
+          });
         });
+
         setMonthlyData(monthlyRecords);
+        setQuarterlyData(quarterlyRecords);
 
       } catch (err) {
         console.error("Critical error fetching sales data:", err);
@@ -196,7 +219,7 @@ export function HistoricalSalesCategory() {
       return (
         <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-black/5 dark:border-white/5 p-4 rounded-xl shadow-2xl min-w-[240px]">
           <h3 className="text-lg font-bold mb-3 text-slate-800 dark:text-slate-200 border-b border-black/5 dark:border-white/5 pb-2">
-            {viewMode === "MONTHLY" ? `${label} ${selectedYear}` : label}
+            {viewMode === "ANNUAL" ? label : `${label} ${selectedYear}`}
           </h3>
           <div className="space-y-2">
             {sortedPayload.map((entry: any, index: number) => {
@@ -238,8 +261,9 @@ export function HistoricalSalesCategory() {
 
   const currentChartData = useMemo(() => {
     if (viewMode === "ANNUAL") return annualData;
+    if (viewMode === "QUARTERLY") return selectedYear ? quarterlyData[selectedYear] || [] : [];
     return selectedYear ? monthlyData[selectedYear] || [] : [];
-  }, [viewMode, annualData, monthlyData, selectedYear]);
+  }, [viewMode, annualData, monthlyData, quarterlyData, selectedYear]);
 
   const renderContent = () => {
     if (isLoading) {
@@ -292,7 +316,7 @@ export function HistoricalSalesCategory() {
           >
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--muted-foreground) / 0.1)" />
             <XAxis
-              dataKey={viewMode === "ANNUAL" ? "year" : "month"}
+              dataKey={viewMode === "ANNUAL" ? "year" : viewMode === "QUARTERLY" ? "quarter" : "month"}
               axisLine={false}
               tickLine={false}
               tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12, fontWeight: 500 }}
@@ -332,13 +356,11 @@ export function HistoricalSalesCategory() {
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
           <div className="space-y-1">
             <CardTitle className="text-2xl font-bold flex items-center gap-2">
-              <Activity className="h-5 w-5 text-primary" /> Histórico {viewMode === "MONTHLY" ? "Mensual" : "por Categoría"}
+              <Activity className="h-5 w-5 text-primary" /> Histórico {viewMode === "MONTHLY" ? "Mensual" : viewMode === "QUARTERLY" ? "Trimestral" : "Anual"}
             </CardTitle>
-            <CardDescription className="text-base">
-              {viewMode === "MONTHLY" 
-                ? `Evolución mensual del año ${selectedYear} para categorías seleccionadas.`
-                : `Evolución de ventas anuales segmentadas (${availableYears[0]}–${availableYears[availableYears.length - 1]}).`}
-            </CardDescription>
+              {viewMode === "ANNUAL" 
+                ? `Evolución de ventas anuales segmentadas (${availableYears[0]}–${availableYears[availableYears.length - 1]}).`
+                : `Evolución ${viewMode === "QUARTERLY" ? "trimestral" : "mensual"} del año ${selectedYear} para categorías seleccionadas.`}
           </div>
 
           <div className="flex flex-col sm:flex-row items-end sm:items-center gap-4 w-full lg:w-auto">
@@ -349,9 +371,10 @@ export function HistoricalSalesCategory() {
               onValueChange={(v) => setViewMode(v as ViewMode)}
               className="w-full sm:w-auto"
             >
-              <TabsList className="grid w-full grid-cols-2 bg-black/20 p-1 border border-white/5 rounded-xl h-10">
-                <TabsTrigger value="ANNUAL" className="text-xs font-bold uppercase tracking-wider">Anual</TabsTrigger>
-                <TabsTrigger value="MONTHLY" className="text-xs font-bold uppercase tracking-wider">Mensual</TabsTrigger>
+              <TabsList className="grid w-full grid-cols-3 bg-black/20 p-1 border border-white/5 rounded-xl h-10">
+                <TabsTrigger value="ANNUAL" className="text-[10px] font-bold uppercase tracking-wider">Anual</TabsTrigger>
+                <TabsTrigger value="QUARTERLY" className="text-[10px] font-bold uppercase tracking-wider">Trimestral</TabsTrigger>
+                <TabsTrigger value="MONTHLY" className="text-[10px] font-bold uppercase tracking-wider">Mensual</TabsTrigger>
               </TabsList>
             </Tabs>
 
@@ -418,9 +441,9 @@ export function HistoricalSalesCategory() {
           </div>
         </div>
 
-        {/* YEAR SELECTION - BUTTON BOX (Only in Monthly View) */}
+        {/* YEAR SELECTION - BUTTON BOX (Only in Monthly/Quarterly View) */}
         <AnimatePresence>
-          {viewMode === "MONTHLY" && (
+          {viewMode !== "ANNUAL" && (
             <motion.div
                initial={{ opacity: 0, y: -10 }}
                animate={{ opacity: 1, y: 0 }}
