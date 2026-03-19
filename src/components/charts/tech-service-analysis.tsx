@@ -70,25 +70,25 @@ export function TechServiceAnalysis({ data, yearA, yearB }: TechServiceAnalysisP
       const yoyAcum = getYoY(qData.acum, qData.acum_prev);
 
       return (
-        <div className="rounded-xl border border-white/10 bg-black/40 p-4 shadow-xl backdrop-blur-md">
-          <p className="mb-2 font-semibold text-foreground border-b border-white/10 pb-2">{label} {yearA ? `(${yearA})` : ''}</p>
+        <div className="rounded-xl border border-black/10 bg-white/80 p-4 shadow-2xl backdrop-blur-xl ring-1 ring-black/5">
+          <p className="mb-2 font-bold text-slate-800 border-b border-black/5 pb-2">{label} {yearA ? `(${yearA})` : ''}</p>
           <div className="space-y-1 text-sm">
             <p className="flex justify-between gap-6">
-              <span className="text-indigo-400">Servicio Técnico (ST):</span>
-              <span className="font-mono font-medium">{formatUSD(qData.st)}</span>
+              <span className="text-indigo-600 font-semibold">Servicio Técnico (ST):</span>
+              <span className="font-mono font-bold text-slate-700">{formatUSD(qData.st)}</span>
             </p>
             <p className="flex justify-between gap-6">
-              <span className="text-violet-400">Consumibles (C&R):</span>
-              <span className="font-mono font-medium">{formatUSD(qData.cr)}</span>
+              <span className="text-violet-600 font-semibold">Consumibles (C&R):</span>
+              <span className="font-mono font-bold text-slate-700">{formatUSD(qData.cr)}</span>
             </p>
-            <div className="my-1 h-px w-full bg-white/10" />
-            <p className="flex justify-between gap-6 font-semibold">
-              <span className="text-emerald-400">Acumulado Anual:</span>
-              <span className="font-mono">{formatUSD(qData.acum)}</span>
+            <div className="my-1 h-px w-full bg-black/5" />
+            <p className="flex justify-between gap-6 font-bold">
+              <span className="text-emerald-600">Acumulado Anual:</span>
+              <span className="font-mono text-emerald-700">{formatUSD(qData.acum)}</span>
             </p>
             <p className="flex justify-between gap-6 pt-1 text-xs">
-              <span className="text-muted-foreground">Crecimiento YoY (Acum):</span>
-              <span className="font-mono">{formatYoY(yoyAcum)}</span>
+              <span className="text-slate-500 font-medium">Crecimiento YoY (Acum):</span>
+              <span className="font-mono font-bold">{formatYoY(yoyAcum)}</span>
             </p>
           </div>
         </div>
@@ -159,7 +159,10 @@ export function TechServiceAnalysis({ data, yearA, yearB }: TechServiceAnalysisP
                 tick={{ fill: "oklch(0.65 0.19 155)", fontSize: 11 }}
                 tickFormatter={(val) => `$${(val / 1000).toFixed(0)}k`}
               />
-              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(0,0,0,0.03)', radius: 10 }} />
+            <Tooltip 
+              content={<CustomTooltip />} 
+              cursor={{ fill: "rgba(147, 197, 253, 0.15)", radius: 10 }} 
+            />
               <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{ paddingBottom: '30px', fontSize: '13px', fontWeight: 500 }} />
               
               <Bar 
