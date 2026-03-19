@@ -12,6 +12,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend,
 } from "recharts";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { FileText, Receipt } from "lucide-react";
 
 import { TechServiceAnalysis, TechServiceQuarterData } from "@/components/charts/tech-service-analysis";
 import { HistoricalSalesCategory } from "@/components/charts/premium/historical-sales-category";
@@ -188,9 +189,19 @@ export default function AnalyticsPage() {
             onValueChange={(v) => setRecordType(v as any)}
             className="w-full sm:w-auto"
           >
-            <TabsList className="grid w-full grid-cols-2 bg-card/50 backdrop-blur-sm border border-white/10 h-10">
-              <TabsTrigger value="SALES_ORDER" className="text-xs font-bold">Reserva (OV)</TabsTrigger>
-              <TabsTrigger value="INVOICE" className="text-xs font-bold">Venta (Factura)</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-2 bg-card/50 backdrop-blur-sm border border-white/10 h-10 p-1">
+              <TabsTrigger 
+                value="SALES_ORDER" 
+                className="text-[10px] h-8 font-bold gap-2 uppercase tracking-wider data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all"
+              >
+                <FileText className="h-3.5 w-3.5" /> ÓRDENES (OV)
+              </TabsTrigger>
+              <TabsTrigger 
+                value="INVOICE" 
+                className="text-[10px] h-8 font-bold gap-2 uppercase tracking-wider data-[state=active]:bg-emerald-500 data-[state=active]:text-white transition-all"
+              >
+                <Receipt className="h-3.5 w-3.5" /> FACTURAS (FAC)
+              </TabsTrigger>
             </TabsList>
           </Tabs>
 

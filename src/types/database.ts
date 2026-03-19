@@ -179,6 +179,7 @@ export interface GroupingAnalysisRow {
   groupName: string;
   color: string;
   years: Record<number, GroupYearData>; // year → {amount, percentage}
+  months?: Record<number, Record<number, number>>; // year → month → amount
   average: GroupYearData;               // Promedio
 }
 
