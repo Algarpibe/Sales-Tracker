@@ -260,7 +260,7 @@ export async function getGroupingAnalysisData(
   // 3. Fetch all sales records for the company and record type
   const { data: records, error: recordsError } = await supabase
     .from("sales_records")
-    .select("category_id, record_year, amount_usd")
+    .select("category_id, record_year, record_month, amount_usd")
     .eq("record_type", recordType);
 
   if (recordsError) throw new Error(recordsError.message);
@@ -268,16 +268,19 @@ export async function getGroupingAnalysisData(
   // 4. Aggregate: group → year → sum
   const yearsSet = new Set<number>();
   const groupYearSums: Record<string, Record<number, number>> = {};
+  const groupMonthSums: Record<string, Record<number, Record<number, number>>> = {}; // group -> year -> month -> amount
   const yearTotals: Record<number, number> = {};
 
   // Initialize group accumulators
   (groups as any[]).forEach((g) => {
     groupYearSums[g.id] = {};
+    groupMonthSums[g.id] = {};
   });
 
   (records || []).forEach((r: any) => {
     const catId = String(r.category_id);
     const year = Number(r.record_year);
+    const month = Number(r.record_month);
     const amount = Number(r.amount_usd) || 0;
     const groupId = catToGroup.get(catId);
 
@@ -286,6 +289,10 @@ export async function getGroupingAnalysisData(
 
     if (groupId && groupYearSums[groupId]) {
       groupYearSums[groupId][year] = (groupYearSums[groupId][year] || 0) + amount;
+      
+      // Monthly aggregation
+      if (!groupMonthSums[groupId][year]) groupMonthSums[groupId][year] = {};
+      groupMonthSums[groupId][year][month] = (groupMonthSums[groupId][year][month] || 0) + amount;
     }
   });
 
@@ -318,6 +325,7 @@ export async function getGroupingAnalysisData(
       groupName: g.name,
       color: groupColors.get(g.id) || "#6366f1",
       years: yearData,
+      months: groupMonthSums[g.id] || {},
       average: { amount: avgAmount, percentage: avgPercentage },
     };
   });
