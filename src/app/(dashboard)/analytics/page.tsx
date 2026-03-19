@@ -14,7 +14,7 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileText, Receipt } from "lucide-react";
 
-import { TechServiceAnalysis, TechServiceQuarterData } from "@/components/charts/tech-service-analysis";
+import { TechServiceAnalysis, TechServiceDataPoint, TechServiceViewMode } from "@/components/charts/tech-service-analysis";
 import { HistoricalSalesCategory } from "@/components/charts/premium/historical-sales-category";
 import { GroupingAnalysisCard } from "@/components/charts/premium/grouping-analysis-card";
 import { GroupEvolutionCard } from "@/components/charts/premium/group-evolution-card";
@@ -38,7 +38,8 @@ export default function AnalyticsPage() {
   const [yearB, setYearB] = useState(new Date().getFullYear() - 1);
   const [recordType, setRecordType] = useState<"SALES_ORDER" | "INVOICE">("SALES_ORDER");
   const [monthlyData, setMonthlyData] = useState<any[]>([]);
-  const [techServiceData, setTechServiceData] = useState<TechServiceQuarterData[]>([]);
+  const [techServiceViewMode, setTechServiceViewMode] = useState<"MONTHLY" | "QUARTERLY" | "ANNUAL">("QUARTERLY");
+  const [techServiceData, setTechServiceData] = useState<any[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [savedGroups, setSavedGroups] = useState<CategoryGroup[]>([]);
 
@@ -90,62 +91,59 @@ export default function AnalyticsPage() {
       });
       setMonthlyData(parsedMonthlyData);
 
-      // 2. Datos para Análisis de Servicio Técnico (Trimestral)
-      // Función helper para procesar un año específico
-      const processYearData = (records: any[]) => {
-        let qs = [
-          { st: 0, cr: 0 }, // Q1
-          { st: 0, cr: 0 }, // Q2
-          { st: 0, cr: 0 }, // Q3
-          { st: 0, cr: 0 }  // Q4
+      // 2. Datos para Análisis Financiero (Dinamizado por viewMode)
+      let timeSlots: { label: string; months: number[] }[] = [];
+
+      if (techServiceViewMode === "MONTHLY") {
+        timeSlots = MONTHS.map(m => ({ label: m.label, months: [m.value] }));
+      } else if (techServiceViewMode === "QUARTERLY") {
+        timeSlots = [
+          { label: "T1", months: [1, 2, 3] },
+          { label: "T2", months: [4, 5, 6] },
+          { label: "T3", months: [7, 8, 9] },
+          { label: "T4", months: [10, 11, 12] },
         ];
-
-        records.filter((r: any) => r.record_type === recordType).forEach((r: any) => {
-          const categoryName = catMap.get(r.category_id);
-          const amount = Number(r.amount_usd);
-          const month = Number(r.record_month);
-          
-          if (!categoryName) return;
-
-          let qIndex = -1;
-          if (month >= 1 && month <= 3) qIndex = 0;
-          else if (month >= 4 && month <= 6) qIndex = 1;
-          else if (month >= 7 && month <= 9) qIndex = 2;
-          else if (month >= 10 && month <= 12) qIndex = 3;
-
-          if (qIndex === -1) return;
-
-          if (ST_CATEGORIES.includes(categoryName)) {
-            qs[qIndex].st += amount;
-          } else if (CR_CATEGORIES.includes(categoryName)) {
-            qs[qIndex].cr += amount;
-          }
-        });
-        return qs;
-      };
-
-      const qsA = processYearData(dataA);
-      const qsB = processYearData(dataB);
+      } else {
+        // ANNUAL
+        timeSlots = [{ label: "Anual", months: [1,2,3,4,5,6,7,8,9,10,11,12] }];
+      }
 
       let acumA = 0;
       let acumB = 0;
 
-      const techData: TechServiceQuarterData[] = qsA.map((qA, idx) => {
-        const qB = qsB[idx];
-        const totalA = qA.st + qA.cr;
-        const totalB = qB.st + qB.cr;
-        
+      const techData = timeSlots.map(slot => {
+        const recordsA = dataA.filter((r: any) => slot.months.includes(Number(r.record_month)) && r.record_type === recordType);
+        const recordsB = dataB.filter((r: any) => slot.months.includes(Number(r.record_month)) && r.record_type === recordType);
+
+        let stA = 0, crA = 0, stB = 0, crB = 0;
+
+        recordsA.forEach((r: any) => {
+          const catName = catMap.get(r.category_id);
+          const amt = Number(r.amount_usd);
+          if (catName && ST_CATEGORIES.includes(catName)) stA += amt;
+          else if (catName && CR_CATEGORIES.includes(catName)) crA += amt;
+        });
+
+        recordsB.forEach((r: any) => {
+          const catName = catMap.get(r.category_id);
+          const amt = Number(r.amount_usd);
+          if (catName && ST_CATEGORIES.includes(catName)) stB += amt;
+          else if (catName && CR_CATEGORIES.includes(catName)) crB += amt;
+        });
+
+        const totalA = stA + crA;
+        const totalB = stB + crB;
         acumA += totalA;
         acumB += totalB;
 
         return {
-          quarter: `T${idx + 1}`,
-          st: qA.st,
-          cr: qA.cr,
+          label: slot.label,
+          st: stA,
+          cr: crA,
           total: totalA,
           acum: acumA,
-          st_prev: qB.st,
-          cr_prev: qB.cr,
+          st_prev: stB,
+          cr_prev: crB,
           total_prev: totalB,
           acum_prev: acumB,
         };
@@ -158,7 +156,7 @@ export default function AnalyticsPage() {
     } finally {
       setLoading(false);
     }
-  }, [yearA, yearB, recordType, supabase]);
+  }, [yearA, yearB, recordType, techServiceViewMode, supabase]);
 
   useEffect(() => {
     fetchData();
@@ -271,7 +269,13 @@ export default function AnalyticsPage() {
       </Card>
 
       {/* Fase 9: Technical Service Analysis */}
-      <TechServiceAnalysis data={techServiceData} yearA={yearA} yearB={yearB} />
+      <TechServiceAnalysis 
+        data={techServiceData} 
+        yearA={yearA} 
+        yearB={yearB} 
+        viewMode={techServiceViewMode}
+        onViewModeChange={setTechServiceViewMode}
+      />
 
       {/* Fase 10: Historical Annual Sales by Category */}
       <HistoricalSalesCategory />

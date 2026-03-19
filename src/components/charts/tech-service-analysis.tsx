@@ -14,8 +14,8 @@ import {
   Legend
 } from "recharts";
 
-export interface TechServiceQuarterData {
-  quarter: string; // T1, T2, T3, T4
+export interface TechServiceDataPoint {
+  label: string; // T1, Ene, 2024, etc.
   st: number;
   cr: number;
   total: number;
@@ -26,10 +26,14 @@ export interface TechServiceQuarterData {
   acum_prev: number;
 }
 
+export type TechServiceViewMode = 'MONTHLY' | 'QUARTERLY' | 'ANNUAL';
+
 interface TechServiceAnalysisProps {
-  data: TechServiceQuarterData[];
+  data: TechServiceDataPoint[];
   yearA?: number;
   yearB?: number;
+  viewMode: TechServiceViewMode;
+  onViewModeChange: (mode: TechServiceViewMode) => void;
 }
 
 // Utilidad para calcular el YoY Growth percentage
@@ -60,19 +64,18 @@ function formatYoY(value: number | null): React.ReactNode {
   );
 }
 
-export function TechServiceAnalysis({ data, yearA, yearB }: TechServiceAnalysisProps) {
-  // Custom Tooltip para el Gráfico
-  // Custom Tooltip para el Gráfico
+export function TechServiceAnalysis({ data, yearA, yearB, viewMode, onViewModeChange }: TechServiceAnalysisProps) {
+  // Custom Tooltip
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
-      const qData = data.find(d => d.quarter === label);
+      const qData = data.find(d => d.label === label);
       if (!qData) return null;
 
       const yoyAcum = getYoY(qData.acum, qData.acum_prev);
 
       return (
         <div className="rounded-xl border border-black/10 bg-white/80 p-4 shadow-2xl backdrop-blur-xl ring-1 ring-black/5 min-w-[280px]">
-          <p className="mb-2 font-bold text-slate-800 border-b border-black/5 pb-2">{label} - Comparativa</p>
+          <p className="mb-2 font-bold text-slate-800 border-b border-black/5 pb-2 text-base">{label} - Comparativa</p>
           
           <div className="space-y-4">
             {/* Año Principal */}
@@ -80,11 +83,11 @@ export function TechServiceAnalysis({ data, yearA, yearB }: TechServiceAnalysisP
               <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-1">{yearA}</p>
               <div className="space-y-1 text-sm">
                 <p className="flex justify-between gap-6">
-                  <span className="text-slate-500">Servicio Técnico (ST):</span>
+                  <span className="text-slate-500 font-medium">Servicio Técnico (ST):</span>
                   <span className="font-mono font-bold text-slate-700">{formatUSD(qData.st)}</span>
                 </p>
                 <p className="flex justify-between gap-6">
-                  <span className="text-slate-500">Consumibles (C&R):</span>
+                  <span className="text-slate-500 font-medium">Consumibles (C&R):</span>
                   <span className="font-mono font-bold text-slate-700">{formatUSD(qData.cr)}</span>
                 </p>
               </div>
@@ -95,24 +98,24 @@ export function TechServiceAnalysis({ data, yearA, yearB }: TechServiceAnalysisP
               <p className="text-[10px] font-black text-orange-500 uppercase tracking-widest mb-1">{yearB}</p>
               <div className="space-y-1 text-sm">
                 <p className="flex justify-between gap-6">
-                  <span className="text-orange-600/70">Servicio Técnico (ST):</span>
-                  <span className="font-mono font-bold text-orange-650">{formatUSD(qData.st_prev)}</span>
+                  <span className="text-orange-600/70 font-medium">Servicio Técnico (ST):</span>
+                  <span className="font-mono font-bold text-orange-700">{formatUSD(qData.st_prev)}</span>
                 </p>
                 <p className="flex justify-between gap-6">
-                  <span className="text-amber-600/70">Consumibles (C&R):</span>
+                  <span className="text-amber-600/70 font-medium">Consumibles (C&R):</span>
                   <span className="font-mono font-bold text-amber-600">{formatUSD(qData.cr_prev)}</span>
                 </p>
               </div>
             </div>
 
-            {/* Métricas Acumuladas / YoY */}
+            {/* Métricas Acumuladas */}
             <div className="pt-3 border-t border-black/5">
               <p className="flex justify-between gap-6 font-bold text-sm">
                 <span className="text-emerald-600">Acumulado {yearA}:</span>
                 <span className="font-mono text-emerald-500">{formatUSD(qData.acum)}</span>
               </p>
               <p className="flex justify-between gap-6 pt-1 text-xs">
-                <span className="text-slate-500 font-medium">Crecimiento YoY (Acum):</span>
+                <span className="text-slate-500 font-medium">Variación (Acum):</span>
                 <span className="font-mono font-bold">{formatYoY(yoyAcum)}</span>
               </p>
             </div>
@@ -123,7 +126,6 @@ export function TechServiceAnalysis({ data, yearA, yearB }: TechServiceAnalysisP
     return null;
   };
 
-  // Calcular totales anuales para la última columna de la tabla
   const totals = data.reduce(
     (acc, curr) => ({
       st: acc.st + curr.st,
@@ -139,20 +141,45 @@ export function TechServiceAnalysis({ data, yearA, yearB }: TechServiceAnalysisP
   return (
     <div className="flex w-full flex-col overflow-hidden rounded-3xl border border-white/20 bg-white/40 shadow-[0_20px_50px_rgba(0,0,0,0.05)] backdrop-blur-2xl transition-all duration-500 hover:shadow-[0_20px_60px_rgba(0,0,0,0.08)] dark:bg-black/40 dark:border-white/10">
       {/* Header */}
-      <div className="border-b border-black/5 dark:border-white/5 p-8 bg-gradient-to-br from-indigo-500/5 via-transparent to-transparent">
-        <div className="flex items-center justify-between">
-          <div>
+      <div className="border-b border-black/5 dark:border-white/5 p-8 bg-black/5 dark:bg-white/5">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-1">
             <h3 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
               Análisis Financiero
             </h3>
-            <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1 uppercase tracking-widest">
+            <p className="text-sm font-medium text-slate-500 dark:text-slate-400 uppercase tracking-widest">
               Business Intelligence • ST & Consumibles
             </p>
           </div>
-          <div className="hidden sm:block text-right">
-            <span className="text-xs font-bold text-indigo-500 dark:text-indigo-400 border border-indigo-500/20 px-3 py-1 rounded-full bg-indigo-500/5">
-              Comparative Analysis {yearA} vs {yearB}
-            </span>
+          
+          <div className="flex flex-wrap items-center gap-3">
+            {/* RESOLUTION FILTER */}
+            <div className="bg-black/10 dark:bg-white/10 p-1 rounded-xl flex gap-1">
+              {[
+                { id: 'MONTHLY', label: 'Mensual' },
+                { id: 'QUARTERLY', label: 'Trimestral' },
+                { id: 'ANNUAL', label: 'Anual' }
+              ].map((m) => (
+                <button
+                  key={m.id}
+                  onClick={() => onViewModeChange(m.id as TechServiceViewMode)}
+                  className={cn(
+                    "px-4 py-1.5 text-[11px] font-bold uppercase tracking-wider rounded-lg transition-all",
+                    viewMode === m.id 
+                      ? "bg-white dark:bg-black/50 text-indigo-600 dark:text-indigo-400 shadow-sm" 
+                      : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                  )}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="hidden sm:block text-right">
+              <span className="text-base font-bold text-indigo-500 dark:text-indigo-400 px-3 py-1 bg-indigo-500/10 rounded-lg">
+                {yearA} vs {yearB}
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -161,14 +188,15 @@ export function TechServiceAnalysis({ data, yearA, yearB }: TechServiceAnalysisP
         {/* PARTE 1: Visual Analytics (Gráfico) */}
         <div className="h-[380px] w-full relative">
           <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={data} margin={{ top: 20, right: 10, left: 10, bottom: 0 }}>
+            <ComposedChart data={data} margin={{ top: 20, right: 10, left: 10, bottom: 25 }}>
               <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="rgba(0,0,0,0.05)" className="dark:stroke-white/5" />
               <XAxis 
-                dataKey="quarter" 
+                dataKey="label" 
                 axisLine={false} 
                 tickLine={false} 
-                tick={{ fill: "rgba(0,0,0,0.4)", fontSize: 13, fontWeight: 600 }} 
-                dy={15}
+                tick={{ fill: "rgba(0,0,0,0.4)", fontSize: 12, fontWeight: 700 }} 
+                dy={10}
+                interval={viewMode === 'MONTHLY' ? 0 : "preserveStart"}
               />
               <YAxis 
                 yAxisId="left"
@@ -199,7 +227,7 @@ export function TechServiceAnalysis({ data, yearA, yearB }: TechServiceAnalysisP
                 stackId="yearA" 
                 fill="oklch(0.55 0.18 255)" 
                 radius={[0, 0, 0, 0]} 
-                barSize={32}
+                barSize={viewMode === 'MONTHLY' ? 14 : 32}
               />
               <Bar 
                 yAxisId="left" 
@@ -207,8 +235,8 @@ export function TechServiceAnalysis({ data, yearA, yearB }: TechServiceAnalysisP
                 name={`C&R (${yearA})`} 
                 stackId="yearA" 
                 fill="oklch(0.6 0.2 300)" 
-                radius={[6, 6, 0, 0]} 
-                barSize={32}
+                radius={[4, 4, 0, 0]} 
+                barSize={viewMode === 'MONTHLY' ? 14 : 32}
               />
 
               {/* Año B (Previo) - NARANJA / DORADO */}
@@ -219,7 +247,7 @@ export function TechServiceAnalysis({ data, yearA, yearB }: TechServiceAnalysisP
                 stackId="yearB" 
                 fill="oklch(0.7 0.15 60)" 
                 radius={[0, 0, 0, 0]} 
-                barSize={32}
+                barSize={viewMode === 'MONTHLY' ? 14 : 32}
               />
               <Bar 
                 yAxisId="left" 
@@ -227,8 +255,8 @@ export function TechServiceAnalysis({ data, yearA, yearB }: TechServiceAnalysisP
                 name={`C&R (${yearB})`} 
                 stackId="yearB" 
                 fill="oklch(0.75 0.15 85)" 
-                radius={[6, 6, 0, 0]} 
-                barSize={32}
+                radius={[4, 4, 0, 0]} 
+                barSize={viewMode === 'MONTHLY' ? 14 : 32}
               />
               
               <Line 
@@ -252,7 +280,7 @@ export function TechServiceAnalysis({ data, yearA, yearB }: TechServiceAnalysisP
               <tr className="bg-slate-50/50 dark:bg-white/5 border-b border-black/5 dark:border-white/10 uppercase tracking-tight text-[13px] font-bold text-slate-500">
                 <th className="px-8 py-6 border-r border-black/5 dark:border-white/5">Estructura de Ingresos</th>
                 {data.map((q) => (
-                  <th key={q.quarter} className="px-6 py-6 text-right font-black">{q.quarter}</th>
+                  <th key={q.label} className="px-4 py-6 text-right font-black">{q.label}</th>
                 ))}
                 <th className="px-8 py-6 text-right bg-indigo-500/5 text-indigo-600 dark:text-indigo-400 font-black">YTD Total</th>
               </tr>
@@ -264,7 +292,7 @@ export function TechServiceAnalysis({ data, yearA, yearB }: TechServiceAnalysisP
                   Servicio Técnico (Mano de Obra)
                 </td>
                 {data.map((q) => (
-                  <td key={`st-${q.quarter}`} className="px-6 py-6 text-right font-mono tabular-nums text-slate-600 dark:text-slate-400">
+                  <td key={`st-${q.label}`} className="px-4 py-6 text-right font-mono tabular-nums text-slate-600 dark:text-slate-400">
                     {formatUSD(q.st)}
                   </td>
                 ))}
@@ -277,7 +305,7 @@ export function TechServiceAnalysis({ data, yearA, yearB }: TechServiceAnalysisP
                   Crecimiento YoY
                 </td>
                 {data.map((q) => (
-                  <td key={`yoy-st-${q.quarter}`} className="px-6 py-3 text-right font-mono tabular-nums">
+                  <td key={`yoy-st-${q.label}`} className="px-4 py-3 text-right font-mono tabular-nums">
                     {formatYoY(getYoY(q.st, q.st_prev))}
                   </td>
                 ))}
@@ -292,7 +320,7 @@ export function TechServiceAnalysis({ data, yearA, yearB }: TechServiceAnalysisP
                   Consumibles y Repuestos
                 </td>
                 {data.map((q) => (
-                  <td key={`cr-${q.quarter}`} className="px-6 py-6 text-right font-mono tabular-nums text-slate-600 dark:text-slate-400">
+                  <td key={`cr-${q.label}`} className="px-4 py-6 text-right font-mono tabular-nums text-slate-600 dark:text-slate-400">
                     {formatUSD(q.cr)}
                   </td>
                 ))}
@@ -305,7 +333,7 @@ export function TechServiceAnalysis({ data, yearA, yearB }: TechServiceAnalysisP
                   Crecimiento YoY
                 </td>
                 {data.map((q) => (
-                  <td key={`yoy-cr-${q.quarter}`} className="px-6 py-3 text-right font-mono tabular-nums">
+                  <td key={`yoy-cr-${q.label}`} className="px-4 py-3 text-right font-mono tabular-nums">
                     {formatYoY(getYoY(q.cr, q.cr_prev))}
                   </td>
                 ))}
@@ -320,7 +348,7 @@ export function TechServiceAnalysis({ data, yearA, yearB }: TechServiceAnalysisP
                   TOTAL SERVICIO TÉCNICO
                 </td>
                 {data.map((q) => (
-                  <td key={`total-${q.quarter}`} className="px-6 py-7 text-right font-black font-mono tabular-nums text-slate-900 dark:text-white text-lg">
+                  <td key={`total-${q.label}`} className="px-4 py-7 text-right font-black font-mono tabular-nums text-slate-900 dark:text-white text-lg">
                     {formatUSD(q.total)}
                   </td>
                 ))}
@@ -336,7 +364,7 @@ export function TechServiceAnalysis({ data, yearA, yearB }: TechServiceAnalysisP
                   ACUMULADO ANUAL (YTD)
                 </td>
                 {data.map((q) => (
-                  <td key={`acum-${q.quarter}`} className="px-6 py-7 text-right font-black font-mono tabular-nums text-emerald-600 dark:text-emerald-400 text-lg">
+                  <td key={`acum-${q.label}`} className="px-4 py-7 text-right font-black font-mono tabular-nums text-emerald-600 dark:text-emerald-400 text-lg">
                     {formatUSD(q.acum)}
                   </td>
                 ))}
@@ -351,7 +379,7 @@ export function TechServiceAnalysis({ data, yearA, yearB }: TechServiceAnalysisP
                   VAR. ACUMULADA VS AÑO ANTERIOR
                 </td>
                 {data.map((q) => (
-                  <td key={`yoy-acum-${q.quarter}`} className="px-6 py-4 text-right font-black tabular-nums">
+                  <td key={`yoy-acum-${q.label}`} className="px-4 py-4 text-right font-black tabular-nums">
                     {formatYoY(getYoY(q.acum, q.acum_prev))}
                   </td>
                 ))}
