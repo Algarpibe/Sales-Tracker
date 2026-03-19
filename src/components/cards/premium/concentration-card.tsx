@@ -28,7 +28,7 @@ export function ConcentrationCard({ data, className }: ConcentrationCardProps) {
     <div
       className={cn(
         "relative flex w-full flex-col overflow-hidden rounded-2xl border border-white/20 bg-white/40 dark:bg-black/20 p-6 shadow-[0_20px_50px_rgba(0,0,0,0.05)] backdrop-blur-2xl transition-all duration-500",
-        "border-t border-t-indigo-500/30 hover:border-t-indigo-500/50",
+        "border-t border-t-indigo-500/30 hover:border-t-indigo-500/50 min-h-[360px]",
         className
       )}
     >
@@ -46,7 +46,7 @@ export function ConcentrationCard({ data, className }: ConcentrationCardProps) {
         </div>
       </div>
 
-      <div className="relative z-10 flex-1 flex items-end justify-between gap-2 mt-8 md:mt-12 h-48 relative">
+      <div className="relative z-10 flex-1 flex items-end justify-between gap-2 mt-8 md:mt-12 h-64 relative">
         {displayData.map((item, index) => {
           const isHighest = item.amount === highestValue && item.amount > 0;
           // Escalamos la altura visualmente. El 100% de la altura de la caja (h-full) = highestValue.

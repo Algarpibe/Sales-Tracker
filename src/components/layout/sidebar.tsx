@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
   BarChart3,
@@ -14,6 +14,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Target,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
@@ -21,14 +22,16 @@ import { useState } from "react";
 const navItems = [
   { href: "/home", label: "Inicio", icon: Home },
   { href: "/tablas", label: "Tablas", icon: BarChart3 },
-  { href: "/analytics", label: "Análisis", icon: TrendingUp },
-  { href: "/import", label: "Importar", icon: FileUp },
+    { href: "/analytics", label: "Análisis", icon: TrendingUp },
+    { href: "/analytics?tab=forecast", label: "Forecasting", icon: Sparkles },
+    { href: "/import", label: "Importar", icon: FileUp },
   { href: "/categories", label: "Categorías", icon: FolderOpen },
   { href: "/settings", label: "Configuración", icon: Settings },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [collapsed, setCollapsed] = useState(false);
 
   return (
@@ -53,8 +56,16 @@ export function Sidebar() {
       {/* Navigation */}
       <nav className="flex-1 space-y-1 p-2">
         {navItems.map((item) => {
-          const isActive =
-            pathname === item.href || pathname.startsWith(item.href + "/");
+          let isActive = false;
+          
+          if (item.href.includes("?tab=forecast")) {
+            isActive = pathname === "/analytics" && searchParams.get("tab") === "forecast";
+          } else if (item.href === "/analytics") {
+            isActive = pathname === "/analytics" && !searchParams.get("tab");
+          } else {
+            isActive = pathname === item.href || (item.href !== "/home" && pathname.startsWith(item.href + "/"));
+          }
+
           return (
             <Link
               key={item.href}

@@ -28,7 +28,7 @@ export function AgingCard({ data, className }: AgingCardProps) {
   const agingIndex = ((data.mediumRisk + data.highRisk) / total) * 100;
 
   // Funciones de dibujo SVG para anillos puros
-  const radius = { outer: 65, middle: 50, inner: 35 };
+  const radius = { outer: 80, middle: 62, inner: 44 };
   const circumference = (r: number) => 2 * Math.PI * r;
   
   const getStrokeDashoffset = (r: number, percentage: number) => {
@@ -40,7 +40,7 @@ export function AgingCard({ data, className }: AgingCardProps) {
     <div
       className={cn(
         "relative flex w-full flex-col overflow-hidden rounded-2xl border border-white/20 bg-white/40 dark:bg-black/20 p-6 shadow-[0_20px_50px_rgba(0,0,0,0.05)] backdrop-blur-2xl transition-all duration-500",
-        "border-t border-t-rose-500/30 hover:border-t-rose-500/50",
+        "border-t border-t-rose-500/30 hover:border-t-rose-500/50 min-h-[400px]",
         className
       )}
     >
@@ -59,33 +59,33 @@ export function AgingCard({ data, className }: AgingCardProps) {
         </div>
       </div>
 
-      <div className="relative z-10 flex flex-1 items-center justify-center gap-8 md:gap-12">
+      <div className="relative z-10 flex flex-1 items-center justify-center gap-8 md:gap-16">
         {/* Gráfico de Anillos SVG Concéntricos */}
-        <div className="relative flex shrink-0 items-center justify-center h-40 w-40 drop-shadow-[0_0_15px_rgba(0,0,0,0.2)]">
-          <svg className="w-full h-full -rotate-90" viewBox="0 0 160 160">
+        <div className="relative flex shrink-0 items-center justify-center h-52 w-52 drop-shadow-[0_0_20px_rgba(0,0,0,0.2)]">
+          <svg className="w-full h-full -rotate-90" viewBox="0 0 200 200">
             {/* Background Rings */}
-            <circle cx="80" cy="80" r={radius.outer} fill="transparent" stroke="currentColor" strokeWidth="8" className="text-rose-500/10" />
-            <circle cx="80" cy="80" r={radius.middle} fill="transparent" stroke="currentColor" strokeWidth="8" className="text-amber-500/10" />
-            <circle cx="80" cy="80" r={radius.inner} fill="transparent" stroke="currentColor" strokeWidth="8" className="text-emerald-500/10" />
+            <circle cx="100" cy="100" r={radius.outer} fill="transparent" stroke="currentColor" strokeWidth="10" className="text-rose-500/10" />
+            <circle cx="100" cy="100" r={radius.middle} fill="transparent" stroke="currentColor" strokeWidth="10" className="text-amber-500/10" />
+            <circle cx="100" cy="100" r={radius.inner} fill="transparent" stroke="currentColor" strokeWidth="10" className="text-emerald-500/10" />
 
             {/* Progress Rings */}
             <circle
-              cx="80" cy="80" r={radius.outer} fill="transparent" stroke="currentColor" strokeWidth="8"
-              className="text-rose-500 transition-all duration-1000 ease-out drop-shadow-[0_0_8px_rgba(244,63,94,0.6)]"
+              cx="100" cy="100" r={radius.outer} fill="transparent" stroke="currentColor" strokeWidth="10"
+              className="text-rose-500 transition-all duration-1000 ease-out drop-shadow-[0_0_10px_rgba(244,63,94,0.6)]"
               strokeDasharray={circumference(radius.outer)}
               strokeDashoffset={getStrokeDashoffset(radius.outer, pHigh)}
               strokeLinecap="round"
             />
             <circle
-              cx="80" cy="80" r={radius.middle} fill="transparent" stroke="currentColor" strokeWidth="8"
-              className="text-amber-500 transition-all duration-1000 ease-out drop-shadow-[0_0_8px_rgba(245,158,11,0.6)]"
+              cx="100" cy="100" r={radius.middle} fill="transparent" stroke="currentColor" strokeWidth="10"
+              className="text-amber-500 transition-all duration-1000 ease-out drop-shadow-[0_0_10px_rgba(245,158,11,0.6)]"
               strokeDasharray={circumference(radius.middle)}
               strokeDashoffset={getStrokeDashoffset(radius.middle, pMed)}
               strokeLinecap="round"
             />
             <circle
-              cx="80" cy="80" r={radius.inner} fill="transparent" stroke="currentColor" strokeWidth="8"
-              className="text-emerald-500 transition-all duration-1000 ease-out drop-shadow-[0_0_8px_rgba(16,185,129,0.6)]"
+              cx="100" cy="100" r={radius.inner} fill="transparent" stroke="currentColor" strokeWidth="10"
+              className="text-emerald-500 transition-all duration-1000 ease-out drop-shadow-[0_0_10px_rgba(16,185,129,0.6)]"
               strokeDasharray={circumference(radius.inner)}
               strokeDashoffset={getStrokeDashoffset(radius.inner, pLow)}
               strokeLinecap="round"
@@ -94,10 +94,10 @@ export function AgingCard({ data, className }: AgingCardProps) {
           
           {/* Texto Central */}
           <div className="absolute flex flex-col items-center justify-center text-center">
-            <span className="text-2xl font-bold tracking-tighter text-foreground">
+            <span className="text-3xl font-bold tracking-tighter text-foreground">
               {data.total > 0 ? agingIndex.toFixed(0) : 0}%
             </span>
-            <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider">
+            <span className="text-xs uppercase font-semibold text-muted-foreground tracking-wider">
               En Riesgo
             </span>
           </div>
