@@ -52,6 +52,7 @@ export function BarChartMonthly({ data, title = "Ventas Mensuales" }: BarChartMo
                 color: "oklch(0.95 0.005 250)",
                 backdropFilter: "blur(8px)",
               }}
+              cursor={{ fill: "rgba(147, 197, 253, 0.15)" }}
               formatter={(value: number) => [formatCompactUSD(value)]}
             />
             <Legend />

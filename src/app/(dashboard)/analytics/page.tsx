@@ -233,6 +233,15 @@ export default function AnalyticsPage() {
               <YAxis tickFormatter={formatCompactUSD} axisLine={false} tickLine={false} />
               <RechartsTooltip 
                 formatter={(value: number) => formatUSD(value)} 
+                cursor={{ fill: "rgba(147, 197, 253, 0.15)" }}
+                contentStyle={{
+                  backgroundColor: "oklch(0.18 0.025 255 / 0.8)",
+                  border: "1px solid oklch(0.28 0.03 255)",
+                  borderRadius: "12px",
+                  color: "oklch(0.95 0.005 250)",
+                  backdropFilter: "blur(12px)",
+                  boxShadow: "0 20px 50px rgba(0,0,0,0.1)",
+                }}
               />
               <Legend wrapperStyle={{ paddingTop: '20px' }} />
               <Bar 

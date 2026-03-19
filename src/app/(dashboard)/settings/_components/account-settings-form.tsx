@@ -197,7 +197,7 @@ export function AccountSettingsForm() {
       </Card>
 
       {/* Company Card */}
-      <Card className="overflow-hidden border-none bg-card/50 backdrop-blur-xl shadow-2xl ring-1 ring-white/10 sticky bottom-4 z-10">
+      <Card className="overflow-hidden border-none bg-card/50 backdrop-blur-xl shadow-2xl ring-1 ring-white/10">
         <CardHeader className="border-b border-white/5 bg-white/5 pb-4">
           <div className="space-y-1">
             <CardTitle className="flex items-center gap-2 text-xl font-bold tracking-tight">

@@ -353,7 +353,7 @@ export function GroupEvolutionCard({ savedGroups, recordType: initialRecordType 
                     tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11, fontWeight: 500 }}
                     tickFormatter={formatCurrencyCompact}
                   />
-                  <RechartsTooltip content={<CustomTooltip />} cursor={{ fill: "rgba(255,255,255,0.05)" }} />
+                  <RechartsTooltip content={<CustomTooltip />} cursor={{ fill: "rgba(147, 197, 253, 0.15)" }} />
                   <Legend 
                     verticalAlign="top" 
                     align="right" 

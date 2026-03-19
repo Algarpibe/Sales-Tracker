@@ -441,7 +441,7 @@ export function GroupingAnalysisCard({ categories, recordType: initialRecordType
                           <TableCell className="text-center font-mono text-sm border-l border-white/5">
                             {formatCurrency(yearData.amount)}
                           </TableCell>
-                          <TableCell className="text-center font-bold text-sm">
+                          <TableCell className="text-center font-bold text-xs">
                             <span className={cn(
                               yearData.percentage >= 50 ? "text-primary glow-text" : "text-muted-foreground"
                             )}>
@@ -456,7 +456,7 @@ export function GroupingAnalysisCard({ categories, recordType: initialRecordType
                     <TableCell className="text-center font-mono text-sm bg-primary/5 border-l border-white/5 font-bold text-foreground">
                       {formatCurrency(row.average.amount)}
                     </TableCell>
-                    <TableCell className="text-center font-black text-sm bg-primary/5 text-primary">
+                    <TableCell className="text-center font-black text-xs bg-primary/5 text-primary">
                       {formatPercent(row.average.percentage)}
                     </TableCell>
                   </TableRow>
