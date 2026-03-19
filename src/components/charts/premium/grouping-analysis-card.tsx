@@ -130,6 +130,9 @@ export function GroupingAnalysisCard({ categories, recordType: initialRecordType
         } else if (sortConfig.key === "avg_pcnt") {
           aValue = a.average.percentage;
           bValue = b.average.percentage;
+        } else if (sortConfig.key === "total_amount") {
+          aValue = Object.values(a.years).reduce((sum, y) => sum + y.amount, 0);
+          bValue = Object.values(b.years).reduce((sum, y) => sum + y.amount, 0);
         }
 
         if (aValue < bValue) return sortConfig.direction === "asc" ? -1 : 1;
@@ -380,8 +383,8 @@ export function GroupingAnalysisCard({ categories, recordType: initialRecordType
                       {year}
                     </TableHead>
                   ))}
-                  <TableHead className="text-right font-bold text-primary text-base py-4 bg-primary/5" colSpan={2}>
-                    PROMEDIO
+                  <TableHead className="text-right font-bold text-primary text-base py-4 bg-primary/5" colSpan={3}>
+                    RESULTADOS ACUMULADOS
                   </TableHead>
                 </TableRow>
                 <TableRow className="border-b-0 hover:bg-transparent text-[10px] uppercase tracking-wider text-muted-foreground/60 select-none">
@@ -412,7 +415,15 @@ export function GroupingAnalysisCard({ categories, recordType: initialRecordType
                       onClick={() => onSort("avg_amount")}
                     >
                       <div className="flex items-center justify-center font-bold">
-                        Monto <SortIcon columnKey="avg_amount" />
+                        Promedio <SortIcon columnKey="avg_amount" />
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="text-center bg-primary/5 border-l border-white/5 cursor-pointer hover:bg-primary/10 hover:text-primary transition-all group"
+                      onClick={() => onSort("total_amount")}
+                    >
+                      <div className="flex items-center justify-center font-bold">
+                        Total <SortIcon columnKey="total_amount" />
                       </div>
                     </TableHead>
                     <TableHead 
@@ -453,8 +464,12 @@ export function GroupingAnalysisCard({ categories, recordType: initialRecordType
                     })}
 
                     {/* Promedio Column */}
-                    <TableCell className="text-center font-mono text-sm bg-primary/5 border-l border-white/5 font-bold text-foreground">
+                    <TableCell className="text-center font-mono text-xs bg-primary/5 border-l border-white/5 font-medium text-slate-400">
                       {formatCurrency(row.average.amount)}
+                    </TableCell>
+                    {/* Total Column */}
+                    <TableCell className="text-center font-mono text-sm bg-primary/10 border-l border-white/5 font-black text-foreground">
+                      {formatCurrency(Object.values(row.years).reduce((sum, y) => sum + y.amount, 0))}
                     </TableCell>
                     <TableCell className="text-center font-black text-xs bg-primary/5 text-primary">
                       {formatPercent(row.average.percentage)}
