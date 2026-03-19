@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { MONTHS, getYearRange, formatUSD, formatCompactUSD } from "@/lib/constants";
@@ -33,7 +33,7 @@ const CR_CATEGORIES = [
   'C&R PG Series', 'C&R Series 6103', 'C&R Series 7000', 'C&R Shelter', 'C&R U-50 Series'
 ];
 
-export default function AnalyticsPage() {
+function AnalyticsContent() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("exploration");
   const [yearA, setYearA] = useState(new Date().getFullYear());
@@ -457,5 +457,13 @@ export default function AnalyticsPage() {
         </Tabs>
       </div>
     </div>
+  );
+}
+
+export default function AnalyticsPage() {
+  return (
+    <Suspense fallback={<div className="h-screen flex items-center justify-center"><Skeleton className="h-[600px] w-full" /></div>}>
+      <AnalyticsContent />
+    </Suspense>
   );
 }
