@@ -62,6 +62,7 @@ function formatYoY(value: number | null): React.ReactNode {
 
 export function TechServiceAnalysis({ data, yearA, yearB }: TechServiceAnalysisProps) {
   // Custom Tooltip para el Gráfico
+  // Custom Tooltip para el Gráfico
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       const qData = data.find(d => d.quarter === label);
@@ -70,26 +71,51 @@ export function TechServiceAnalysis({ data, yearA, yearB }: TechServiceAnalysisP
       const yoyAcum = getYoY(qData.acum, qData.acum_prev);
 
       return (
-        <div className="rounded-xl border border-black/10 bg-white/80 p-4 shadow-2xl backdrop-blur-xl ring-1 ring-black/5">
-          <p className="mb-2 font-bold text-slate-800 border-b border-black/5 pb-2">{label} {yearA ? `(${yearA})` : ''}</p>
-          <div className="space-y-1 text-sm">
-            <p className="flex justify-between gap-6">
-              <span className="text-indigo-600 font-semibold">Servicio Técnico (ST):</span>
-              <span className="font-mono font-bold text-slate-700">{formatUSD(qData.st)}</span>
-            </p>
-            <p className="flex justify-between gap-6">
-              <span className="text-violet-600 font-semibold">Consumibles (C&R):</span>
-              <span className="font-mono font-bold text-slate-700">{formatUSD(qData.cr)}</span>
-            </p>
-            <div className="my-1 h-px w-full bg-black/5" />
-            <p className="flex justify-between gap-6 font-bold">
-              <span className="text-emerald-600">Acumulado Anual:</span>
-              <span className="font-mono text-emerald-700">{formatUSD(qData.acum)}</span>
-            </p>
-            <p className="flex justify-between gap-6 pt-1 text-xs">
-              <span className="text-slate-500 font-medium">Crecimiento YoY (Acum):</span>
-              <span className="font-mono font-bold">{formatYoY(yoyAcum)}</span>
-            </p>
+        <div className="rounded-xl border border-black/10 bg-white/80 p-4 shadow-2xl backdrop-blur-xl ring-1 ring-black/5 min-w-[280px]">
+          <p className="mb-2 font-bold text-slate-800 border-b border-black/5 pb-2">{label} - Comparativa</p>
+          
+          <div className="space-y-4">
+            {/* Año Principal */}
+            <div>
+              <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-1">{yearA}</p>
+              <div className="space-y-1 text-sm">
+                <p className="flex justify-between gap-6">
+                  <span className="text-slate-500">Servicio Técnico (ST):</span>
+                  <span className="font-mono font-bold text-slate-700">{formatUSD(qData.st)}</span>
+                </p>
+                <p className="flex justify-between gap-6">
+                  <span className="text-slate-500">Consumibles (C&R):</span>
+                  <span className="font-mono font-bold text-slate-700">{formatUSD(qData.cr)}</span>
+                </p>
+              </div>
+            </div>
+
+            {/* Año Previo */}
+            <div className="pt-2 border-t border-black/5">
+              <p className="text-[10px] font-black text-orange-500 uppercase tracking-widest mb-1">{yearB}</p>
+              <div className="space-y-1 text-sm">
+                <p className="flex justify-between gap-6">
+                  <span className="text-orange-600/70">Servicio Técnico (ST):</span>
+                  <span className="font-mono font-bold text-orange-650">{formatUSD(qData.st_prev)}</span>
+                </p>
+                <p className="flex justify-between gap-6">
+                  <span className="text-amber-600/70">Consumibles (C&R):</span>
+                  <span className="font-mono font-bold text-amber-600">{formatUSD(qData.cr_prev)}</span>
+                </p>
+              </div>
+            </div>
+
+            {/* Métricas Acumuladas / YoY */}
+            <div className="pt-3 border-t border-black/5">
+              <p className="flex justify-between gap-6 font-bold text-sm">
+                <span className="text-emerald-600">Acumulado {yearA}:</span>
+                <span className="font-mono text-emerald-500">{formatUSD(qData.acum)}</span>
+              </p>
+              <p className="flex justify-between gap-6 pt-1 text-xs">
+                <span className="text-slate-500 font-medium">Crecimiento YoY (Acum):</span>
+                <span className="font-mono font-bold">{formatYoY(yoyAcum)}</span>
+              </p>
+            </div>
           </div>
         </div>
       );
@@ -159,40 +185,61 @@ export function TechServiceAnalysis({ data, yearA, yearB }: TechServiceAnalysisP
                 tick={{ fill: "oklch(0.65 0.19 155)", fontSize: 11 }}
                 tickFormatter={(val) => `$${(val / 1000).toFixed(0)}k`}
               />
-            <Tooltip 
-              content={<CustomTooltip />} 
-              cursor={{ fill: "rgba(147, 197, 253, 0.15)", radius: 10 }} 
-            />
-              <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{ paddingBottom: '30px', fontSize: '13px', fontWeight: 500 }} />
+              <Tooltip 
+                content={<CustomTooltip />} 
+                cursor={{ fill: "rgba(147, 197, 253, 0.15)", radius: 10 }} 
+              />
+              <Legend verticalAlign="top" height={60} iconType="circle" wrapperStyle={{ paddingBottom: '30px', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase' }} />
               
+              {/* Año A */}
               <Bar 
                 yAxisId="left" 
                 dataKey="st" 
-                name="Servicio Técnico" 
-                stackId="a" 
+                name={`ST (${yearA})`} 
+                stackId="yearA" 
                 fill="oklch(0.55 0.18 255)" 
-                radius={[2, 2, 0, 0]} 
-                barSize={45}
+                radius={[0, 0, 0, 0]} 
+                barSize={32}
               />
               <Bar 
                 yAxisId="left" 
                 dataKey="cr" 
-                name="Consumibles" 
-                stackId="a" 
+                name={`C&R (${yearA})`} 
+                stackId="yearA" 
                 fill="oklch(0.6 0.2 300)" 
-                radius={[6, 6, 2, 2]} 
-                barSize={45}
+                radius={[6, 6, 0, 0]} 
+                barSize={32}
+              />
+
+              {/* Año B (Previo) - NARANJA / DORADO */}
+              <Bar 
+                yAxisId="left" 
+                dataKey="st_prev" 
+                name={`ST (${yearB})`} 
+                stackId="yearB" 
+                fill="oklch(0.7 0.15 60)" 
+                radius={[0, 0, 0, 0]} 
+                barSize={32}
+              />
+              <Bar 
+                yAxisId="left" 
+                dataKey="cr_prev" 
+                name={`C&R (${yearB})`} 
+                stackId="yearB" 
+                fill="oklch(0.75 0.15 85)" 
+                radius={[6, 6, 0, 0]} 
+                barSize={32}
               />
               
               <Line 
                 yAxisId="right"
                 type="monotone" 
                 dataKey="acum" 
-                name="Tendencia Acumulada" 
+                name={`Acum. (${yearA})`} 
                 stroke="oklch(0.65 0.19 155)" 
                 strokeWidth={4}
-                dot={{ r: 6, fill: "oklch(0.65 0.19 155)", strokeWidth: 3, stroke: "white" }}
-                activeDot={{ r: 8, fill: "white", stroke: "oklch(0.65 0.19 155)", strokeWidth: 4 }}
+                dot={{ r: 5, fill: "oklch(0.65 0.19 155)", strokeWidth: 2, stroke: "white" }}
+                activeDot={{ r: 7, fill: "white", stroke: "oklch(0.65 0.19 155)", strokeWidth: 3 }}
               />
             </ComposedChart>
           </ResponsiveContainer>
