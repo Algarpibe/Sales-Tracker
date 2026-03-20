@@ -174,6 +174,35 @@ export function GroupingAnalysisCard({ categories, recordType: initialRecordType
       }));
   }, [filteredRows]);
 
+  // Calculate totals for the summary row
+  const totals = useMemo(() => {
+    if (!data) return null;
+    const years = data.years || [];
+    const result = {
+      years: {} as Record<number, { amount: number; percentage: number }>,
+      avgAmount: 0,
+      totalAmount: 0,
+      avgPercentage: 0
+    };
+
+    years.forEach(year => {
+      result.years[year] = { amount: 0, percentage: 0 };
+    });
+
+    sortedRows.forEach(row => {
+      years.forEach(year => {
+        const yearData = row.years[year] || { amount: 0, percentage: 0 };
+        result.years[year].amount += yearData.amount;
+        result.years[year].percentage += yearData.percentage;
+      });
+      result.avgAmount += row.average.amount;
+      result.totalAmount += Object.values(row.years).reduce((sum, y) => sum + y.amount, 0);
+      result.avgPercentage += row.average.percentage;
+    });
+
+    return result;
+  }, [sortedRows, data]);
+
   // Calculate total represented percentage for the center label
   const totalPercentage = useMemo(() => {
     return pieData.reduce((acc, item) => acc + item.value, 0);
@@ -476,6 +505,37 @@ export function GroupingAnalysisCard({ categories, recordType: initialRecordType
                     </TableCell>
                   </TableRow>
                 ))}
+
+                {/* --- Totals Row --- */}
+                {totals && (
+                  <TableRow className="bg-primary/10 dark:bg-primary/20 hover:bg-primary/15 font-bold border-t-2 border-primary/30 sticky bottom-0 z-10 backdrop-blur-md shadow-[0_-4px_10px_rgba(0,0,0,0.1)]">
+                    <TableCell className="font-black text-primary text-sm uppercase tracking-widest sticky left-0 bg-inherit/95 backdrop-blur-md border-r border-primary/20 flex items-center gap-2 py-6">
+                      <TrendingUp className="h-4 w-4" />
+                      TOTAL GLOBAL
+                    </TableCell>
+
+                    {data.years.map(year => (
+                      <React.Fragment key={`total-${year}`}>
+                        <TableCell className="text-center font-mono text-sm border-l border-white/10 text-foreground">
+                          {formatCurrency(totals.years[year].amount)}
+                        </TableCell>
+                        <TableCell className="text-center font-black text-xs text-primary">
+                          {formatPercent(totals.years[year].percentage)}
+                        </TableCell>
+                      </React.Fragment>
+                    ))}
+
+                    <TableCell className="text-center font-mono text-xs bg-primary/10 border-l border-white/10 text-primary/80">
+                      {formatCurrency(totals.avgAmount)}
+                    </TableCell>
+                    <TableCell className="text-center font-mono text-base bg-primary/20 border-l border-white/10 font-black text-foreground underline decoration-primary/40 underline-offset-4">
+                      {formatCurrency(totals.totalAmount)}
+                    </TableCell>
+                    <TableCell className="text-center font-black text-xs bg-primary/10 text-primary">
+                      {formatPercent(totals.avgPercentage)}
+                    </TableCell>
+                  </TableRow>
+                )}
               </TableBody>
             </Table>
           </div>
