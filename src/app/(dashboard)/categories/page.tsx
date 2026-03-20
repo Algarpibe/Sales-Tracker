@@ -36,11 +36,10 @@ export default function CategoriesPage() {
   const [editColor, setEditColor] = useState("#3B82F6");
 
   const supabase = createClient();
-  const isAdmin = profile?.role === "admin";
+  const canEdit = profile?.role === "admin" || profile?.role === "editor";
 
   const fetch = useCallback(async () => {
     setLoading(true);
-    console.log("Fetching categories...");
     const { data, error } = await supabase
       .from("categories")
       .select("*")
@@ -49,10 +48,8 @@ export default function CategoriesPage() {
       .order("name");
     
     if (error) {
-      console.error("Error fetching categories:", error);
       toast.error("Error al cargar categorías");
     } else {
-      console.log(`Fetched ${data?.length || 0} categories:`, data);
       setCategories((data as Category[]) || []);
     }
     setLoading(false);
@@ -116,7 +113,7 @@ export default function CategoriesPage() {
           <h1 className="text-2xl font-bold tracking-tight">Categorías</h1>
           <p className="text-muted-foreground">Gestión de categorías de artículos</p>
         </div>
-        {isAdmin && (
+        {canEdit && (
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger render={(props) => (
               <Button {...props}>
@@ -164,7 +161,7 @@ export default function CategoriesPage() {
               <TableHead>Color</TableHead>
               <TableHead>Nombre</TableHead>
               <TableHead>Descripción</TableHead>
-              {isAdmin && <TableHead />}
+              {canEdit && <TableHead />}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -176,7 +173,7 @@ export default function CategoriesPage() {
                   <TableCell><div className="h-4 w-4 rounded-full" style={{ backgroundColor: c.color }} /></TableCell>
                   <TableCell className="font-medium">{c.name}</TableCell>
                   <TableCell className="text-muted-foreground">{c.description || "—"}</TableCell>
-                  {isAdmin && (
+                  {canEdit && (
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(c)}>

@@ -1,6 +1,6 @@
 // ===== Tipos de Base de Datos =====
 
-export type UserRole = "admin" | "editor" | "viewer";
+export type UserRole = "admin" | "editor" | "lector";
 export type RecordType = "SALES_ORDER" | "INVOICE";
 export type BillingCycle = "monthly" | "annual" | "quarterly" | "one-time";
 export type SubscriptionStatus = "active" | "paused" | "cancelled" | "trial";
