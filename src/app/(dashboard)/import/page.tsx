@@ -85,6 +85,20 @@ export default function ImportPage() {
     setImporting(false);
   };
 
+  if (profile?.role === "lector") {
+    return (
+      <Card className="border-red-100 bg-red-50/20 p-8 text-center">
+        <CardHeader className="flex flex-col items-center gap-2">
+          <Upload className="h-10 w-10 text-red-500 opacity-20" />
+          <CardTitle className="text-xl text-red-700">Acceso Restringido</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-red-600/80">Tu rol de **Lector** no permite realizar importaciones de datos. Contacta a un administrador si necesitas permisos de edición.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div>

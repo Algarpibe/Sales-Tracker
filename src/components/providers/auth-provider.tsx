@@ -19,7 +19,10 @@ const AuthContext = createContext<AuthContextType>({
   signOut: async () => {},
 });
 
+import { useRouter } from "next/navigation";
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -85,6 +88,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(null);
         setProfile(null);
         setLoading(false);
+        router.push('/login');
+        router.refresh();
       } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
         const currentUser = session?.user ?? null;
         setUser(currentUser);
@@ -100,20 +105,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
+    // Set up Realtime subscription for profile changes
+    let profileChannel: any = null;
+    if (user?.id) {
+      profileChannel = supabase
+        .channel(`public:profiles:id=eq.${user.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'profiles',
+            filter: `id=eq.${user.id}`
+          },
+          (payload: any) => {
+            if (mounted) {
+              setProfile(payload.new as Profile);
+            }
+          }
+        )
+        .subscribe();
+    }
+
     return () => {
       mounted = false;
       subscription.unsubscribe();
+      if (profileChannel) {
+        supabase.removeChannel(profileChannel);
+      }
     };
-  }, [supabase]);
+  }, [supabase, user?.id, router]);
 
   const signOut = async () => {
     try {
       await supabase.auth.signOut();
+      setUser(null);
+      setProfile(null);
+      router.push('/login');
+      router.refresh();
     } catch (err) {
       console.error("Error during sign out:", err);
     }
-    setUser(null);
-    setProfile(null);
   };
 
   return (
