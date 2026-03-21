@@ -31,7 +31,7 @@ const accountSchema = z.object({
 type AccountFormValues = z.infer<typeof accountSchema>;
 
 export function AccountSettingsForm() {
-  const { profile, user } = useAuth();
+  const { profile, user, refreshProfile } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const supabase = createClient();
@@ -171,7 +171,7 @@ export function AccountSettingsForm() {
       if (updateError) throw updateError;
 
       toast.success("Foto de perfil actualizada correctamente");
-      queryClient.invalidateQueries({ queryKey: ["profile"] });
+      await refreshProfile();
     } catch (error: any) {
       console.error("Error uploading avatar:", error);
       toast.error(error.message || "Error al subir la imagen. Asegúrate que el bucket 'avatars' exista.");
