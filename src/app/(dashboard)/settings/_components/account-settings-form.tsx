@@ -10,7 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Loader2, Save, Building2, Hash, Globe, Factory, User, Mail, Shield } from "lucide-react";
+import { Loader2, Save, Building2, Hash, Globe, Factory, User, Mail, Shield, Camera, Upload } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ROLES } from "@/lib/constants";
@@ -32,6 +33,7 @@ type AccountFormValues = z.infer<typeof accountSchema>;
 export function AccountSettingsForm() {
   const { profile, user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const supabase = createClient();
   const queryClient = useQueryClient();
   const roleInfo = ROLES.find((r) => r.value === profile?.role);
@@ -121,6 +123,72 @@ export function AccountSettingsForm() {
     }
   };
 
+  const onAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    try {
+      const file = event.target.files?.[0];
+      if (!file || !user) return;
+
+      // Validate file size (max 2MB)
+      if (file.size > 2 * 1024 * 1024) {
+        toast.error("La imagen no debe superar los 2MB");
+        return;
+      }
+
+      // Validate file type
+      if (!file.type.startsWith("image/")) {
+        toast.error("El archivo debe ser una imagen");
+        return;
+      }
+
+      setIsUploading(true);
+
+      const fileExt = file.name.split('.').pop();
+      const filePath = `${user.id}/${Math.random()}.${fileExt}`;
+
+      // 1. Upload to Storage
+      const { error: uploadError, data } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file, {
+          upsert: true
+        });
+
+      if (uploadError) throw uploadError;
+
+      // 2. Get Public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      // 3. Update Profile
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({
+          avatar_url: publicUrl,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id);
+
+      if (updateError) throw updateError;
+
+      toast.success("Foto de perfil actualizada correctamente");
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
+    } catch (error: any) {
+      console.error("Error uploading avatar:", error);
+      toast.error(error.message || "Error al subir la imagen. Asegúrate que el bucket 'avatars' exista.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const initials = profile?.full_name
+    ? profile.full_name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2)
+    : "U";
+
   const isAdmin = profile?.role === "admin";
 
   if (isLoadingCompany) {
@@ -153,6 +221,40 @@ export function AccountSettingsForm() {
           </div>
         </CardHeader>
         <CardContent className="pt-6">
+          <div className="flex flex-col items-center mb-8 space-y-4">
+            <div className="relative group">
+              <Avatar className="h-32 w-32 border-4 border-primary/20 shadow-2xl transition-transform group-hover:scale-105">
+                <AvatarImage src={profile?.avatar_url || undefined} className="object-cover" />
+                <AvatarFallback className="bg-primary/10 text-primary text-3xl font-black">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+              <label 
+                htmlFor="avatar-upload" 
+                className={`absolute bottom-0 right-0 p-2 rounded-full cursor-pointer shadow-lg transition-all
+                  ${isUploading ? 'bg-muted pointer-events-none' : 'bg-primary hover:bg-primary/90 text-primary-foreground group-hover:scale-110'}`}
+              >
+                {isUploading ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <Camera className="h-5 w-5" />
+                )}
+                <input
+                  id="avatar-upload"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={onAvatarUpload}
+                  disabled={isUploading}
+                />
+              </label>
+            </div>
+            <div className="text-center space-y-1">
+              <p className="text-sm font-bold text-primary italic uppercase tracking-widest">Foto de Perfil</p>
+              <p className="text-xs text-muted-foreground">Recomendado: JPG o PNG, máx. 2MB</p>
+            </div>
+          </div>
+
           <div className="grid gap-4">
             <div className="space-y-2">
               <Label htmlFor="full_name" className="text-sm font-medium text-muted-foreground">
