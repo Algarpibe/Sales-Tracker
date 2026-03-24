@@ -76,7 +76,7 @@ export function calculateSeasonalityFactors(historicalData: number[][]): number[
   const factors = monthlySums.map(sum => sum / validYears);
   const factorsSum = factors.reduce((a, b) => a + b, 0);
   
-  // Normalize to ensure they sum to exactly 1
+  // Normalización para asegurar que la suma de los 12 meses sea exactamente 1
   return factors.map(f => f / (factorsSum || 1));
 }
 
