@@ -15,12 +15,13 @@ import { GroupingAnalysisCard } from "@/components/charts/premium/grouping-analy
 import { GroupEvolutionCard } from "@/components/charts/premium/group-evolution-card";
 import { PredictiveRunRateCard } from "@/components/charts/premium/predictive-run-rate";
 import { MeshBackground } from "@/components/ui/mesh-background";
-import { getTrendPoints } from "@/lib/math-utils";
+import { getTrendPoints, calculateSeasonalityFactors, getSeasonalForecast } from "@/lib/math-utils";
 import { ComposedChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from "recharts";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import type { Category, CategoryGroup } from "@/types/database";
 import { Sparkles, BarChart3, TrendingUp, Activity, FileText, Receipt } from "lucide-react";
 import { motion } from "framer-motion";
+import type { SalesRecord } from "@/types/database";
 
 const ST_CATEGORIES = [
   'Alquileres', 'CAL CO', 'CAL NOx', 'CAL O3', 'CAL PM', 'CAL SO2', 'ST', 
@@ -61,20 +62,23 @@ function AnalyticsContent() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [resA, resB, catRes, groupRes] = await Promise.all([
-        supabase.from("sales_records").select("*").eq("record_year", yearA),
-        supabase.from("sales_records").select("*").eq("record_year", yearB),
+      const yearsToFetch = [yearA, yearB, 2025, 2024, 2023];
+      const uniqueYears = Array.from(new Set(yearsToFetch));
+      
+      const [resRecords, catRes, groupRes] = await Promise.all([
+        supabase.from("sales_records").select("*").in("record_year", uniqueYears),
         supabase.from("categories").select("*"),
         supabase.from("category_groups").select("*, category_group_mappings(*)")
       ]);
 
-      if (resA.error) throw resA.error;
-      if (resB.error) throw resB.error;
+      if (resRecords.error) throw resRecords.error;
       if (catRes.error) throw catRes.error;
       if (groupRes.error) throw groupRes.error;
 
-      const dataA = resA.data || [];
-      const dataB = resB.data || [];
+      const allRecords: SalesRecord[] = resRecords.data || [];
+      const dataA = allRecords.filter((r: SalesRecord) => r.record_year === yearA);
+      const dataB = allRecords.filter((r: SalesRecord) => r.record_year === yearB);
+
       const allCategories = (catRes.data as any[]) || [];
       const allGroups = (groupRes.data as any[]).map(g => ({
         ...g,
@@ -105,13 +109,29 @@ function AnalyticsContent() {
       });
       setMonthlyData(parsedMonthlyData);
 
-      // --- Calcular tendencia para Forecast ---
-      const historicalValues = parsedMonthlyData.map(d => d.rawA);
-      const trendPoints = getTrendPoints(historicalValues, 12);
+      // --- Calcular Estacionalidad (Basado en 2023-2025) ---
+      const historicalYears = [2025, 2024, 2023];
+      const historicalMatrix = historicalYears.map(y => {
+        const yearRecords = allRecords.filter((r: SalesRecord) => r.record_year === y && r.record_type === recordType);
+        return MONTHS.map(m => 
+          yearRecords.filter((r: SalesRecord) => r.record_month === m.value).reduce((acc: number, r: SalesRecord) => acc + Number(r.amount_usd), 0)
+        );
+      });
+
+      const seasonalityFactors = calculateSeasonalityFactors(historicalMatrix);
+      
+      // --- Calcular Forecast Proyectado ---
+      // Solo tomamos los meses que ya han pasado o están en curso del año actual (yearA)
+      // Si yearA es el año actual real, limitamos al mes actual
+      const isCurrentActualYear = yearA === new Date().getFullYear();
+      const lastElapsedMonth = isCurrentActualYear ? new Date().getMonth() + 1 : 12;
+      const currentYearElapsedData = parsedMonthlyData.slice(0, lastElapsedMonth).map(d => d.rawA);
+      
+      const projectedForecast = getSeasonalForecast(currentYearElapsedData, seasonalityFactors);
       
       const forecastWithTrend = parsedMonthlyData.map((d, i) => ({
         ...d,
-        tendencia: Math.round(trendPoints[i] * 100) / 100
+        tendencia: Math.round(projectedForecast[i] * 100) / 100
       }));
       setForecastMonthlyData(forecastWithTrend);
 
@@ -332,8 +352,9 @@ function AnalyticsContent() {
                 {/* Task 1: Run-Rate Card */}
                 <PredictiveRunRateCard 
                   className="lg:col-span-1"
-                  currentTotal={monthlyData[new Date().getMonth()]?.[`Año ${new Date().getFullYear()}`] || 0}
-                  lastYearMonthTotal={monthlyData[new Date().getMonth()]?.[`Año ${new Date().getFullYear() - 1}`] || 0}
+                  currentTotal={monthlyData[new Date().getMonth()]?.[`Año ${yearA}`] || 0}
+                  lastYearMonthTotal={monthlyData[new Date().getMonth()]?.[`Año ${yearB}`] || 0}
+                  projectedTotal={forecastMonthlyData[new Date().getMonth()]?.tendencia}
                 />
 
                 {/* Task 2: Trend Chart */}
@@ -342,10 +363,10 @@ function AnalyticsContent() {
                   <CardHeader className="relative z-10 p-6 border-b border-white/5 flex flex-row items-center justify-between">
                     <div>
                       <CardTitle className="text-xl font-bold flex items-center gap-3">
-                        <TrendingUp className="h-5 w-5 text-indigo-400" /> Histórico con Tendencia Linear
+                        <TrendingUp className="h-5 w-5 text-indigo-400" /> Histórico con Proyección Estacional
                       </CardTitle>
                       <p className="text-sm text-muted-foreground mt-1">
-                        Visualización de datos reales {yearA} proyectados mediante regresión matemática.
+                        Visualización de datos reales {yearA} proyectados mediante análisis de estacionalidad (2023-2025).
                       </p>
                     </div>
                     
@@ -356,7 +377,7 @@ function AnalyticsContent() {
                       </div>
                       <div className="flex items-center gap-2">
                           <div className="w-3 h-0.5 border-t border-dashed border-cyan-400" />
-                          <span className="text-xs font-medium text-muted-foreground">Tendencia Calculada</span>
+                          <span className="text-xs font-medium text-muted-foreground">Proyección Estacional</span>
                       </div>
                     </div>
                   </CardHeader>
@@ -415,7 +436,7 @@ function AnalyticsContent() {
                             barSize={35}
                           />
                           <Line 
-                            name="Tendencia Calculada"
+                            name="Proyección Estacional"
                             type="monotone" 
                             dataKey="tendencia" 
                             stroke="#22d3ee" 
@@ -440,7 +461,7 @@ function AnalyticsContent() {
                       <Activity className="size-5" /> ¿Cómo calculamos el Forecast?
                     </h4>
                     <p className="text-muted-foreground leading-relaxed">
-                      Nuestro sistema utiliza un algoritmo de <strong>Regresión Lineal Simple</strong> para analizar la trayectoria histórica del año actual. La línea de tendencia suavizada proyecta el comportamiento matemático más probable basado en la pendiente acumulada, ayudando a identificar si el ritmo de ventas se está acelerando o ralentizando.
+                      Nuestro sistema utiliza un algoritmo de <strong>Análisis de Estacionalidad</strong> basado en el histórico de los últimos 3 años (2023-2025). Calculamos la distribución mensual promedio de ventas para proyectar el cierre del año actual, ajustado por la velocidad de ventas de los meses ya transcurridos.
                     </p>
                 </div>
                 <div className="p-8 rounded-3xl bg-white/5 border border-white/10 backdrop-blur-md">
