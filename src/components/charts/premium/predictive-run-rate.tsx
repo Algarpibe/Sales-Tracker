@@ -11,19 +11,21 @@ import { cn } from "@/lib/utils";
 interface PredictiveRunRateCardProps {
   currentTotal: number;
   lastYearMonthTotal: number; // For target comparison
+  projectedTotal?: number;   // Optional external projection
   className?: string;
 }
 
 export function PredictiveRunRateCard({ 
   currentTotal, 
   lastYearMonthTotal,
+  projectedTotal: externalProjectedTotal,
   className 
 }: PredictiveRunRateCardProps) {
   const now = new Date();
   const currentDay = now.getDate();
   const totalDays = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
   
-  const projectedTotal = calculateRunRate(currentTotal, currentDay, totalDays);
+  const projectedTotal = externalProjectedTotal ?? calculateRunRate(currentTotal, currentDay, totalDays);
   const progressPercent = Math.min(100, (currentTotal / projectedTotal) * 100);
   
   // Hypothetical target: meet or exceed last year's month total
