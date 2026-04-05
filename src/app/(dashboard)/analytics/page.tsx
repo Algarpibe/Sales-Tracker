@@ -15,12 +15,13 @@ import { GroupingAnalysisCard } from "@/components/charts/premium/grouping-analy
 import { GroupEvolutionCard } from "@/components/charts/premium/group-evolution-card";
 import { PredictiveRunRateCard } from "@/components/charts/premium/predictive-run-rate";
 import { MeshBackground } from "@/components/ui/mesh-background";
-import { getTrendPoints } from "@/lib/math-utils";
+import { getTrendPoints, calculateSeasonalityFactors, getSeasonalForecast, calculateRunRate } from "@/lib/math-utils";
 import { ComposedChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from "recharts";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import type { Category, CategoryGroup } from "@/types/database";
 import { Sparkles, BarChart3, TrendingUp, Activity, FileText, Receipt } from "lucide-react";
 import { motion } from "framer-motion";
+import type { SalesRecord } from "@/types/database";
 
 const ST_CATEGORIES = [
   'Alquileres', 'CAL CO', 'CAL NOx', 'CAL O3', 'CAL PM', 'CAL SO2', 'ST', 
@@ -53,6 +54,8 @@ function AnalyticsContent() {
     const tab = searchParams.get("tab");
     if (tab === "forecast") {
       setActiveTab("forecast");
+      // Forzamos el año actual para el Forecast por petición del usuario
+      setYearA(new Date().getFullYear());
     } else {
       setActiveTab("exploration");
     }
@@ -61,20 +64,23 @@ function AnalyticsContent() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [resA, resB, catRes, groupRes] = await Promise.all([
-        supabase.from("sales_records").select("*").eq("record_year", yearA),
-        supabase.from("sales_records").select("*").eq("record_year", yearB),
+      const yearsToFetch = [yearA, yearB, 2025, 2024, 2023];
+      const uniqueYears = Array.from(new Set(yearsToFetch));
+      
+      const [resRecords, catRes, groupRes] = await Promise.all([
+        supabase.from("sales_records").select("*").in("record_year", uniqueYears),
         supabase.from("categories").select("*"),
         supabase.from("category_groups").select("*, category_group_mappings(*)")
       ]);
 
-      if (resA.error) throw resA.error;
-      if (resB.error) throw resB.error;
+      if (resRecords.error) throw resRecords.error;
       if (catRes.error) throw catRes.error;
       if (groupRes.error) throw groupRes.error;
 
-      const dataA = resA.data || [];
-      const dataB = resB.data || [];
+      const allRecords: SalesRecord[] = resRecords.data || [];
+      const dataA = allRecords.filter((r: SalesRecord) => r.record_year === yearA);
+      const dataB = allRecords.filter((r: SalesRecord) => r.record_year === yearB);
+
       const allCategories = (catRes.data as any[]) || [];
       const allGroups = (groupRes.data as any[]).map(g => ({
         ...g,
@@ -90,11 +96,11 @@ function AnalyticsContent() {
 
       // 1. Datos para la comparativa anual (Mensual Genérico)
       const parsedMonthlyData = MONTHS.map(m => {
-        const totalA = dataA.filter((r: any) => r.record_month === m.value && r.record_type === recordType)
-          .reduce((acc: number, r: any) => acc + Number(r.amount_usd), 0) || 0;
+        const totalA = dataA.filter((r: SalesRecord) => r.record_month === m.value && r.record_type === recordType)
+          .reduce((acc: number, r: SalesRecord) => acc + Number(r.amount_usd), 0) || 0;
         
-        const totalB = dataB.filter((r: any) => r.record_month === m.value && r.record_type === recordType)
-          .reduce((acc: number, r: any) => acc + Number(r.amount_usd), 0) || 0;
+        const totalB = dataB.filter((r: SalesRecord) => r.record_month === m.value && r.record_type === recordType)
+          .reduce((acc: number, r: SalesRecord) => acc + Number(r.amount_usd), 0) || 0;
 
         return {
           month: m.label,
@@ -105,13 +111,40 @@ function AnalyticsContent() {
       });
       setMonthlyData(parsedMonthlyData);
 
-      // --- Calcular tendencia para Forecast ---
-      const historicalValues = parsedMonthlyData.map(d => d.rawA);
-      const trendPoints = getTrendPoints(historicalValues, 12);
+      // --- Calcular Estacionalidad (Basado en 2023-2025) ---
+      const historicalYears = [2025, 2024, 2023];
+      const historicalMatrix = historicalYears.map(y => {
+        const yearRecords = allRecords.filter((r: SalesRecord) => r.record_year === y && r.record_type === recordType);
+        return MONTHS.map(m => 
+          yearRecords.filter((r: SalesRecord) => r.record_month === m.value).reduce((acc: number, r: SalesRecord) => acc + Number(r.amount_usd), 0)
+        );
+      });
+
+      const seasonalityFactors = calculateSeasonalityFactors(historicalMatrix);
+      
+      // --- Calcular Forecast Proyectado ---
+      const now = new Date();
+      const currentMonthIdx = now.getMonth();
+      const isCurrentActualYear = yearA === now.getFullYear();
+      const lastElapsedMonth = isCurrentActualYear ? currentMonthIdx + 1 : 12;
+      
+      const currentYearElapsedData = parsedMonthlyData.slice(0, lastElapsedMonth).map((d: any) => d.rawA);
+      
+      // Proyectar el cierre del mes actual para mayor precisión (Run-Rate)
+      if (isCurrentActualYear && currentYearElapsedData.length > currentMonthIdx) {
+        const currentMonthReal = currentYearElapsedData[currentMonthIdx] || 0;
+        const currentDay = now.getDate();
+        const totalDays = new Date(now.getFullYear(), currentMonthIdx + 1, 0).getDate();
+        const currentMonthRunRateValue = calculateRunRate(currentMonthReal, currentDay, totalDays);
+        
+        currentYearElapsedData[currentMonthIdx] = currentMonthRunRateValue;
+      }
+      
+      const projectedForecast = getSeasonalForecast(currentYearElapsedData, seasonalityFactors);
       
       const forecastWithTrend = parsedMonthlyData.map((d, i) => ({
         ...d,
-        tendencia: Math.round(trendPoints[i] * 100) / 100
+        tendencia: Math.round(projectedForecast[i] * 100) / 100
       }));
       setForecastMonthlyData(forecastWithTrend);
 
@@ -328,24 +361,74 @@ function AnalyticsContent() {
               animate={{ opacity: 1, y: 0 }}
               className="space-y-8"
             >
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Task 1: Run-Rate Card */}
-                <PredictiveRunRateCard 
-                  className="lg:col-span-1"
-                  currentTotal={monthlyData[new Date().getMonth()]?.[`Año ${new Date().getFullYear()}`] || 0}
-                  lastYearMonthTotal={monthlyData[new Date().getMonth()]?.[`Año ${new Date().getFullYear() - 1}`] || 0}
-                />
+              <div className="flex flex-col sm:flex-row gap-4 items-center justify-between mb-2">
+                <div className="flex items-center gap-3">
+                  <div className="size-10 rounded-2xl bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20 shadow-[0_0_15px_rgba(99,102,241,0.1)]">
+                    <TrendingUp className="size-5 text-indigo-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold tracking-tight text-zinc-950">
+                      Análisis Predictivo de {recordType === "SALES_ORDER" ? "Órdenes" : "Facturas"}
+                    </h3>
+                    <p className="text-sm text-muted-foreground flex items-center gap-2">
+                       <Sparkles className="size-3.5 text-indigo-400" /> Historial y Proyección de Cierre {yearA}.
+                    </p>
+                  </div>
+                </div>
 
-                {/* Task 2: Trend Chart */}
-                <Card className="lg:col-span-2 shadow-2xl border-white/10 bg-white/5 backdrop-blur-xl overflow-hidden relative group">
+                <div className="flex flex-col sm:flex-row gap-4 items-center">
+                  <Tabs 
+                    value={recordType} 
+                    onValueChange={(v) => setRecordType(v as any)}
+                    className="w-full sm:w-auto"
+                  >
+                    <TabsList className="grid w-full grid-cols-2 bg-white/5 backdrop-blur-md border border-white/10 h-10 p-1 rounded-xl">
+                      <TabsTrigger 
+                        value="SALES_ORDER" 
+                        className="text-[10px] h-8 font-bold gap-2 uppercase tracking-wider data-active:bg-primary data-active:text-white transition-all rounded-lg"
+                      >
+                        <FileText className="size-3.5" /> ÓRDENES (OV)
+                      </TabsTrigger>
+                      <TabsTrigger 
+                        value="INVOICE" 
+                        className="text-[10px] h-8 font-bold gap-2 uppercase tracking-wider data-active:bg-emerald-500 data-active:text-white transition-all rounded-lg"
+                      >
+                        <Receipt className="size-3.5" /> FACTURAS (FAC)
+                      </TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+                </div>
+              </div>
+
+              <div className="space-y-8">
+                {/* Task 1 & 1.5: Projection Cards in a full-width 2-column grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full">
+                  <PredictiveRunRateCard 
+                    currentTotal={monthlyData[new Date().getMonth()]?.[`Año ${yearA}`] || 0}
+                    lastYearMonthTotal={monthlyData[new Date().getMonth()]?.[`Año ${yearB}`] || 0}
+                    projectedTotal={forecastMonthlyData[new Date().getMonth()]?.tendencia}
+                  />
+
+                  <PredictiveRunRateCard 
+                    title={`Proyección de Cierre Año ${yearA}`}
+                    currentLabel="Ventas Acum. (YTD)"
+                    targetLabel={`Total Año ${yearB}`}
+                    currentTotal={monthlyData.slice(0, new Date().getMonth() + 1).reduce((acc: number, m: any) => acc + (m[`Año ${yearA}`] || 0), 0)}
+                    lastYearMonthTotal={monthlyData.reduce((acc: number, m: any) => acc + (m[`Año ${yearB}`] || 0), 0)}
+                    projectedTotal={forecastMonthlyData.reduce((acc: number, m: any) => acc + (m.tendencia || 0), 0)}
+                  />
+                </div>
+
+                {/* Task 2: Trend Chart in its own row */}
+                <Card className="shadow-2xl border-white/10 bg-white/5 backdrop-blur-xl overflow-hidden relative group">
                   <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 to-transparent pointer-events-none" />
                   <CardHeader className="relative z-10 p-6 border-b border-white/5 flex flex-row items-center justify-between">
                     <div>
                       <CardTitle className="text-xl font-bold flex items-center gap-3">
-                        <TrendingUp className="h-5 w-5 text-indigo-400" /> Histórico con Tendencia Linear
+                        <TrendingUp className="h-5 w-5 text-indigo-400" /> Histórico con Proyección Estacional ({recordType === "SALES_ORDER" ? "Órdenes" : "Facturas"})
                       </CardTitle>
                       <p className="text-sm text-muted-foreground mt-1">
-                        Visualización de datos reales {yearA} proyectados mediante regresión matemática.
+                        Visualización de datos reales {yearA} proyectados mediante análisis de estacionalidad (2023-2025).
                       </p>
                     </div>
                     
@@ -356,7 +439,7 @@ function AnalyticsContent() {
                       </div>
                       <div className="flex items-center gap-2">
                           <div className="w-3 h-0.5 border-t border-dashed border-cyan-400" />
-                          <span className="text-xs font-medium text-muted-foreground">Tendencia Calculada</span>
+                          <span className="text-xs font-medium text-muted-foreground">Proyección Estacional</span>
                       </div>
                     </div>
                   </CardHeader>
@@ -415,7 +498,7 @@ function AnalyticsContent() {
                             barSize={35}
                           />
                           <Line 
-                            name="Tendencia Calculada"
+                            name="Proyección Estacional"
                             type="monotone" 
                             dataKey="tendencia" 
                             stroke="#22d3ee" 
@@ -439,16 +522,47 @@ function AnalyticsContent() {
                     <h4 className="text-lg font-bold mb-4 flex items-center gap-2 text-primary">
                       <Activity className="size-5" /> ¿Cómo calculamos el Forecast?
                     </h4>
-                    <p className="text-muted-foreground leading-relaxed">
-                      Nuestro sistema utiliza un algoritmo de <strong>Regresión Lineal Simple</strong> para analizar la trayectoria histórica del año actual. La línea de tendencia suavizada proyecta el comportamiento matemático más probable basado en la pendiente acumulada, ayudando a identificar si el ritmo de ventas se está acelerando o ralentizando.
-                    </p>
+                    <div className="text-muted-foreground leading-relaxed space-y-4 text-sm">
+                      <p>
+                        Nuestro sistema utiliza un algoritmo de <strong>Análisis de Estacionalidad</strong> que preserva los patrones históricos de tu negocio:
+                      </p>
+                      <ul className="pl-4 border-l-2 border-primary/30 space-y-3 py-1 list-none">
+                        <li>
+                          <p className="text-zinc-950 font-bold flex items-center gap-2">
+                             1. Factores de Estacionalidad (Sᵢ):
+                          </p>
+                          <p className="text-xs opacity-80">Calculamos el peso promedio de cada mes en el total anual basado en el histórico 2023-2025.</p>
+                        </li>
+                        <li>
+                          <p className="text-zinc-950 font-bold flex items-center gap-2">
+                             2. Proyección de Cierre (Tₑₛₜ):
+                          </p>
+                          <p className="text-xs opacity-80">Escalamos las ventas acumuladas (YTD) dividiéndolas por la suma de los factores de los meses transcurridos.</p>
+                        </li>
+                        <li>
+                          <p className="text-zinc-950 font-bold flex items-center gap-2">
+                             3. Normalización:
+                          </p>
+                          <p className="text-xs opacity-80">Ajustamos los factores para que la suma final de los 12 meses sea exactamente 1, evitando errores por redondeo.</p>
+                        </li>
+                        <li>
+                          <p className="text-zinc-950 font-bold flex items-center gap-2">
+                             4. Proyección Mensual (Pᵢ):
+                          </p>
+                          <p className="text-xs opacity-80">Multiplicamos el total anual estimado por el factor normalizado de cada mes futuro.</p>
+                        </li>
+                      </ul>
+                      <p className="text-[10px] italic bg-white/5 p-3 rounded-lg border border-white/5 leading-snug">
+                        Este método es superior a una regresión lineal simple, ya que detecta picos estacionales (como cierres de trimestre o temporada alta) y los proyecta con precisión.
+                      </p>
+                    </div>
                 </div>
                 <div className="p-8 rounded-3xl bg-white/5 border border-white/10 backdrop-blur-md">
                     <h4 className="text-lg font-bold mb-4 flex items-center gap-2 text-emerald-400">
-                      <TrendingUp className="size-5" /> Estimación de Cierre (Run-Rate)
+                      <TrendingUp className="size-5" /> Estimación de Seguimiento (Run-Rate)
                     </h4>
-                    <p className="text-muted-foreground leading-relaxed">
-                      El Run-Rate mensual calcula el promedio de ventas diarias del mes en curso y lo proyecta para el resto de días restantes. Para que esta métrica sea precisa, comparamos la proyección contra el cierre del mismo mes del año anterior, marcándolo automáticamente como <strong>"On Track"</strong> o <strong>"At Risk"</strong>.
+                    <p className="text-muted-foreground leading-relaxed text-sm">
+                      El Run-Rate mensual calcula el promedio de ventas diarias del mes actual y lo proyecta linealmente. Al compararlo con el Forecast Estacional, el sistema determina automáticamente si el mes está <strong>"En Trayectoria" (On Track)</strong> o <strong>"En Riesgo" (At Risk)</strong>, permitiendo tomar acciones correctivas antes del cierre.
                     </p>
                 </div>
               </div>

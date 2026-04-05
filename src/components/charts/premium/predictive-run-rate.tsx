@@ -11,19 +11,27 @@ import { cn } from "@/lib/utils";
 interface PredictiveRunRateCardProps {
   currentTotal: number;
   lastYearMonthTotal: number; // For target comparison
+  projectedTotal?: number;   // Optional external projection
+  title?: string;
+  currentLabel?: string;
+  targetLabel?: string;
   className?: string;
 }
 
 export function PredictiveRunRateCard({ 
   currentTotal, 
   lastYearMonthTotal,
+  projectedTotal: externalProjectedTotal,
+  title = "Proyección de Cierre (Mes Actual)",
+  currentLabel = "Ventas Actuales",
+  targetLabel = "Objetivo (Año Prev.)",
   className 
 }: PredictiveRunRateCardProps) {
   const now = new Date();
   const currentDay = now.getDate();
   const totalDays = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
   
-  const projectedTotal = calculateRunRate(currentTotal, currentDay, totalDays);
+  const projectedTotal = externalProjectedTotal ?? calculateRunRate(currentTotal, currentDay, totalDays);
   const progressPercent = Math.min(100, (currentTotal / projectedTotal) * 100);
   
   // Hypothetical target: meet or exceed last year's month total
@@ -42,7 +50,7 @@ export function PredictiveRunRateCard({
           <div className="flex justify-between items-start mb-6">
             <div className="space-y-1">
               <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-widest">
-                Proyección de Cierre (Mes Actual)
+                {title}
               </h3>
               <div className="flex items-baseline gap-2">
                 <span className="text-3xl font-bold tracking-tight tabular-nums text-foreground">
@@ -67,11 +75,11 @@ export function PredictiveRunRateCard({
           <div className="space-y-4">
             <div className="flex justify-between items-end text-sm">
               <div className="space-y-1">
-                <span className="text-muted-foreground">Ventas Actuales</span>
+                <span className="text-muted-foreground">{currentLabel}</span>
                 <p className="font-bold tabular-nums">{formatUSD(currentTotal)}</p>
               </div>
               <div className="text-right space-y-1">
-                <span className="text-muted-foreground">Objetivo (Año Prev.)</span>
+                <span className="text-muted-foreground">{targetLabel}</span>
                 <p className="font-bold tabular-nums text-muted-foreground/80">{formatUSD(lastYearMonthTotal)}</p>
               </div>
             </div>
