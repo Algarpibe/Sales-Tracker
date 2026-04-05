@@ -114,6 +114,10 @@ export function TechServiceAnalysis({ data, yearA, yearB, viewMode, onViewModeCh
                 <span className="text-emerald-600">Acumulado {yearA}:</span>
                 <span className="font-mono text-emerald-500">{formatUSD(qData.acum)}</span>
               </p>
+              <p className="flex justify-between gap-6 font-bold text-sm pt-1">
+                <span className="text-orange-600">Acumulado {yearB}:</span>
+                <span className="font-mono text-orange-500">{formatUSD(qData.acum_prev)}</span>
+              </p>
               <p className="flex justify-between gap-6 pt-1 text-xs">
                 <span className="text-slate-500 font-medium">Variación (Acum):</span>
                 <span className="font-mono font-bold">{formatYoY(yoyAcum)}</span>

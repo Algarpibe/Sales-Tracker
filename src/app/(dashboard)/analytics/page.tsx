@@ -213,7 +213,7 @@ function AnalyticsContent() {
     } finally {
       setLoading(false);
     }
-  }, [yearA, yearB, recordType, techServiceViewMode, supabase]);
+  }, [yearA, yearB, recordType, techServiceViewMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     fetchData();
