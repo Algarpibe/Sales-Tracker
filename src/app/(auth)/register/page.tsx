@@ -20,7 +20,6 @@ import { toast } from "sonner";
 
 export default function RegisterPage() {
   const [fullName, setFullName] = useState("");
-  const [companyName, setCompanyName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -45,7 +44,7 @@ export default function RegisterPage() {
         emailRedirectTo: `${window.location.origin}/auth/callback`,
         data: {
           full_name: fullName,
-          company_name: companyName,
+          company_name: "Ambientalia S.A.S.",
         },
       },
     });
@@ -73,7 +72,7 @@ export default function RegisterPage() {
         </div>
         <CardTitle className="text-2xl font-bold">Crear Cuenta</CardTitle>
         <CardDescription>
-          Registra tu empresa y comienza a analizar tus ventas
+          Regístrate para comenzar a analizar tus ventas
         </CardDescription>
       </CardHeader>
       <form onSubmit={handleRegister}>
@@ -90,18 +89,7 @@ export default function RegisterPage() {
               disabled={loading}
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="companyName">Nombre de la empresa</Label>
-            <Input
-              id="companyName"
-              type="text"
-              placeholder="Mi Empresa S.A."
-              value={companyName}
-              onChange={(e) => setCompanyName(e.target.value)}
-              required
-              disabled={loading}
-            />
-          </div>
+
           <div className="space-y-2">
             <Label htmlFor="email">Correo electrónico</Label>
             <Input
