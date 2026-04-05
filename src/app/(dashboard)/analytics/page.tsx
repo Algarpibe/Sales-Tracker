@@ -95,6 +95,8 @@ function AnalyticsContent() {
       );
 
       // 1. Datos para la comparativa anual (Mensual Genérico)
+      let runningAcumA = 0;
+      let runningAcumB = 0;
       const parsedMonthlyData = MONTHS.map(m => {
         const totalA = dataA.filter((r: SalesRecord) => r.record_month === m.value && r.record_type === recordType)
           .reduce((acc: number, r: SalesRecord) => acc + Number(r.amount_usd), 0) || 0;
@@ -102,10 +104,15 @@ function AnalyticsContent() {
         const totalB = dataB.filter((r: SalesRecord) => r.record_month === m.value && r.record_type === recordType)
           .reduce((acc: number, r: SalesRecord) => acc + Number(r.amount_usd), 0) || 0;
 
+        runningAcumA += totalA;
+        runningAcumB += totalB;
+
         return {
           month: m.label,
           [`Año ${yearA}`]: totalA,
           [`Año ${yearB}`]: totalB,
+          acumA: runningAcumA,
+          acumB: runningAcumB,
           rawA: totalA, // To calculate trend
         };
       });
@@ -228,6 +235,41 @@ function AnalyticsContent() {
     );
   }
 
+  // Componente Tooltip personalizado para el gráfico mensual
+  const CustomMonthlyTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+      return (
+        <div className="bg-white/95 backdrop-blur-md border border-white/20 p-4 rounded-2xl shadow-xl space-y-3">
+          <p className="text-sm font-bold text-zinc-950 border-b border-zinc-100 pb-2">{label}</p>
+          <div className="space-y-2">
+            {/* Valores Mensuales */}
+            <div className="flex items-center justify-between gap-8">
+              <span className="text-xs font-semibold text-primary">Año {yearA}:</span>
+              <span className="text-xs font-bold text-zinc-900">{formatUSD(data[`Año ${yearA}`])}</span>
+            </div>
+            <div className="flex items-center justify-between gap-8">
+              <span className="text-xs font-semibold text-rose-500">Año {yearB}:</span>
+              <span className="text-xs font-bold text-zinc-900">{formatUSD(data[`Año ${yearB}`])}</span>
+            </div>
+            {/* Valores Acumulados */}
+            <div className="pt-2 mt-2 border-t border-zinc-100 space-y-2">
+              <div className="flex items-center justify-between gap-8">
+                <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Acumulado {yearA}:</span>
+                <span className="text-xs font-bold text-primary">{formatUSD(data.acumA)}</span>
+              </div>
+              <div className="flex items-center justify-between gap-8">
+                <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Acumulado {yearB}:</span>
+                <span className="text-xs font-bold text-rose-500">{formatUSD(data.acumB)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
+
   return (
     <div className="relative min-h-screen">
       <MeshBackground />
@@ -322,7 +364,7 @@ function AnalyticsContent() {
                       <XAxis dataKey="month" axisLine={false} tickLine={false} dy={10} />
                       <YAxis tickFormatter={formatCompactUSD} axisLine={false} tickLine={false} />
                       <RechartsTooltip 
-                        formatter={(value: number) => formatUSD(value)} 
+                        content={<CustomMonthlyTooltip />}
                         cursor={{ fill: "rgba(147, 197, 253, 0.15)" }}
                       />
                       <Legend wrapperStyle={{ paddingTop: '20px' }} />
