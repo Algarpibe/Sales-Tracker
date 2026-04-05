@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useTheme } from "next-themes";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
@@ -12,7 +13,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuGroup,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Moon, Sun, LogOut, User, Menu } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { MobileNav } from "./mobile-nav";
@@ -65,7 +66,8 @@ export function Header() {
         <DropdownMenu>
           <DropdownMenuTrigger render={(props) => (
             <Button variant="ghost" className="relative h-9 w-9 rounded-full" {...props}>
-              <Avatar className="h-9 w-9">
+              <Avatar className="h-9 w-9 border border-primary/10">
+                <AvatarImage src={profile?.avatar_url || undefined} className="object-cover" />
                 <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
                   {initials}
                 </AvatarFallback>
@@ -84,10 +86,12 @@ export function Header() {
               </DropdownMenuLabel>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
-              <User className="mr-2 h-4 w-4" />
-              Perfil
-            </DropdownMenuItem>
+            <Link href="/settings">
+              <DropdownMenuItem className="cursor-pointer">
+                <User className="mr-2 h-4 w-4" />
+                Perfil
+              </DropdownMenuItem>
+            </Link>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={signOut}
