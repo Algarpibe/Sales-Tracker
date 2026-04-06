@@ -49,6 +49,8 @@ const MONTHS = [
   "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"
 ];
 
+const QUARTERS = ["Q1", "Q2", "Q3", "Q4"];
+
 const formatCurrencyCompact = (value: number) => {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -71,7 +73,7 @@ interface GroupEvolutionCardProps {
   recordType: RecordType;
 }
 
-type ViewMode = "ANNUAL" | "MONTHLY";
+type ViewMode = "ANNUAL" | "QUARTERLY" | "MONTHLY";
 
 export function GroupEvolutionCard({ savedGroups, recordType: initialRecordType }: GroupEvolutionCardProps) {
   const [loading, setLoading] = useState(true);
@@ -127,6 +129,34 @@ export function GroupEvolutionCard({ savedGroups, recordType: initialRecordType 
         });
         return entry;
       });
+    } else if (viewMode === "QUARTERLY") {
+      if (!selectedYear) return [];
+      
+      const quarterlyEntries = QUARTERS.map((name, idx) => {
+        const startMonth = idx * 3 + 1;
+        const entry: any = { quarter: name };
+        
+        let grandQuarterlyTotal = 0;
+        data.rows.forEach(r => {
+          for (let m = startMonth; m < startMonth + 3; m++) {
+            grandQuarterlyTotal += r.months?.[selectedYear]?.[m] || 0;
+          }
+        });
+
+        data.rows.forEach(row => {
+          if (selectedGroupIds.includes(row.groupId)) {
+            let amount = 0;
+            for (let m = startMonth; m < startMonth + 3; m++) {
+              amount += row.months?.[selectedYear]?.[m] || 0;
+            }
+            entry[row.groupName] = amount;
+            entry[`${row.groupName}_percent`] = grandQuarterlyTotal > 0 ? (amount / grandQuarterlyTotal) * 100 : 0;
+            entry[`${row.groupName}_color`] = row.color;
+          }
+        });
+        return entry;
+      });
+      return quarterlyEntries;
     } else {
       // Monthly view for selectedYear
       if (!selectedYear) return [];
@@ -166,7 +196,7 @@ export function GroupEvolutionCard({ savedGroups, recordType: initialRecordType 
           <div className="flex items-center gap-2 mb-3 border-b border-white/5 pb-2">
             <History className="h-4 w-4 text-primary" />
             <span className="font-bold text-foreground text-lg">
-              {viewMode === "MONTHLY" ? `${label} ${selectedYear}` : label}
+              {(viewMode === "MONTHLY" || viewMode === "QUARTERLY") ? `${label} ${selectedYear}` : label}
             </span>
           </div>
           <div className="space-y-2">
@@ -222,7 +252,7 @@ export function GroupEvolutionCard({ savedGroups, recordType: initialRecordType 
             Evolución Histórica por Grupo
           </CardTitle>
           <CardDescription className="text-base">
-            Tendencia {viewMode === "MONTHLY" ? "mensual" : "anual"} y desglose porcentual de tus agrupaciones estratégicas.
+            Tendencia {viewMode === "MONTHLY" ? "mensual" : viewMode === "QUARTERLY" ? "trimestral" : "anual"} y desglose porcentual de tus agrupaciones estratégicas.
           </CardDescription>
         </div>
 
@@ -237,6 +267,7 @@ export function GroupEvolutionCard({ savedGroups, recordType: initialRecordType 
           >
             <TabsList className="bg-muted/30 backdrop-blur-sm border border-white/5 h-10 p-1">
               <TabsTrigger value="ANNUAL" className="text-[10px] h-8 font-bold uppercase tracking-wider">Anual</TabsTrigger>
+              <TabsTrigger value="QUARTERLY" className="text-[10px] h-8 font-bold uppercase tracking-wider">Trimestral</TabsTrigger>
               <TabsTrigger value="MONTHLY" className="text-[10px] h-8 font-bold uppercase tracking-wider">Mensual</TabsTrigger>
             </TabsList>
           </Tabs>
@@ -312,9 +343,9 @@ export function GroupEvolutionCard({ savedGroups, recordType: initialRecordType 
 
       <CardContent className="p-8">
         
-        {/* YEAR SELECTION - Only in Monthly Mode */}
+        {/* YEAR SELECTION - Only in Monthly and Quarterly Mode */}
         <AnimatePresence>
-          {viewMode === "MONTHLY" && (
+          {(viewMode === "MONTHLY" || viewMode === "QUARTERLY") && (
             <motion.div
                initial={{ opacity: 0, scale: 0.95 }}
                animate={{ opacity: 1, scale: 1 }}
@@ -374,7 +405,7 @@ export function GroupEvolutionCard({ savedGroups, recordType: initialRecordType 
                 <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
                   <XAxis 
-                    dataKey={viewMode === "ANNUAL" ? "year" : "month"} 
+                    dataKey={viewMode === "ANNUAL" ? "year" : viewMode === "QUARTERLY" ? "quarter" : "month"} 
                     axisLine={false}
                     tickLine={false}
                     tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12, fontWeight: 700 }}
