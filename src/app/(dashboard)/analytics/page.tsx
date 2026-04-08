@@ -14,6 +14,7 @@ import { HistoricalSalesCategory } from "@/components/charts/premium/historical-
 import { GroupingAnalysisCard } from "@/components/charts/premium/grouping-analysis-card";
 import { GroupEvolutionCard } from "@/components/charts/premium/group-evolution-card";
 import { GroupForecastCard } from "@/components/charts/premium/group-forecast-card";
+import { ForecastSalesCategory } from "@/components/charts/premium/forecast-sales-category";
 import { PredictiveRunRateCard } from "@/components/charts/premium/predictive-run-rate";
 import { MeshBackground } from "@/components/ui/mesh-background";
 import { getTrendPoints, calculateSeasonalityFactors, getSeasonalForecast, calculateRunRate } from "@/lib/math-utils";
@@ -561,6 +562,7 @@ function AnalyticsContent() {
 
               {/* Task 3: Group Forecast Card */}
               <GroupForecastCard savedGroups={savedGroups} recordType={recordType} baseYear={yearA} />
+              <ForecastSalesCategory baseYear={yearA} />
 
               {/* Additional info section */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-12">
