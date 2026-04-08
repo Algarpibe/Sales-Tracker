@@ -3,8 +3,9 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  BarChart,
+  ComposedChart,
   Bar,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -116,8 +117,8 @@ export function GroupForecastCard({ savedGroups, recordType: initialRecordType, 
 
     const monthlyEntries = MONTHS.map((name, idx) => {
       const entry: any = { month: name };
-      
-      let grandMonthlyTotal = 0;
+      const monthNum = idx + 1;
+      let totalForecastVal = 0;
 
       data.rows.forEach(row => {
         if (selectedGroupIds.includes(row.groupId)) {
@@ -139,17 +140,30 @@ export function GroupForecastCard({ savedGroups, recordType: initialRecordType, 
           const projectedForecast = getSeasonalForecast(currentYearElapsedData, seasonalityFactors);
           const val = Math.round(projectedForecast[idx] * 100) / 100 || 0;
           
-          entry[row.groupName] = val;
+          // Total forecast line data
+          totalForecastVal += val;
+
+          // Bars data: Only real data for elapsed months
+          if (monthNum <= lastElapsedMonth) {
+            const realVal = row.months?.[currentYear]?.[monthNum] || 0;
+            entry[row.groupName] = realVal;
+          } else {
+            entry[row.groupName] = 0;
+          }
+          
           entry[`${row.groupName}_color`] = row.color;
-          grandMonthlyTotal += val;
+          // Percentage of the forecast for the tooltip
+          entry[`${row.groupName}_forecast`] = val;
         }
       });
 
-      // Calculate percentages for tooltip
+      entry.total_forecast = totalForecastVal;
+      
+      // Calculate percentages based on the forecast for tooltip comparison
       data.rows.forEach(row => {
           if (selectedGroupIds.includes(row.groupId)) {
-              const val = entry[row.groupName] || 0;
-              entry[`${row.groupName}_percent`] = grandMonthlyTotal > 0 ? (val / grandMonthlyTotal) * 100 : 0;
+              const val = entry[`${row.groupName}_forecast`] || 0;
+              entry[`${row.groupName}_percent`] = totalForecastVal > 0 ? (val / totalForecastVal) * 100 : 0;
           }
       });
       
@@ -175,27 +189,36 @@ export function GroupForecastCard({ savedGroups, recordType: initialRecordType, 
               {label} {baseYear}
             </span>
           </div>
+          <div className="mb-3 flex justify-between items-center text-xs">
+            <span className="text-muted-foreground font-bold">Total Forecast:</span>
+            <span className="text-primary font-mono font-bold text-sm">{formatCurrencyFull(payload[0].payload.total_forecast)}</span>
+          </div>
           <div className="space-y-2">
-            {sortedPayload.map((entry: any, index: number) => {
-              const color = entry.payload[`${entry.name}_color`];
-              const percent = entry.payload[`${entry.name}_percent`];
-              return (
-                <div key={index} className="flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
-                    <span className="text-xs font-medium text-muted-foreground truncate">{entry.name}</span>
+            {sortedPayload
+              .filter((entry: any) => entry.dataKey !== "total_forecast")
+              .map((entry: any, index: number) => {
+                const groupName = entry.name;
+                const color = entry.payload[`${groupName}_color`];
+                const percent = entry.payload[`${groupName}_percent`];
+                const forecastVal = entry.payload[`${groupName}_forecast`] || 0;
+                
+                return (
+                  <div key={index} className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                      <span className="text-xs font-medium text-muted-foreground truncate">{groupName}</span>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <span className="text-sm font-mono font-bold text-foreground">
+                        {formatCurrencyFull(forecastVal)}
+                      </span>
+                      <Badge variant="outline" className="text-[10px] py-0 px-1.5 h-4 bg-primary/5 text-primary border-primary/20">
+                        {(percent || 0).toFixed(1)}%
+                      </Badge>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3 shrink-0">
-                    <span className="text-sm font-mono font-bold text-foreground">
-                      {formatCurrencyFull(entry.value)}
-                    </span>
-                    <Badge variant="outline" className="text-[10px] py-0 px-1.5 h-4 bg-primary/5 text-primary border-primary/20">
-                      {percent.toFixed(1)}%
-                    </Badge>
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })}
           </div>
         </div>
       );
@@ -331,7 +354,13 @@ export function GroupForecastCard({ savedGroups, recordType: initialRecordType, 
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                <ComposedChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                  <defs>
+                    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                      <feGaussianBlur stdDeviation="4" result="blur" />
+                      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                    </filter>
+                  </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
                   <XAxis 
                     dataKey="month" 
@@ -352,6 +381,18 @@ export function GroupForecastCard({ savedGroups, recordType: initialRecordType, 
                     align="right" 
                     iconType="circle"
                     wrapperStyle={{ fontSize: 12, paddingBottom: 30, fontWeight: 600, textTransform: 'uppercase' }}
+                  />
+                  <Line 
+                    name="Forecast Total"
+                    type="monotone" 
+                    dataKey="total_forecast" 
+                    stroke="#22d3ee" 
+                    strokeWidth={3}
+                    strokeDasharray="8 5"
+                    dot={false}
+                    activeDot={{ r: 6, fill: "#22d3ee", strokeWidth: 0 }}
+                    filter="url(#glow)"
+                    animationDuration={2000}
                   />
                   {selectedGroupDetails.map((group, idx) => (
                     <Bar 
@@ -374,7 +415,7 @@ export function GroupForecastCard({ savedGroups, recordType: initialRecordType, 
                       )}
                     </Bar>
                   ))}
-                </BarChart>
+                </ComposedChart>
               </ResponsiveContainer>
             )}
           </div>
