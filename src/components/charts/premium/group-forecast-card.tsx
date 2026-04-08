@@ -193,7 +193,7 @@ export function GroupForecastCard({ savedGroups, recordType: initialRecordType, 
             <span className="text-muted-foreground font-bold">Total Forecast:</span>
             <span className="text-primary font-mono font-bold text-sm">{formatCurrencyFull(payload[0].payload.total_forecast)}</span>
           </div>
-          <div className="space-y-2">
+          <div className="space-y-4">
             {sortedPayload
               .filter((entry: any) => entry.dataKey !== "total_forecast")
               .map((entry: any, index: number) => {
@@ -201,20 +201,37 @@ export function GroupForecastCard({ savedGroups, recordType: initialRecordType, 
                 const color = entry.payload[`${groupName}_color`];
                 const percent = entry.payload[`${groupName}_percent`];
                 const forecastVal = entry.payload[`${groupName}_forecast`] || 0;
+                const realSalesVal = entry.payload[groupName] || 0;
                 
                 return (
-                  <div key={index} className="flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                      <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
-                      <span className="text-xs font-medium text-muted-foreground truncate">{groupName}</span>
+                  <div key={index} className="space-y-1.5 border-l-2 pl-3 py-1" style={{ borderLeftColor: color }}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-sm font-bold text-foreground">{groupName}</span>
                     </div>
-                    <div className="flex items-center gap-3 shrink-0">
-                      <span className="text-sm font-mono font-bold text-foreground">
-                        {formatCurrencyFull(forecastVal)}
+                    
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-2">
+                        <div className="size-1.5 rounded-full bg-slate-400 opacity-50" />
+                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Ventas Reales:</span>
+                      </div>
+                      <span className="text-xs font-mono font-bold text-slate-400">
+                        {formatCurrencyFull(realSalesVal)}
                       </span>
-                      <Badge variant="outline" className="text-[10px] py-0 px-1.5 h-4 bg-primary/5 text-primary border-primary/20">
-                        {(percent || 0).toFixed(1)}%
-                      </Badge>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-2">
+                        <div className="size-1.5 rounded-full bg-indigo-500" />
+                        <span className="text-[10px] uppercase tracking-wider text-indigo-400 font-bold">Proyección:</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-mono font-bold text-foreground">
+                          {formatCurrencyFull(forecastVal)}
+                        </span>
+                        <Badge variant="outline" className="text-[9px] py-0 px-1 h-3.5 bg-indigo-500/5 text-indigo-400 border-indigo-500/20">
+                          {(percent || 0).toFixed(1)}%
+                        </Badge>
+                      </div>
                     </div>
                   </div>
                 );
