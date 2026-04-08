@@ -13,6 +13,7 @@ import { TechServiceAnalysis, TechServiceDataPoint, TechServiceViewMode } from "
 import { HistoricalSalesCategory } from "@/components/charts/premium/historical-sales-category";
 import { GroupingAnalysisCard } from "@/components/charts/premium/grouping-analysis-card";
 import { GroupEvolutionCard } from "@/components/charts/premium/group-evolution-card";
+import { GroupForecastCard } from "@/components/charts/premium/group-forecast-card";
 import { PredictiveRunRateCard } from "@/components/charts/premium/predictive-run-rate";
 import { MeshBackground } from "@/components/ui/mesh-background";
 import { getTrendPoints, calculateSeasonalityFactors, getSeasonalForecast, calculateRunRate } from "@/lib/math-utils";
@@ -557,6 +558,9 @@ function AnalyticsContent() {
                   </CardContent>
                 </Card>
               </div>
+
+              {/* Task 3: Group Forecast Card */}
+              <GroupForecastCard savedGroups={savedGroups} recordType={recordType} baseYear={yearA} />
 
               {/* Additional info section */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-12">
