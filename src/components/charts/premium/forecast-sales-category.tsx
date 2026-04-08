@@ -3,8 +3,9 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  BarChart,
+  ComposedChart,
   Bar,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -161,7 +162,8 @@ export function ForecastSalesCategory({ baseYear = new Date().getFullYear() }: F
 
     const monthlyEntries = MONTHS.map((name, idx) => {
       const entry: any = { month: name };
-      let grandMonthlyTotal = 0;
+      const monthNum = idx + 1;
+      let totalForecastVal = 0;
 
       selectedCategoryIds.forEach(catId => {
         const catMonths = categoryMonthSums[catId] || {};
@@ -186,14 +188,26 @@ export function ForecastSalesCategory({ baseYear = new Date().getFullYear() }: F
         const projectedForecast = getSeasonalForecast(currentYearElapsedData, seasonalityFactors);
         const val = Math.round(projectedForecast[idx] * 100) / 100 || 0;
         
-        entry[catId] = val;
+        // Total forecast line data
+        totalForecastVal += val;
+
+        // Bars data: Only real data for elapsed months
+        if (monthNum <= lastElapsedMonth) {
+          const realVal = catMonths[currentYear]?.[monthNum] || 0;
+          entry[catId] = realVal;
+        } else {
+          entry[catId] = 0;
+        }
+        
         entry[`${catId}_color`] = cat.color;
-        grandMonthlyTotal += val;
+        entry[`${catId}_forecast`] = val;
       });
 
+      entry.total_forecast = totalForecastVal;
+
       selectedCategoryIds.forEach(catId => {
-          const val = entry[catId] || 0;
-          entry[`${catId}_percent`] = grandMonthlyTotal > 0 ? (val / grandMonthlyTotal) * 100 : 0;
+          const val = entry[`${catId}_forecast`] || 0;
+          entry[`${catId}_percent`] = totalForecastVal > 0 ? (val / totalForecastVal) * 100 : 0;
       });
       
       return entry;
@@ -218,28 +232,37 @@ export function ForecastSalesCategory({ baseYear = new Date().getFullYear() }: F
               {label} {baseYear}
             </span>
           </div>
+          <div className="mb-3 flex justify-between items-center text-xs">
+            <span className="text-muted-foreground font-bold">Total Forecast:</span>
+            <span className="text-emerald-500 font-mono font-bold text-sm">{formatCurrencyFull(payload[0].payload.total_forecast)}</span>
+          </div>
           <div className="space-y-2">
-            {sortedPayload.map((entry: any, index: number) => {
-              const cat = catMap.get(entry.dataKey);
-              if (!cat) return null;
-              const percent = entry.payload[`${cat.id}_percent`];
-              return (
-                <div key={index} className="flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />
-                    <span className="text-xs font-medium text-muted-foreground truncate">{cat.name}</span>
+            {sortedPayload
+              .filter((entry: any) => entry.dataKey !== "total_forecast")
+              .map((entry: any, index: number) => {
+                const catId = entry.dataKey;
+                const cat = catMap.get(catId);
+                if (!cat) return null;
+                const percent = entry.payload[`${cat.id}_percent`];
+                const forecastVal = entry.payload[`${cat.id}_forecast`] || 0;
+
+                return (
+                  <div key={index} className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />
+                      <span className="text-xs font-medium text-muted-foreground truncate">{cat.name}</span>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <span className="text-sm font-mono font-bold text-foreground">
+                        {formatCurrencyFull(forecastVal)}
+                      </span>
+                      <Badge variant="outline" className="text-[10px] py-0 px-1.5 h-4 bg-primary/5 text-primary border-primary/20">
+                        {(percent || 0).toFixed(1)}%
+                      </Badge>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3 shrink-0">
-                    <span className="text-sm font-mono font-bold text-foreground">
-                      {formatCurrencyFull(entry.value)}
-                    </span>
-                    <Badge variant="outline" className="text-[10px] py-0 px-1.5 h-4 bg-primary/5 text-primary border-primary/20">
-                      {percent.toFixed(1)}%
-                    </Badge>
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })}
           </div>
         </div>
       );
@@ -381,7 +404,13 @@ export function ForecastSalesCategory({ baseYear = new Date().getFullYear() }: F
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                <ComposedChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                  <defs>
+                    <filter id="glow-emerald" x="-20%" y="-20%" width="140%" height="140%">
+                      <feGaussianBlur stdDeviation="4" result="blur" />
+                      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                    </filter>
+                  </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
                   <XAxis 
                     dataKey="month" 
@@ -402,6 +431,18 @@ export function ForecastSalesCategory({ baseYear = new Date().getFullYear() }: F
                     align="right" 
                     iconType="circle"
                     wrapperStyle={{ fontSize: 12, paddingBottom: 30, fontWeight: 600, textTransform: 'uppercase' }}
+                  />
+                  <Line 
+                    name="Forecast Total"
+                    type="monotone" 
+                    dataKey="total_forecast" 
+                    stroke="#10b981" 
+                    strokeWidth={3}
+                    strokeDasharray="8 5"
+                    dot={false}
+                    activeDot={{ r: 6, fill: "#10b981", strokeWidth: 0 }}
+                    filter="url(#glow-emerald)"
+                    animationDuration={2000}
                   />
                   {selectedCategories.map((cat, idx) => (
                     <Bar 
@@ -425,7 +466,7 @@ export function ForecastSalesCategory({ baseYear = new Date().getFullYear() }: F
                       )}
                     </Bar>
                   ))}
-                </BarChart>
+                </ComposedChart>
               </ResponsiveContainer>
             )}
           </div>
