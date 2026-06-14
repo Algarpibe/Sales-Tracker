@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Category } from "@/types/database";
 import { getCategories, createCategory, updateCategory, deleteCategory } from "@/actions/category-actions";
 import { useAuth } from "@/components/providers/auth-provider";
@@ -19,14 +20,23 @@ import { toast } from "sonner";
 
 export default function CategoriesPage() {
   const { profile } = useAuth();
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+
+  // react-query: cachea las categorías por clave; se comparten entre navegaciones
+  // y se refrescan invalidando tras cada mutación. Mismo action, mismos datos.
+  const { data, isLoading: loading } = useQuery({
+    queryKey: ["categories"],
+    queryFn: getCategories,
+  });
+  const categories = (data as Category[]) ?? [];
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ["categories"] });
+
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [color, setColor] = useState("#3B82F6");
-  
+
   // Edit State
   const [editOpen, setEditOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -36,19 +46,6 @@ export default function CategoriesPage() {
 
   const canEdit = profile?.role === "admin" || profile?.role === "editor";
 
-  const fetch = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await getCategories();
-      setCategories((data as Category[]) || []);
-    } catch {
-      toast.error("Error al cargar categorías");
-    }
-    setLoading(false);
-  }, []);
-
-  useEffect(() => { fetch(); }, [fetch]);
-
   const handleCreate = async () => {
     if (!name.trim()) return;
     setSaving(true);
@@ -56,7 +53,7 @@ export default function CategoriesPage() {
       await createCategory({ name, description, color });
       toast.success("Categoría creada");
       setName(""); setDescription(""); setColor("#3B82F6"); setOpen(false);
-      fetch();
+      invalidate();
     } catch (err) { toast.error((err as Error).message); }
     setSaving(false);
   };
@@ -81,7 +78,7 @@ export default function CategoriesPage() {
       toast.success("Categoría actualizada");
       setEditOpen(false);
       setEditingId(null);
-      fetch();
+      invalidate();
     } catch (err) { toast.error((err as Error).message); }
     setSaving(false);
   };
@@ -90,7 +87,7 @@ export default function CategoriesPage() {
     try {
       await deleteCategory(id);
       toast.success("Categoría desactivada");
-      fetch();
+      invalidate();
     } catch (err) { toast.error((err as Error).message); }
   };
 

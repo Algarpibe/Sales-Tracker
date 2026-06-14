@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { SUBSCRIPTION_CATEGORIES, SUBSCRIPTION_STATUSES, BILLING_CYCLES, formatUSD } from "@/lib/constants";
 import type { Subscription, SubscriptionCategory, SubscriptionStatus, BillingCycle } from "@/types/database";
 import { createSubscription, deleteSubscription, getSubscriptions } from "@/actions/subscription-actions";
@@ -23,8 +24,14 @@ import { CreditCard, DollarSign, Wrench, Plus, Trash2, Pencil, Loader2 } from "l
 import { toast } from "sonner";
 
 export default function SubscriptionsPage() {
-  const [subs, setSubs] = useState<Subscription[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const { data, isLoading: loading } = useQuery({
+    queryKey: ["subscriptions"],
+    queryFn: () => getSubscriptions(),
+  });
+  const subs: Subscription[] = data ?? [];
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ["subscriptions"] });
+
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -38,19 +45,6 @@ export default function SubscriptionsPage() {
     start_date: new Date().toISOString().split("T")[0],
     url: "",
   });
-
-  const fetchSubs = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await getSubscriptions();
-      setSubs(data || []);
-    } catch (err) {
-      toast.error((err as Error).message);
-    }
-    setLoading(false);
-  }, []);
-
-  useEffect(() => { fetchSubs(); }, [fetchSubs]);
 
   const filtered = statusFilter === "all"
     ? subs
@@ -71,7 +65,7 @@ export default function SubscriptionsPage() {
         monthly_cost_usd: 0, billing_cycle: "monthly",
         status: "active", start_date: new Date().toISOString().split("T")[0], url: "",
       });
-      fetchSubs();
+      invalidate();
     } catch (err) {
       toast.error((err as Error).message);
     }
@@ -82,7 +76,7 @@ export default function SubscriptionsPage() {
     try {
       await deleteSubscription(id);
       toast.success("Eliminada");
-      fetchSubs();
+      invalidate();
     } catch (err) { toast.error((err as Error).message); }
   };
 
