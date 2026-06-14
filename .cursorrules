@@ -11,8 +11,9 @@
 - **Framework**: Next.js 16+ with App Router.
 - **Output Mode**: Always keep `output: "standalone"` in `next.config.ts`.
 - **Dockerfile**: Use the multi-stage build optimized for `server.js` (standalone mode).
-- **Environment Variables**: Use `NEXT_PUBLIC_` for variables needed in client-side bundles (like Supabase URL/Anon Key).
-- **Data Fetching**: Prefer Server Actions for mutations and `supabase-js` for fetching within Server Components.
+- **Data Layer**: Postgres plano con **Drizzle ORM** (`src/db`). Autenticación con **better-auth** (bcryptjs). NO se usa Supabase (migrado fuera).
+- **Data Fetching**: Server Actions (`src/actions/*`) para lecturas y mutaciones; guards de autorización en `src/lib/auth/guards.ts` (`requireUser`/`requireApproved`/`requireRole`).
+- **Environment Variables**: Solo `NEXT_PUBLIC_` para variables realmente públicas (p.ej. `NEXT_PUBLIC_APP_URL`). Secretos (`DATABASE_URL`, `BETTER_AUTH_SECRET`) solo en servidor.
 - **Form Handling**: Use `react-hook-form` and `zod` for validation.
 
 ## 💡 Code Quality

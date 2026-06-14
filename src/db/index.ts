@@ -6,9 +6,16 @@ const globalForDb = globalThis as unknown as { __pool?: Pool };
 
 const pool =
   globalForDb.__pool ??
-  new Pool({ connectionString: process.env.DATABASE_URL });
+  new Pool({
+    connectionString: process.env.DATABASE_URL,
+    max: Number(process.env.PG_POOL_MAX ?? 5),
+    idleTimeoutMillis: 30_000,
+    connectionTimeoutMillis: 10_000,
+  });
 
-if (process.env.NODE_ENV !== "production") globalForDb.__pool = pool;
+// Cachear el singleton SIEMPRE (incluido producción) para no abrir un Pool nuevo
+// por cada inicialización de módulo y evitar agotar las conexiones de Postgres.
+globalForDb.__pool = pool;
 
 export const db = drizzle(pool, { schema });
 export { schema };

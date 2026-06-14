@@ -11,6 +11,7 @@ import {
   customType,
   check,
   unique,
+  index,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
@@ -54,7 +55,7 @@ export const session = pgTable("session", {
   ipAddress: text("ipAddress"),
   userAgent: text("userAgent"),
   userId: uuid("userId").notNull().references(() => user.id, { onDelete: "cascade" }),
-});
+}, (t) => [index("idx_session_user").on(t.userId)]);
 
 export const account = pgTable("account", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -70,7 +71,7 @@ export const account = pgTable("account", {
   password: text("password"),
   createdAt: timestamp("createdAt", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updatedAt", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (t) => [index("idx_account_user").on(t.userId)]);
 
 export const verification = pgTable("verification", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -106,7 +107,7 @@ export const profiles = pgTable("profiles", {
   avatar_mime: text("avatar_mime"),
   created_at: timestamp("created_at", tsString).notNull().defaultNow(),
   updated_at: timestamp("updated_at", tsString).notNull().defaultNow(),
-});
+}, (t) => [index("idx_profiles_company").on(t.company_id)]);
 
 export const categories = pgTable("categories", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -138,7 +139,10 @@ export const categoryGroupMappings = pgTable("category_group_mappings", {
   group_id: uuid("group_id").notNull().references(() => categoryGroups.id, { onDelete: "cascade" }),
   category_id: uuid("category_id").notNull().references(() => categories.id, { onDelete: "cascade" }),
   company_id: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
-});
+}, (t) => [
+  index("idx_cgm_company_group").on(t.company_id, t.group_id),
+  index("idx_cgm_category").on(t.category_id),
+]);
 
 export const salesRecords = pgTable("sales_records", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -156,6 +160,11 @@ export const salesRecords = pgTable("sales_records", {
 }, (t) => [
   check("sales_records_record_month_check", sql`${t.record_month} >= 1 AND ${t.record_month} <= 12`),
   unique("sales_records_unique_period").on(t.company_id, t.category_id, t.record_type, t.record_month, t.record_year),
+  index("idx_sales_company_year_month").on(t.company_id, t.record_year, t.record_month),
+  index("idx_sales_company_type").on(t.company_id, t.record_type),
+  index("idx_sales_category").on(t.category_id),
+  index("idx_sales_created_by").on(t.created_by),
+  index("idx_sales_updated_by").on(t.updated_by),
 ]);
 
 export const subscriptions = pgTable("subscriptions", {
@@ -177,4 +186,4 @@ export const subscriptions = pgTable("subscriptions", {
   logo_url: text("logo_url"),
   created_at: timestamp("created_at", tsString).notNull().defaultNow(),
   updated_at: timestamp("updated_at", tsString).notNull().defaultNow(),
-});
+}, (t) => [index("idx_subscriptions_company_created").on(t.company_id, t.created_at)]);
