@@ -47,9 +47,9 @@ export const auth = betterAuth({
           }
           await db.insert(profiles).values({
             id: createdUser.id,
-            companyId: company.id,
+            company_id: company.id,
             role: "viewer",
-            isApproved: false,
+            is_approved: false,
           });
         },
       },

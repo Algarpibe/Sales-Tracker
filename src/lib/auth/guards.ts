@@ -19,7 +19,7 @@ export async function requireUser() {
 
 export async function requireApproved() {
   const u = await requireUser();
-  if (!u.profile?.isApproved) throw new Error("NOT_APPROVED");
+  if (!u.profile?.is_approved) throw new Error("NOT_APPROVED");
   return u;
 }
 

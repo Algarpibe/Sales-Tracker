@@ -53,23 +53,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // so consumer components (header, sidebar, settings) keep working.
       const mapped: Profile = {
         id: u.id,
-        company_id: p?.companyId ?? "",
+        company_id: p?.company_id ?? "",
         email: u.email,
         full_name: u.name,
         avatar_url: u.image ?? null,
         role: (p?.role as UserRole) ?? "lector",
-        is_active: p?.isActive ?? false,
+        is_active: p?.is_active ?? false,
         created_at:
-          p?.createdAt instanceof Date
-            ? p.createdAt.toISOString()
-            : String(p?.createdAt ?? ""),
+          p?.created_at instanceof Date
+            ? p.created_at.toISOString()
+            : String(p?.created_at ?? ""),
         updated_at:
-          p?.updatedAt instanceof Date
-            ? p.updatedAt.toISOString()
-            : String(p?.updatedAt ?? ""),
+          p?.updated_at instanceof Date
+            ? p.updated_at.toISOString()
+            : String(p?.updated_at ?? ""),
         // Extra approval flags consumed elsewhere in the app.
-        is_approved: p?.isApproved ?? false,
-        is_rejected: p?.isRejected ?? false,
+        is_approved: p?.is_approved ?? false,
+        is_rejected: p?.is_rejected ?? false,
       } as Profile;
 
       setProfile(mapped);

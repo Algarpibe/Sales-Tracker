@@ -30,7 +30,7 @@ export const subscriptionCategory = pgEnum("subscription_category", [
   "Communication", "Analytics", "Security", "Infrastructure", "General",
 ]);
 
-// ──────────────────── better-auth (ids uuid) ────────────────────
+// ──────────── better-auth (property keys = campos better-auth, camelCase) ────────────
 export const user = pgTable("user", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
@@ -77,94 +77,94 @@ export const verification = pgTable("verification", {
   updatedAt: timestamp("updatedAt", { withTimezone: true }).notNull().defaultNow(),
 });
 
-// ───────────────────────── Dominio ─────────────────────────
+// ─────────── Dominio (property keys = nombres de columna snake_case, como los tipos de la app) ───────────
 export const companies = pgTable("companies", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
-  taxId: text("tax_id"),
+  tax_id: text("tax_id"),
   country: text("country"),
   industry: text("industry"),
-  logoUrl: text("logo_url"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  logo_url: text("logo_url"),
+  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 // profiles 1:1 con user (email/nombre viven en user)
 export const profiles = pgTable("profiles", {
   id: uuid("id").primaryKey().references(() => user.id, { onDelete: "cascade" }),
-  companyId: uuid("company_id").references(() => companies.id, { onDelete: "cascade" }),
+  company_id: uuid("company_id").references(() => companies.id, { onDelete: "cascade" }),
   role: userRole("role").notNull().default("viewer"),
-  isActive: boolean("is_active").notNull().default(true),
-  isApproved: boolean("is_approved").notNull().default(false),
-  isRejected: boolean("is_rejected").default(false),
-  rejectionReason: text("rejection_reason"),
+  is_active: boolean("is_active").notNull().default(true),
+  is_approved: boolean("is_approved").notNull().default(false),
+  is_rejected: boolean("is_rejected").default(false),
+  rejection_reason: text("rejection_reason"),
   avatar: bytea("avatar"),
-  avatarMime: text("avatar_mime"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  avatar_mime: text("avatar_mime"),
+  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const categories = pgTable("categories", {
   id: uuid("id").primaryKey().defaultRandom(),
-  companyId: uuid("company_id").references(() => companies.id, { onDelete: "cascade" }),
+  company_id: uuid("company_id").references(() => companies.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   description: text("description"),
   color: text("color").notNull().default("#3b82f6"),
-  sortOrder: integer("sort_order").notNull().default(0),
-  isActive: boolean("is_active").notNull().default(true),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  sort_order: integer("sort_order").notNull().default(0),
+  is_active: boolean("is_active").notNull().default(true),
+  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const categoryGroups = pgTable("category_groups", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
-  companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+  company_id: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
   color: text("color"),
-  sortOrder: integer("sort_order").default(0),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  sort_order: integer("sort_order").default(0),
+  created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 }, (t) => [check("category_groups_name_check", sql`char_length(${t.name}) > 0`)]);
 
 export const categoryGroupMappings = pgTable("category_group_mappings", {
   id: uuid("id").primaryKey().defaultRandom(),
-  groupId: uuid("group_id").notNull().references(() => categoryGroups.id, { onDelete: "cascade" }),
-  categoryId: uuid("category_id").notNull().references(() => categories.id, { onDelete: "cascade" }),
-  companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+  group_id: uuid("group_id").notNull().references(() => categoryGroups.id, { onDelete: "cascade" }),
+  category_id: uuid("category_id").notNull().references(() => categories.id, { onDelete: "cascade" }),
+  company_id: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
 });
 
 export const salesRecords = pgTable("sales_records", {
   id: uuid("id").primaryKey().defaultRandom(),
-  companyId: uuid("company_id").references(() => companies.id, { onDelete: "cascade" }),
-  categoryId: uuid("category_id").references(() => categories.id, { onDelete: "cascade" }),
-  recordType: recordType("record_type").notNull().default("SALES_ORDER"),
-  amountUsd: numeric("amount_usd", { precision: 15, scale: 2 }).notNull().default("0"),
-  recordMonth: integer("record_month").notNull(),
-  recordYear: integer("record_year").notNull(),
+  company_id: uuid("company_id").references(() => companies.id, { onDelete: "cascade" }),
+  category_id: uuid("category_id").references(() => categories.id, { onDelete: "cascade" }),
+  record_type: recordType("record_type").notNull().default("SALES_ORDER"),
+  amount_usd: numeric("amount_usd", { precision: 15, scale: 2 }).notNull().default("0"),
+  record_month: integer("record_month").notNull(),
+  record_year: integer("record_year").notNull(),
   notes: text("notes"),
-  createdBy: uuid("created_by").references(() => user.id),
-  updatedBy: uuid("updated_by").references(() => user.id),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-}, (t) => [check("sales_records_record_month_check", sql`${t.recordMonth} >= 1 AND ${t.recordMonth} <= 12`)]);
+  created_by: uuid("created_by").references(() => user.id),
+  updated_by: uuid("updated_by").references(() => user.id),
+  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [check("sales_records_record_month_check", sql`${t.record_month} >= 1 AND ${t.record_month} <= 12`)]);
 
 export const subscriptions = pgTable("subscriptions", {
   id: uuid("id").primaryKey().defaultRandom(),
-  companyId: uuid("company_id").references(() => companies.id, { onDelete: "cascade" }),
-  userId: uuid("user_id").references(() => user.id, { onDelete: "set null" }),
-  toolName: text("tool_name").notNull(),
+  company_id: uuid("company_id").references(() => companies.id, { onDelete: "cascade" }),
+  user_id: uuid("user_id").references(() => user.id, { onDelete: "set null" }),
+  tool_name: text("tool_name").notNull(),
   provider: text("provider"),
   category: subscriptionCategory("category").notNull().default("General"),
   description: text("description"),
-  monthlyCostUsd: numeric("monthly_cost_usd", { precision: 15, scale: 2 }).notNull().default("0"),
-  billingCycle: billingCycle("billing_cycle").notNull().default("monthly"),
-  annualCostUsd: numeric("annual_cost_usd", { precision: 15, scale: 2 }),
+  monthly_cost_usd: numeric("monthly_cost_usd", { precision: 15, scale: 2 }).notNull().default("0"),
+  billing_cycle: billingCycle("billing_cycle").notNull().default("monthly"),
+  annual_cost_usd: numeric("annual_cost_usd", { precision: 15, scale: 2 }),
   status: subscriptionStatus("status").notNull().default("active"),
-  renewalDate: date("renewal_date"),
-  startDate: date("start_date").notNull().default(sql`CURRENT_DATE`),
-  cancelDate: date("cancel_date"),
+  renewal_date: date("renewal_date"),
+  start_date: date("start_date").notNull().default(sql`CURRENT_DATE`),
+  cancel_date: date("cancel_date"),
   url: text("url"),
-  logoUrl: text("logo_url"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  logo_url: text("logo_url"),
+  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

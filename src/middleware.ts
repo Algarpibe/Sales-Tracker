@@ -15,7 +15,7 @@ export async function middleware(req: NextRequest) {
   }
 
   const [p] = await db
-    .select({ approved: profiles.isApproved })
+    .select({ approved: profiles.is_approved })
     .from(profiles)
     .where(eq(profiles.id, session.user.id));
 

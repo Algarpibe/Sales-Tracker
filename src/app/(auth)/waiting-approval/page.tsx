@@ -21,11 +21,11 @@ export default async function WaitingApprovalPage() {
 
   const { profile } = sessionUser;
 
-  if (profile?.isApproved) {
+  if (profile?.is_approved) {
     redirect("/home");
   }
 
-  const status: "pending" | "rejected" = profile?.isRejected ? "rejected" : "pending";
+  const status: "pending" | "rejected" = profile?.is_rejected ? "rejected" : "pending";
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background/50 p-4">
