@@ -6,7 +6,6 @@ import { db } from "@/db";
 import {
   categoryGroups,
   categoryGroupMappings,
-  categories,
   salesRecords,
 } from "@/db/schema";
 import { requireRole, requireApproved } from "@/lib/auth/guards";
@@ -252,20 +251,38 @@ export async function getGroupingAnalysisData(
     return { rows: [], years: [], yearTotals: {} };
   }
 
-  // 1b. Fetch mappings for those groups (scoped by company)
+  // 1b. Mappings y registros son independientes entre sí → en paralelo.
+  // (Se eliminó la consulta de colores de categoría: catColorMap era código muerto,
+  //  el color de cada fila sale del color del grupo.)
   const groupIds = groups.map((g) => g.id);
-  const mappings = await db
-    .select({
-      group_id: categoryGroupMappings.group_id,
-      category_id: categoryGroupMappings.category_id,
-    })
-    .from(categoryGroupMappings)
-    .where(
-      and(
-        eq(categoryGroupMappings.company_id, companyId),
-        inArray(categoryGroupMappings.group_id, groupIds)
-      )
-    );
+  const [mappings, records] = await Promise.all([
+    db
+      .select({
+        group_id: categoryGroupMappings.group_id,
+        category_id: categoryGroupMappings.category_id,
+      })
+      .from(categoryGroupMappings)
+      .where(
+        and(
+          eq(categoryGroupMappings.company_id, companyId),
+          inArray(categoryGroupMappings.group_id, groupIds)
+        )
+      ),
+    db
+      .select({
+        category_id: salesRecords.category_id,
+        record_year: salesRecords.record_year,
+        record_month: salesRecords.record_month,
+        amount_usd: salesRecords.amount_usd,
+      })
+      .from(salesRecords)
+      .where(
+        and(
+          eq(salesRecords.company_id, companyId),
+          eq(salesRecords.record_type, recordType)
+        )
+      ),
+  ]);
 
   // Build mapping: categoryId → groupId
   const catToGroup = new Map<string, string>();
@@ -273,39 +290,11 @@ export async function getGroupingAnalysisData(
     catToGroup.set(String(m.category_id), m.group_id);
   }
 
-  // 2. Fetch category colors (scoped by company)
-  const cats = await db
-    .select({ id: categories.id, color: categories.color })
-    .from(categories)
-    .where(eq(categories.company_id, companyId));
-
-  // (catColorMap kept to mirror original; group colors come from the saved group color)
-  const catColorMap = new Map<string, string>();
-  for (const c of cats) {
-    catColorMap.set(String(c.id), c.color || "#6366f1");
-  }
-
   // Assign the saved color to each group
   const groupColors = new Map<string, string>();
   for (const g of groups) {
     groupColors.set(g.id, g.color || "#6366f1");
   }
-
-  // 3. Fetch all sales records for the company and record type
-  const records = await db
-    .select({
-      category_id: salesRecords.category_id,
-      record_year: salesRecords.record_year,
-      record_month: salesRecords.record_month,
-      amount_usd: salesRecords.amount_usd,
-    })
-    .from(salesRecords)
-    .where(
-      and(
-        eq(salesRecords.company_id, companyId),
-        eq(salesRecords.record_type, recordType)
-      )
-    );
 
   // 4. Aggregate: group → year → sum
   const yearsSet = new Set<number>();
