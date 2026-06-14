@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback, Suspense } from "react";
+import { useEffect, useState, useMemo, Suspense } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import { getSalesData } from "@/actions/sales-actions";
 import { getCategories } from "@/actions/category-actions";
@@ -39,17 +40,11 @@ const CR_CATEGORIES = [
 ];
 
 function AnalyticsContent() {
-  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("exploration");
   const [yearA, setYearA] = useState(new Date().getFullYear());
   const [yearB, setYearB] = useState(new Date().getFullYear() - 1);
   const [recordType, setRecordType] = useState<"SALES_ORDER" | "INVOICE">("SALES_ORDER");
-  const [monthlyData, setMonthlyData] = useState<any[]>([]);
-  const [forecastMonthlyData, setForecastMonthlyData] = useState<any[]>([]);
   const [techServiceViewMode, setTechServiceViewMode] = useState<"MONTHLY" | "QUARTERLY" | "ANNUAL">("QUARTERLY");
-  const [techServiceData, setTechServiceData] = useState<any[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [savedGroups, setSavedGroups] = useState<CategoryGroup[]>([]);
 
   const searchParams = useSearchParams();
 
@@ -64,163 +59,159 @@ function AnalyticsContent() {
     }
   }, [searchParams]);
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [allRecordsRes, catRes, groupRes] = await Promise.all([
-        getSalesData({}),
-        getCategories(),
-        getSavedCategoryGroupings()
-      ]);
+  // react-query: 3 fuentes cacheadas. ["sales", {}] = todas las ventas (histórico).
+  const { data: recordsData, isLoading: l1 } = useQuery({
+    queryKey: ["sales", {}],
+    queryFn: () => getSalesData({}),
+  });
+  const { data: catsData, isLoading: l2 } = useQuery({
+    queryKey: ["categories"],
+    queryFn: getCategories,
+  });
+  const { data: groupData, isLoading: l3 } = useQuery({
+    queryKey: ["groupings"],
+    queryFn: getSavedCategoryGroupings,
+  });
+  const loading = l1 || l2 || l3;
 
-      const allRecords: SalesRecord[] = allRecordsRes || [];
-      const dataA = allRecords.filter((r: SalesRecord) => r.record_year === yearA);
-      const dataB = allRecords.filter((r: SalesRecord) => r.record_year === yearB);
+  const allRecords: SalesRecord[] = useMemo(() => recordsData ?? [], [recordsData]);
+  const categories = useMemo<Category[]>(() => (catsData as Category[]) ?? [], [catsData]);
+  const savedGroups = useMemo<CategoryGroup[]>(
+    () => (groupData?.groups ?? []).map((g) => ({ ...g, mappings: g.mappings || [] })),
+    [groupData]
+  );
 
-      const allCategories = (catRes as any[]) || [];
-      const allGroups = (groupRes.groups || []).map(g => ({
-        ...g,
-        mappings: g.mappings || []
-      }));
+  // 1. Comparativa mensual + Forecast estacional (cálculo idéntico, memorizado).
+  const { monthlyData, forecastMonthlyData } = useMemo(() => {
+    const dataA = allRecords.filter((r: SalesRecord) => r.record_year === yearA);
+    const dataB = allRecords.filter((r: SalesRecord) => r.record_year === yearB);
 
-      setCategories(allCategories);
-      setSavedGroups(allGroups);
-      
-      const catMap = new Map<string, string>(
-        allCategories.map((c: any) => [String(c.id), String(c.name)])
+    let runningAcumA = 0;
+    let runningAcumB = 0;
+    const parsedMonthlyData: any[] = MONTHS.map(m => {
+      const totalA = dataA.filter((r: SalesRecord) => r.record_month === m.value && r.record_type === recordType)
+        .reduce((acc: number, r: SalesRecord) => acc + Number(r.amount_usd), 0) || 0;
+
+      const totalB = dataB.filter((r: SalesRecord) => r.record_month === m.value && r.record_type === recordType)
+        .reduce((acc: number, r: SalesRecord) => acc + Number(r.amount_usd), 0) || 0;
+
+      runningAcumA += totalA;
+      runningAcumB += totalB;
+
+      return {
+        month: m.label,
+        [`Año ${yearA}`]: totalA,
+        [`Año ${yearB}`]: totalB,
+        acumA: runningAcumA,
+        acumB: runningAcumB,
+        rawA: totalA, // To calculate trend
+      };
+    });
+
+    // --- Calcular Estacionalidad (Basado en 2023-2025) ---
+    const historicalYears = [2025, 2024, 2023];
+    const historicalMatrix = historicalYears.map(y => {
+      const yearRecords = allRecords.filter((r: SalesRecord) => r.record_year === y && r.record_type === recordType);
+      return MONTHS.map(m =>
+        yearRecords.filter((r: SalesRecord) => r.record_month === m.value).reduce((acc: number, r: SalesRecord) => acc + Number(r.amount_usd), 0)
       );
+    });
 
-      // 1. Datos para la comparativa anual (Mensual Genérico)
-      let runningAcumA = 0;
-      let runningAcumB = 0;
-      const parsedMonthlyData = MONTHS.map(m => {
-        const totalA = dataA.filter((r: SalesRecord) => r.record_month === m.value && r.record_type === recordType)
-          .reduce((acc: number, r: SalesRecord) => acc + Number(r.amount_usd), 0) || 0;
-        
-        const totalB = dataB.filter((r: SalesRecord) => r.record_month === m.value && r.record_type === recordType)
-          .reduce((acc: number, r: SalesRecord) => acc + Number(r.amount_usd), 0) || 0;
+    const seasonalityFactors = calculateSeasonalityFactors(historicalMatrix);
 
-        runningAcumA += totalA;
-        runningAcumB += totalB;
+    // --- Calcular Forecast Proyectado ---
+    const now = new Date();
+    const currentMonthIdx = now.getMonth();
+    const isCurrentActualYear = yearA === now.getFullYear();
+    const lastElapsedMonth = isCurrentActualYear ? currentMonthIdx + 1 : 12;
 
-        return {
-          month: m.label,
-          [`Año ${yearA}`]: totalA,
-          [`Año ${yearB}`]: totalB,
-          acumA: runningAcumA,
-          acumB: runningAcumB,
-          rawA: totalA, // To calculate trend
-        };
-      });
-      setMonthlyData(parsedMonthlyData);
+    const currentYearElapsedData = parsedMonthlyData.slice(0, lastElapsedMonth).map((d: any) => d.rawA);
 
-      // --- Calcular Estacionalidad (Basado en 2023-2025) ---
-      const historicalYears = [2025, 2024, 2023];
-      const historicalMatrix = historicalYears.map(y => {
-        const yearRecords = allRecords.filter((r: SalesRecord) => r.record_year === y && r.record_type === recordType);
-        return MONTHS.map(m => 
-          yearRecords.filter((r: SalesRecord) => r.record_month === m.value).reduce((acc: number, r: SalesRecord) => acc + Number(r.amount_usd), 0)
-        );
-      });
+    // Proyectar el cierre del mes actual para mayor precisión (Run-Rate)
+    if (isCurrentActualYear && currentYearElapsedData.length > currentMonthIdx) {
+      const currentMonthReal = currentYearElapsedData[currentMonthIdx] || 0;
+      const currentDay = now.getDate();
+      const totalDays = new Date(now.getFullYear(), currentMonthIdx + 1, 0).getDate();
+      const currentMonthRunRateValue = calculateRunRate(currentMonthReal, currentDay, totalDays);
 
-      const seasonalityFactors = calculateSeasonalityFactors(historicalMatrix);
-      
-      // --- Calcular Forecast Proyectado ---
-      const now = new Date();
-      const currentMonthIdx = now.getMonth();
-      const isCurrentActualYear = yearA === now.getFullYear();
-      const lastElapsedMonth = isCurrentActualYear ? currentMonthIdx + 1 : 12;
-      
-      const currentYearElapsedData = parsedMonthlyData.slice(0, lastElapsedMonth).map((d: any) => d.rawA);
-      
-      // Proyectar el cierre del mes actual para mayor precisión (Run-Rate)
-      if (isCurrentActualYear && currentYearElapsedData.length > currentMonthIdx) {
-        const currentMonthReal = currentYearElapsedData[currentMonthIdx] || 0;
-        const currentDay = now.getDate();
-        const totalDays = new Date(now.getFullYear(), currentMonthIdx + 1, 0).getDate();
-        const currentMonthRunRateValue = calculateRunRate(currentMonthReal, currentDay, totalDays);
-        
-        currentYearElapsedData[currentMonthIdx] = currentMonthRunRateValue;
-      }
-      
-      const projectedForecast = getSeasonalForecast(currentYearElapsedData, seasonalityFactors);
-      
-      const forecastWithTrend = parsedMonthlyData.map((d, i) => ({
-        ...d,
-        tendencia: Math.round(projectedForecast[i] * 100) / 100
-      }));
-      setForecastMonthlyData(forecastWithTrend);
-
-      // 2. Datos para Análisis Financiero (Dinamizado por viewMode)
-      let timeSlots: { label: string; months: number[] }[] = [];
-
-      if (techServiceViewMode === "MONTHLY") {
-        timeSlots = MONTHS.map(m => ({ label: m.label, months: [m.value] }));
-      } else if (techServiceViewMode === "QUARTERLY") {
-        timeSlots = [
-          { label: "T1", months: [1, 2, 3] },
-          { label: "T2", months: [4, 5, 6] },
-          { label: "T3", months: [7, 8, 9] },
-          { label: "T4", months: [10, 11, 12] },
-        ];
-      } else {
-        // ANNUAL
-        timeSlots = [{ label: "Anual", months: [1,2,3,4,5,6,7,8,9,10,11,12] }];
-      }
-
-      let acumA = 0;
-      let acumB = 0;
-
-      const techData = timeSlots.map(slot => {
-        const recordsA = dataA.filter((r: any) => slot.months.includes(Number(r.record_month)) && r.record_type === recordType);
-        const recordsB = dataB.filter((r: any) => slot.months.includes(Number(r.record_month)) && r.record_type === recordType);
-
-        let stA = 0, crA = 0, stB = 0, crB = 0;
-
-        recordsA.forEach((r: any) => {
-          const catName = catMap.get(r.category_id);
-          const amt = Number(r.amount_usd);
-          if (catName && ST_CATEGORIES.includes(catName)) stA += amt;
-          else if (catName && CR_CATEGORIES.includes(catName)) crA += amt;
-        });
-
-        recordsB.forEach((r: any) => {
-          const catName = catMap.get(r.category_id);
-          const amt = Number(r.amount_usd);
-          if (catName && ST_CATEGORIES.includes(catName)) stB += amt;
-          else if (catName && CR_CATEGORIES.includes(catName)) crB += amt;
-        });
-
-        const totalA = stA + crA;
-        const totalB = stB + crB;
-        acumA += totalA;
-        acumB += totalB;
-
-        return {
-          label: slot.label,
-          st: stA,
-          cr: crA,
-          total: totalA,
-          acum: acumA,
-          st_prev: stB,
-          cr_prev: crB,
-          total_prev: totalB,
-          acum_prev: acumB,
-        };
-      });
-
-      setTechServiceData(techData);
-
-    } catch (error) {
-      console.error("Error fetching analytics data:", error);
-    } finally {
-      setLoading(false);
+      currentYearElapsedData[currentMonthIdx] = currentMonthRunRateValue;
     }
-  }, [yearA, yearB, recordType, techServiceViewMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    const projectedForecast = getSeasonalForecast(currentYearElapsedData, seasonalityFactors);
+
+    const forecastWithTrend = parsedMonthlyData.map((d, i) => ({
+      ...d,
+      tendencia: Math.round(projectedForecast[i] * 100) / 100
+    }));
+
+    return { monthlyData: parsedMonthlyData, forecastMonthlyData: forecastWithTrend };
+  }, [allRecords, yearA, yearB, recordType]);
+
+  // 2. Análisis Financiero ST vs C&R (dinamizado por viewMode), memorizado.
+  const techServiceData = useMemo(() => {
+    const dataA = allRecords.filter((r: SalesRecord) => r.record_year === yearA);
+    const dataB = allRecords.filter((r: SalesRecord) => r.record_year === yearB);
+    const catMap = new Map<string, string>(
+      categories.map((c: any) => [String(c.id), String(c.name)])
+    );
+
+    let timeSlots: { label: string; months: number[] }[] = [];
+
+    if (techServiceViewMode === "MONTHLY") {
+      timeSlots = MONTHS.map(m => ({ label: m.label, months: [m.value] }));
+    } else if (techServiceViewMode === "QUARTERLY") {
+      timeSlots = [
+        { label: "T1", months: [1, 2, 3] },
+        { label: "T2", months: [4, 5, 6] },
+        { label: "T3", months: [7, 8, 9] },
+        { label: "T4", months: [10, 11, 12] },
+      ];
+    } else {
+      // ANNUAL
+      timeSlots = [{ label: "Anual", months: [1,2,3,4,5,6,7,8,9,10,11,12] }];
+    }
+
+    let acumA = 0;
+    let acumB = 0;
+
+    return timeSlots.map(slot => {
+      const recordsA = dataA.filter((r: any) => slot.months.includes(Number(r.record_month)) && r.record_type === recordType);
+      const recordsB = dataB.filter((r: any) => slot.months.includes(Number(r.record_month)) && r.record_type === recordType);
+
+      let stA = 0, crA = 0, stB = 0, crB = 0;
+
+      recordsA.forEach((r: any) => {
+        const catName = catMap.get(r.category_id);
+        const amt = Number(r.amount_usd);
+        if (catName && ST_CATEGORIES.includes(catName)) stA += amt;
+        else if (catName && CR_CATEGORIES.includes(catName)) crA += amt;
+      });
+
+      recordsB.forEach((r: any) => {
+        const catName = catMap.get(r.category_id);
+        const amt = Number(r.amount_usd);
+        if (catName && ST_CATEGORIES.includes(catName)) stB += amt;
+        else if (catName && CR_CATEGORIES.includes(catName)) crB += amt;
+      });
+
+      const totalA = stA + crA;
+      const totalB = stB + crB;
+      acumA += totalA;
+      acumB += totalB;
+
+      return {
+        label: slot.label,
+        st: stA,
+        cr: crA,
+        total: totalA,
+        acum: acumA,
+        st_prev: stB,
+        cr_prev: crB,
+        total_prev: totalB,
+        acum_prev: acumB,
+      };
+    });
+  }, [allRecords, categories, yearA, yearB, recordType, techServiceViewMode]);
 
   if (loading) {
     return (

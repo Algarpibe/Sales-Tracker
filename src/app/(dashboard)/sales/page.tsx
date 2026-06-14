@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useState, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { MONTHS, RECORD_TYPES, formatUSD, getYearRange } from "@/lib/constants";
 import type { SalesRecord, Category, RecordType } from "@/types/database";
 import { Button } from "@/components/ui/button";
@@ -28,8 +29,6 @@ import { getSalesData, upsertSalesRecord, deleteSalesRecord } from "@/actions/sa
 import { useAuth } from "@/components/providers/auth-provider";
 
 export default function SalesPage() {
-  const [loading, setLoading] = useState(true);
-  const [records, setRecords] = useState<SalesRecord[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [yearFil, setYearFil] = useState(new Date().getFullYear());
   const [typeFil, setTypeFil] = useState<RecordType>("SALES_ORDER");
@@ -37,22 +36,12 @@ export default function SalesPage() {
   const { profile } = useAuth();
   const canEdit = profile?.role === "admin" || profile?.role === "editor";
 
-  const fetchRecords = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await getSalesData({ year: yearFil, record_type: typeFil });
-      setRecords(data || []);
-    } catch (error) {
-      console.error("Error fetching sales records:", error);
-      toast.error("Error al cargar registros");
-    } finally {
-      setLoading(false);
-    }
-  }, [yearFil, typeFil]);
-
-  useEffect(() => {
-    fetchRecords();
-  }, [fetchRecords]);
+  const queryClient = useQueryClient();
+  const { data, isLoading: loading } = useQuery({
+    queryKey: ["sales", { year: yearFil, record_type: typeFil }],
+    queryFn: () => getSalesData({ year: yearFil, record_type: typeFil }),
+  });
+  const records: SalesRecord[] = data ?? [];
 
   const filteredRecords = useMemo(() => {
     return records.filter(r => 
@@ -65,7 +54,7 @@ export default function SalesPage() {
     try {
       await deleteSalesRecord(id);
       toast.success("Registro eliminado");
-      fetchRecords();
+      queryClient.invalidateQueries({ queryKey: ["sales"] });
     } catch (error) {
       toast.error("Error al eliminar");
     }

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useState, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { MONTHS, RECORD_TYPES, formatUSD, getYearRange } from "@/lib/constants";
 import type { SalesRecord, Category, RecordType } from "@/types/database";
@@ -39,9 +40,7 @@ interface PivotRow {
 export default function TablasPage() {
   const { profile } = useAuth();
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
-  const [records, setRecords] = useState<SalesRecord[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const queryClient = useQueryClient();
   const [year, setYear] = useState(new Date().getFullYear());
   const [typeFilter, setTypeFilter] = useState<RecordType>("SALES_ORDER");
   const [isEditing, setIsEditing] = useState(false);
@@ -49,32 +48,17 @@ export default function TablasPage() {
 
   const canEdit = profile?.role === "admin" || profile?.role === "editor";
 
-  const fetchData = useCallback(async () => {
-    try {
-      setLoading(true);
-      const [salesRes, catRes] = await Promise.all([
-        getSalesData({
-          year,
-          record_type: typeFilter,
-        }),
-        getCategories(),
-      ]);
-
-      setRecords((salesRes as SalesRecord[]) || []);
-      setCategories((catRes as Category[]) || []);
-    } catch (err) {
-      console.error("Error in fetchData:", err);
-      toast.error("Error al cargar los datos", {
-        description: (err as Error).message
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [year, typeFilter]);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  const { data: salesData, isLoading: salesLoading } = useQuery({
+    queryKey: ["sales", { year, record_type: typeFilter }],
+    queryFn: () => getSalesData({ year, record_type: typeFilter }),
+  });
+  const { data: catsData, isLoading: catsLoading } = useQuery({
+    queryKey: ["categories"],
+    queryFn: getCategories,
+  });
+  const records: SalesRecord[] = salesData ?? [];
+  const categories = (catsData as Category[]) ?? [];
+  const loading = salesLoading || catsLoading;
 
   const pivotRows = useMemo(() => {
     const map = new Map<string, PivotRow>();
@@ -175,7 +159,7 @@ export default function TablasPage() {
       toast.success("Cambios guardados correctamente", { id: toastId });
       setPendingChanges({});
       setIsEditing(false);
-      await fetchData();
+      await queryClient.invalidateQueries({ queryKey: ["sales"] });
       router.refresh();
     } catch (err) {
       console.error("Error al guardar:", err);
