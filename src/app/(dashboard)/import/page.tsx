@@ -96,14 +96,19 @@ export default function ImportPage() {
         return;
       }
 
-      const { imported } = await bulkUpsertSalesRecords(records);
-      const skipped = rows.length - records.length;
+      const { imported, invalid } = await bulkUpsertSalesRecords(records);
+      const skipped = rows.length - records.length; // categoría desconocida
 
-      if (skipped > 0) {
-        toast.warning(
-          `${imported} importados · ${skipped} omitidos por categoría no encontrada` +
-            (unknownCats.size ? ` (${[...unknownCats].slice(0, 3).join(", ")}${unknownCats.size > 3 ? "…" : ""})` : "")
-        );
+      if (skipped > 0 || invalid > 0) {
+        const partes: string[] = [`${imported} importados`];
+        if (skipped > 0) {
+          partes.push(
+            `${skipped} omitidos por categoría no encontrada` +
+              (unknownCats.size ? ` (${[...unknownCats].slice(0, 3).join(", ")}${unknownCats.size > 3 ? "…" : ""})` : "")
+          );
+        }
+        if (invalid > 0) partes.push(`${invalid} inválidos (mes/año/monto fuera de rango)`);
+        toast.warning(partes.join(" · "));
       } else {
         toast.success(`${imported} registros importados`);
       }

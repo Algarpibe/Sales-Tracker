@@ -103,9 +103,22 @@ export async function bulkUpsertSalesRecords(
     record_year: number;
     notes?: string;
   }>
-): Promise<{ imported: number }> {
+): Promise<{ imported: number; invalid: number }> {
   const { user, profile } = await requireRole("admin", "editor");
-  const parsed = z.array(salesRecordSchema).min(1).max(5000).parse(records);
+
+  if (records.length > 5000) throw new Error("Demasiados registros (máx 5000 por importación)");
+
+  // Validación fila a fila: importa las válidas y cuenta las inválidas
+  // (año/mes/monto fuera de rango) en vez de fallar toda la importación.
+  const parsed: z.infer<typeof salesRecordSchema>[] = [];
+  let invalid = 0;
+  for (const r of records) {
+    const res = salesRecordSchema.safeParse(r);
+    if (res.success) parsed.push(res.data);
+    else invalid++;
+  }
+
+  if (parsed.length === 0) return { imported: 0, invalid };
 
   await db
     .insert(salesRecords)
@@ -142,7 +155,7 @@ export async function bulkUpsertSalesRecords(
   revalidatePath("/sales");
   revalidatePath("/home");
   revalidatePath("/analytics");
-  return { imported: parsed.length };
+  return { imported: parsed.length, invalid };
 }
 
 export async function deleteSalesRecord(id: string) {
