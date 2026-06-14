@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { createClient } from "@/lib/supabase/client";
+import { getCompany, updateCompany } from "@/actions/settings-actions";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,21 +26,11 @@ type CompanyFormValues = z.infer<typeof companySchema>;
 export function CompanyForm() {
   const { profile } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-  const supabase = createClient();
   const queryClient = useQueryClient();
 
   const { data: company, isLoading: isLoadingCompany } = useQuery({
     queryKey: ["company", profile?.company_id],
-    queryFn: async () => {
-      if (!profile?.company_id) return null;
-      const { data, error } = await supabase
-        .from("companies")
-        .select("*")
-        .eq("id", profile.company_id)
-        .single();
-      if (error) throw error;
-      return data;
-    },
+    queryFn: () => getCompany(),
     enabled: !!profile?.company_id,
   });
 
@@ -64,18 +54,12 @@ export function CompanyForm() {
     setIsLoading(true);
 
     try {
-      const { error } = await supabase
-        .from("companies")
-        .update({
-          name: values.name,
-          tax_id: values.tax_id,
-          country: values.country,
-          industry: values.industry,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", profile.company_id);
-
-      if (error) throw error;
+      await updateCompany({
+        name: values.name,
+        tax_id: values.tax_id,
+        country: values.country,
+        industry: values.industry,
+      });
 
       toast.success("Información de la empresa actualizada");
       queryClient.invalidateQueries({ queryKey: ["company", profile.company_id] });

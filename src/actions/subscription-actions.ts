@@ -1,26 +1,65 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
-import type { SubscriptionCategory, SubscriptionStatus, BillingCycle } from "@/types/database";
+import { and, desc, eq, ilike, or } from "drizzle-orm";
+import { db } from "@/db";
+import { subscriptions } from "@/db/schema";
+import { requireApproved, requireRole } from "@/lib/auth/guards";
+import type {
+  Subscription,
+  SubscriptionCategory,
+  SubscriptionStatus,
+  BillingCycle,
+  SubscriptionFilters,
+} from "@/types/database";
 
-export async function getSubscriptions(filters?: {
-  status?: SubscriptionStatus;
-  category?: SubscriptionCategory;
-}) {
-  const supabase = await createClient();
+// NUMERIC columns vuelven como string desde la BD → normalizamos a number/null
+function mapRow(row: typeof subscriptions.$inferSelect): Subscription {
+  return {
+    id: row.id,
+    company_id: row.company_id as string,
+    user_id: row.user_id as string,
+    tool_name: row.tool_name,
+    provider: row.provider,
+    category: row.category,
+    description: row.description,
+    monthly_cost_usd: Number(row.monthly_cost_usd),
+    billing_cycle: row.billing_cycle,
+    annual_cost_usd: row.annual_cost_usd === null ? null : Number(row.annual_cost_usd),
+    status: row.status,
+    renewal_date: row.renewal_date,
+    start_date: row.start_date,
+    cancel_date: row.cancel_date,
+    url: row.url,
+    logo_url: row.logo_url,
+    created_at:
+      row.created_at as string,
+    updated_at:
+      row.updated_at as string,
+  };
+}
 
-  let query = supabase
-    .from("subscriptions")
-    .select("*")
-    .order("created_at", { ascending: false });
+export async function getSubscriptions(filters?: SubscriptionFilters): Promise<Subscription[]> {
+  const { profile } = await requireApproved();
 
-  if (filters?.status) query = query.eq("status", filters.status);
-  if (filters?.category) query = query.eq("category", filters.category);
+  const conditions = [eq(subscriptions.company_id, profile.company_id as string)];
 
-  const { data, error } = await query;
-  if (error) throw new Error(error.message);
-  return data;
+  if (filters?.status) conditions.push(eq(subscriptions.status, filters.status));
+  if (filters?.category) conditions.push(eq(subscriptions.category, filters.category));
+  if (filters?.search) {
+    const term = `%${filters.search}%`;
+    conditions.push(
+      or(ilike(subscriptions.tool_name, term), ilike(subscriptions.provider, term))!
+    );
+  }
+
+  const rows = await db
+    .select()
+    .from(subscriptions)
+    .where(and(...conditions))
+    .orderBy(desc(subscriptions.created_at));
+
+  return rows.map(mapRow);
 }
 
 export async function createSubscription(sub: {
@@ -34,25 +73,22 @@ export async function createSubscription(sub: {
   start_date: string;
   url?: string;
 }) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("No autenticado");
+  const { user, profile } = await requireRole("admin", "editor");
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("company_id")
-    .eq("id", user.id)
-    .single();
-
-  if (!profile) throw new Error("Perfil no encontrado");
-
-  const { error } = await supabase.from("subscriptions").insert({
-    ...sub,
+  await db.insert(subscriptions).values({
+    tool_name: sub.tool_name,
+    provider: sub.provider,
+    category: sub.category,
+    description: sub.description,
+    monthly_cost_usd: String(sub.monthly_cost_usd),
+    billing_cycle: sub.billing_cycle,
+    status: sub.status,
+    start_date: sub.start_date,
+    url: sub.url,
     company_id: profile.company_id,
     user_id: user.id,
   });
 
-  if (error) throw new Error(error.message);
   revalidatePath("/subscriptions");
 }
 
@@ -70,18 +106,43 @@ export async function updateSubscription(
     url: string;
   }>
 ) {
-  const supabase = await createClient();
-  const { error } = await supabase
-    .from("subscriptions")
-    .update(updates)
-    .eq("id", id);
-  if (error) throw new Error(error.message);
+  const { profile } = await requireRole("admin", "editor");
+
+  const values: Partial<typeof subscriptions.$inferInsert> = {};
+  if (updates.tool_name !== undefined) values.tool_name = updates.tool_name;
+  if (updates.provider !== undefined) values.provider = updates.provider;
+  if (updates.category !== undefined) values.category = updates.category;
+  if (updates.description !== undefined) values.description = updates.description;
+  if (updates.monthly_cost_usd !== undefined) values.monthly_cost_usd = String(updates.monthly_cost_usd);
+  if (updates.billing_cycle !== undefined) values.billing_cycle = updates.billing_cycle;
+  if (updates.status !== undefined) values.status = updates.status;
+  if (updates.cancel_date !== undefined) values.cancel_date = updates.cancel_date;
+  if (updates.url !== undefined) values.url = updates.url;
+
+  await db
+    .update(subscriptions)
+    .set(values)
+    .where(
+      and(
+        eq(subscriptions.id, id),
+        eq(subscriptions.company_id, profile.company_id as string)
+      )
+    );
+
   revalidatePath("/subscriptions");
 }
 
 export async function deleteSubscription(id: string) {
-  const supabase = await createClient();
-  const { error } = await supabase.from("subscriptions").delete().eq("id", id);
-  if (error) throw new Error(error.message);
+  const { profile } = await requireRole("admin", "editor");
+
+  await db
+    .delete(subscriptions)
+    .where(
+      and(
+        eq(subscriptions.id, id),
+        eq(subscriptions.company_id, profile.company_id as string)
+      )
+    );
+
   revalidatePath("/subscriptions");
 }

@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { SUBSCRIPTION_CATEGORIES, SUBSCRIPTION_STATUSES, BILLING_CYCLES, formatUSD } from "@/lib/constants";
 import type { Subscription, SubscriptionCategory, SubscriptionStatus, BillingCycle } from "@/types/database";
-import { createSubscription, deleteSubscription, updateSubscription } from "@/actions/subscription-actions";
+import { createSubscription, deleteSubscription, getSubscriptions } from "@/actions/subscription-actions";
 import { KPICard } from "@/components/cards/kpi-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,17 +39,16 @@ export default function SubscriptionsPage() {
     url: "",
   });
 
-  const supabase = createClient();
-
   const fetchSubs = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from("subscriptions")
-      .select("*")
-      .order("created_at", { ascending: false });
-    setSubs((data as Subscription[]) || []);
+    try {
+      const data = await getSubscriptions();
+      setSubs(data || []);
+    } catch (err) {
+      toast.error((err as Error).message);
+    }
     setLoading(false);
-  }, [supabase]);
+  }, []);
 
   useEffect(() => { fetchSubs(); }, [fetchSubs]);
 

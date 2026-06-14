@@ -1,4 +1,5 @@
-import { createClient } from "@/lib/supabase/server";
+import { getSessionUser } from "@/lib/auth/guards";
+import { getCompanyUsers } from "@/actions/settings-actions";
 import { redirect } from "next/navigation";
 import { 
   Card, 
@@ -21,29 +22,21 @@ import { UserActions } from "./_components/user-actions";
 import { cn } from "@/lib/utils";
 
 export default async function AdminUsersPage() {
-  const supabase = await createClient();
+  // 1. Check session + admin authorization
+  const session = await getSessionUser();
+  if (!session) redirect("/login");
 
-  // 1. Check if user is Alfonso or an admin
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .single();
+  const { user, profile } = session;
 
   if (profile?.role !== "admin") {
     redirect("/home");
   }
 
   // 2. Fetch all users
-  const { data: users, error } = await supabase
-    .from("profiles")
-    .select("*")
-    .order("created_at", { ascending: false });
-
-  if (error) {
+  let users: Awaited<ReturnType<typeof getCompanyUsers>> = [];
+  try {
+    users = await getCompanyUsers();
+  } catch (error) {
     console.error("Error fetching users:", error);
   }
 

@@ -1,17 +1,26 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { eq, and, asc } from "drizzle-orm";
+import { db } from "@/db";
+import { categories } from "@/db/schema";
+import { requireApproved, requireRole } from "@/lib/auth/guards";
 
 export async function getCategories() {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("categories")
-    .select("*")
-    .eq("is_active", true)
-    .order("sort_order")
-    .order("name");
-  if (error) throw new Error(error.message);
+  const { profile } = await requireApproved();
+  if (!profile) throw new Error("No autenticado");
+
+  const data = await db
+    .select()
+    .from(categories)
+    .where(
+      and(
+        eq(categories.company_id, profile.company_id),
+        eq(categories.is_active, true)
+      )
+    )
+    .orderBy(asc(categories.sort_order), asc(categories.name));
+
   return data;
 }
 
@@ -20,26 +29,18 @@ export async function createCategory(cat: {
   description?: string;
   color?: string;
 }) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("No autenticado");
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("company_id, role")
-    .eq("id", user.id)
-    .single();
-
-  if (!profile || profile.role !== "admin") {
+  const { profile } = await requireRole("admin");
+  if (!profile) {
     throw new Error("Solo administradores pueden gestionar categorías");
   }
 
-  const { error } = await supabase.from("categories").insert({
-    ...cat,
+  await db.insert(categories).values({
+    name: cat.name,
+    description: cat.description,
+    color: cat.color,
     company_id: profile.company_id,
   });
 
-  if (error) throw new Error(error.message);
   revalidatePath("/categories");
   revalidatePath("/sales");
 }
@@ -48,18 +49,39 @@ export async function updateCategory(
   id: string,
   updates: Partial<{ name: string; description: string; color: string; is_active: boolean }>
 ) {
-  const supabase = await createClient();
-  const { error } = await supabase.from("categories").update(updates).eq("id", id);
-  if (error) throw new Error(error.message);
+  const { profile } = await requireRole("admin");
+  if (!profile) {
+    throw new Error("Solo administradores pueden gestionar categorías");
+  }
+
+  await db
+    .update(categories)
+    .set(updates)
+    .where(
+      and(
+        eq(categories.id, id),
+        eq(categories.company_id, profile.company_id)
+      )
+    );
+
   revalidatePath("/categories");
 }
 
 export async function deleteCategory(id: string) {
-  const supabase = await createClient();
-  const { error } = await supabase
-    .from("categories")
-    .update({ is_active: false })
-    .eq("id", id);
-  if (error) throw new Error(error.message);
+  const { profile } = await requireRole("admin");
+  if (!profile) {
+    throw new Error("Solo administradores pueden gestionar categorías");
+  }
+
+  await db
+    .update(categories)
+    .set({ is_active: false })
+    .where(
+      and(
+        eq(categories.id, id),
+        eq(categories.company_id, profile.company_id)
+      )
+    );
+
   revalidatePath("/categories");
 }

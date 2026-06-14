@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { createClient } from "@/lib/supabase/client";
+import { getCompany, updateCompany, updateMyAccount } from "@/actions/settings-actions";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,22 +34,12 @@ export function AccountSettingsForm() {
   const { profile, user, refreshProfile } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const supabase = createClient();
   const queryClient = useQueryClient();
   const roleInfo = ROLES.find((r) => r.value === profile?.role);
 
   const { data: company, isLoading: isLoadingCompany } = useQuery({
     queryKey: ["company", profile?.company_id],
-    queryFn: async () => {
-      if (!profile?.company_id) return null;
-      const { data, error } = await supabase
-        .from("companies")
-        .select("*")
-        .eq("id", profile.company_id)
-        .single();
-      if (error) throw error;
-      return data;
-    },
+    queryFn: () => getCompany(),
     enabled: !!profile?.company_id,
   });
 
@@ -75,41 +65,24 @@ export function AccountSettingsForm() {
     setIsLoading(true);
 
     try {
-      // 1. Update Profile in public.profiles
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .update({
-          full_name: values.full_name,
-          email: values.email,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", user.id);
+      // 1. Update own account (name/email)
+      await updateMyAccount({
+        full_name: values.full_name,
+        email: values.email,
+      });
 
-      if (profileError) throw profileError;
-
-      // 2. Update Email in Auth if changed
       if (values.email !== profile?.email) {
-        const { error: authError } = await supabase.auth.updateUser({
-          email: values.email,
-        });
-        if (authError) throw authError;
-        toast.info("Se ha enviado un correo de confirmación a tu nueva dirección.");
+        toast.info("Tu dirección de correo ha sido actualizada.");
       }
 
-      // 3. Update Company info if Admin
+      // 2. Update Company info if Admin
       if (profile?.company_id && profile?.role === "admin") {
-        const { error: companyError } = await supabase
-          .from("companies")
-          .update({
-            name: values.name,
-            tax_id: values.tax_id,
-            country: values.country,
-            industry: values.industry,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", profile.company_id);
-
-        if (companyError) throw companyError;
+        await updateCompany({
+          name: values.name,
+          tax_id: values.tax_id,
+          country: values.country,
+          industry: values.industry,
+        });
         queryClient.invalidateQueries({ queryKey: ["company", profile.company_id] });
       }
 
@@ -142,39 +115,24 @@ export function AccountSettingsForm() {
 
       setIsUploading(true);
 
-      const fileExt = file.name.split('.').pop();
-      const filePath = `${user.id}/${Math.random()}.${fileExt}`;
+      // Upload to the avatar API endpoint
+      const formData = new FormData();
+      formData.append("file", file);
 
-      // 1. Upload to Storage
-      const { error: uploadError, data } = await supabase.storage
-        .from('avatars')
-        .upload(filePath, file, {
-          upsert: true
-        });
+      const res = await fetch("/api/avatar", {
+        method: "POST",
+        body: formData,
+      });
 
-      if (uploadError) throw uploadError;
-
-      // 2. Get Public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(filePath);
-
-      // 3. Update Profile
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({
-          avatar_url: publicUrl,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', user.id);
-
-      if (updateError) throw updateError;
+      if (!res.ok) {
+        throw new Error("Error al subir la imagen");
+      }
 
       toast.success("Foto de perfil actualizada correctamente");
       await refreshProfile();
     } catch (error: any) {
       console.error("Error uploading avatar:", error);
-      toast.error(error.message || "Error al subir la imagen. Asegúrate que el bucket 'avatars' exista.");
+      toast.error(error.message || "Error al subir la imagen.");
     } finally {
       setIsUploading(false);
     }
@@ -224,7 +182,7 @@ export function AccountSettingsForm() {
           <div className="flex flex-col items-center mb-8 space-y-4">
             <div className="relative group">
               <Avatar className="h-32 w-32 border-4 border-primary/20 shadow-2xl transition-transform group-hover:scale-105">
-                <AvatarImage src={profile?.avatar_url || undefined} className="object-cover" />
+                <AvatarImage src={user ? `/api/avatar/${user.id}` : undefined} className="object-cover" />
                 <AvatarFallback className="bg-primary/10 text-primary text-3xl font-black">
                   {initials}
                 </AvatarFallback>

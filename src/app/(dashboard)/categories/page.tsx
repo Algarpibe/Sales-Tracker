@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { createClient } from "@/lib/supabase/client";
 import type { Category } from "@/types/database";
-import { createCategory, updateCategory, deleteCategory } from "@/actions/category-actions";
+import { getCategories, createCategory, updateCategory, deleteCategory } from "@/actions/category-actions";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,25 +34,18 @@ export default function CategoriesPage() {
   const [editDescription, setEditDescription] = useState("");
   const [editColor, setEditColor] = useState("#3B82F6");
 
-  const supabase = createClient();
   const canEdit = profile?.role === "admin" || profile?.role === "editor";
 
   const fetch = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("categories")
-      .select("*")
-      .eq("is_active", true)
-      .order("sort_order")
-      .order("name");
-    
-    if (error) {
-      toast.error("Error al cargar categorías");
-    } else {
+    try {
+      const data = await getCategories();
       setCategories((data as Category[]) || []);
+    } catch {
+      toast.error("Error al cargar categorías");
     }
     setLoading(false);
-  }, [supabase]);
+  }, []);
 
   useEffect(() => { fetch(); }, [fetch]);
 

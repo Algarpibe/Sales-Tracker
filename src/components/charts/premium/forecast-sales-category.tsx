@@ -39,7 +39,8 @@ import {
   ChevronsUpDown
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { createClient } from "@/lib/supabase/client";
+import { getSalesData } from "@/actions/sales-actions";
+import { getCategories } from "@/actions/category-actions";
 import { calculateSeasonalityFactors, getSeasonalForecast, calculateRunRate } from "@/lib/math-utils";
 
 type RecordType = "SALES_ORDER" | "INVOICE";
@@ -86,21 +87,17 @@ export function ForecastSalesCategory({ baseYear = new Date().getFullYear() }: F
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [categoryMonthSums, setCategoryMonthSums] = useState<Record<string, Record<number, Record<number, number>>>>({});
 
-  const supabase = createClient();
-
   useEffect(() => {
     const fetchCategories = async () => {
-      const { data, error } = await supabase
-        .from("categories")
-        .select("id, name, color")
-        .order("name");
-      
-      if (!error && data) {
-        setAllCategories(data.map((cat: any) => ({
+      try {
+        const data = await getCategories();
+        setAllCategories((data || []).map((cat: any) => ({
           id: String(cat.id),
           name: String(cat.name),
           color: cat.color || DEFAULT_COLOR,
         })));
+      } catch (err) {
+        console.error("Error fetching categories:", err);
       }
     };
     fetchCategories();
@@ -110,14 +107,7 @@ export function ForecastSalesCategory({ baseYear = new Date().getFullYear() }: F
     const fetchSalesData = async () => {
       setIsLoading(true);
       try {
-        const { data, error } = await supabase
-          .from("sales_records")
-          .select("category_id, record_year, record_month, amount_usd")
-          .eq("record_type", recordType);
-
-        if (error) throw error;
-
-        const records = data || [];
+        const records = await getSalesData({ record_type: recordType });
         const newSums: Record<string, Record<number, Record<number, number>>> = {};
 
         records.forEach((r: any) => {

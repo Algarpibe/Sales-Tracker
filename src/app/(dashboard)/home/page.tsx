@@ -3,7 +3,8 @@
 import { useEffect, useState, useMemo } from "react";
 import { KPICard } from "@/components/cards/kpi-card";
 import { BarChartMonthly } from "@/components/charts/bar-chart-monthly";
-import { createClient } from "@/lib/supabase/client";
+import { getSalesData } from "@/actions/sales-actions";
+import { getCategories } from "@/actions/category-actions";
 import { MONTHS, formatUSD, getYearRange } from "@/lib/constants";
 import {
   Select,
@@ -50,8 +51,6 @@ export default function HomePage() {
     }
   });
 
-  const supabase = createClient();
-
   const handleTypeToggle = (type: string) => {
     setSelectedTypes(prev => 
       prev.includes(type) 
@@ -64,16 +63,11 @@ export default function HomePage() {
     async function fetchData() {
       setIsLoading(true);
       try {
-        const [recordsResponse, categoriesResponse] = await Promise.all([
-          supabase.from("sales_records").select("*").eq("record_year", year),
-          supabase.from("categories").select("id, name")
+        const [records, categories] = await Promise.all([
+          getSalesData({ year }),
+          getCategories()
         ]);
 
-        if (recordsResponse.error) throw recordsResponse.error;
-        if (categoriesResponse.error) throw categoriesResponse.error;
-
-        const records = recordsResponse.data || [];
-        const categories = categoriesResponse.data || [];
         const catMap = new Map(categories.map((c: any) => [c.id, c.name]));
 
         // --- Monthly Trend Data ---
@@ -179,7 +173,7 @@ export default function HomePage() {
     }
 
     fetchData();
-  }, [year, supabase]);
+  }, [year]);
 
   // Filtrar los datos que se pasan al gráfico basándose en la selección
   const chartData = useMemo(() => {

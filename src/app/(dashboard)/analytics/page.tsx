@@ -2,7 +2,9 @@
 
 import { useEffect, useState, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { getSalesData } from "@/actions/sales-actions";
+import { getCategories } from "@/actions/category-actions";
+import { getSavedCategoryGroupings } from "@/actions/grouping-actions";
 import { MONTHS, getYearRange, formatUSD, formatCompactUSD } from "@/lib/constants";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -50,7 +52,6 @@ function AnalyticsContent() {
   const [savedGroups, setSavedGroups] = useState<CategoryGroup[]>([]);
 
   const searchParams = useSearchParams();
-  const supabase = createClient();
 
   useEffect(() => {
     const tab = searchParams.get("tab");
@@ -66,28 +67,21 @@ function AnalyticsContent() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const yearsToFetch = [yearA, yearB, 2025, 2024, 2023];
-      const uniqueYears = Array.from(new Set(yearsToFetch));
-      
-      const [resRecords, catRes, groupRes] = await Promise.all([
-        supabase.from("sales_records").select("*").in("record_year", uniqueYears),
-        supabase.from("categories").select("*"),
-        supabase.from("category_groups").select("*, category_group_mappings(*)")
+      const [allRecordsRes, catRes, groupRes] = await Promise.all([
+        getSalesData({}),
+        getCategories(),
+        getSavedCategoryGroupings()
       ]);
 
-      if (resRecords.error) throw resRecords.error;
-      if (catRes.error) throw catRes.error;
-      if (groupRes.error) throw groupRes.error;
-
-      const allRecords: SalesRecord[] = resRecords.data || [];
+      const allRecords: SalesRecord[] = allRecordsRes || [];
       const dataA = allRecords.filter((r: SalesRecord) => r.record_year === yearA);
       const dataB = allRecords.filter((r: SalesRecord) => r.record_year === yearB);
 
-      const allCategories = (catRes.data as any[]) || [];
-      const allGroups = (groupRes.data as any[]).map(g => ({
+      const allCategories = (catRes as any[]) || [];
+      const allGroups = (groupRes.groups || []).map(g => ({
         ...g,
-        mappings: g.category_group_mappings || []
-      })) || [];
+        mappings: g.mappings || []
+      }));
 
       setCategories(allCategories);
       setSavedGroups(allGroups);

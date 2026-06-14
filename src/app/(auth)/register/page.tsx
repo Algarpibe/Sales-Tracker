@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/client";
+import { signUp } from "@/lib/auth/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,7 +25,6 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const supabase = createClient();
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,16 +36,10 @@ export default function RegisterPage() {
 
     setLoading(true);
 
-    const { error } = await supabase.auth.signUp({
+    const { error } = await signUp.email({
       email,
       password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-        data: {
-          full_name: fullName,
-          company_name: "Ambientalia S.A.S.",
-        },
-      },
+      name: fullName,
     });
 
     if (error) {
@@ -57,10 +50,8 @@ export default function RegisterPage() {
       return;
     }
 
-    toast.success("¡Cuenta creada exitosamente!", {
-      description: "Revisa tu correo para confirmar tu cuenta.",
-    });
-    router.push("/home");
+    toast.success("Cuenta creada, pendiente de aprobación");
+    router.push("/waiting-approval");
     router.refresh();
   };
 
