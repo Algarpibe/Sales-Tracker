@@ -3,7 +3,7 @@
 import { useState, useCallback } from "react";
 import { useAuth } from "@/components/providers/auth-provider";
 import { getCategories } from "@/actions/category-actions";
-import { upsertSalesRecord } from "@/actions/sales-actions";
+import { bulkUpsertSalesRecords } from "@/actions/sales-actions";
 import type { RecordType } from "@/types/database";
 import { MONTHS } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
@@ -58,37 +58,58 @@ export default function ImportPage() {
     setImporting(true);
 
     try {
-      // Get categories map
+      // Mapa de categorías de la empresa (por nombre, case-insensitive)
       const cats = await getCategories();
       const catMap = new Map((cats || []).map((c) => [c.name.toLowerCase(), c.id]));
 
-      const records = rows.filter((r) => catMap.has(r.category.toLowerCase())).map((r) => ({
-        category_id: catMap.get(r.category.toLowerCase())!,
-        record_type: r.type as RecordType,
-        amount_usd: r.amount,
-        record_month: r.month,
-        record_year: r.year,
-      }));
-
-      let imported = 0;
-      let failed = 0;
-      for (const record of records) {
-        try {
-          await upsertSalesRecord(record);
-          imported++;
-        } catch {
-          failed++;
+      // Separa filas válidas de las que tienen categoría desconocida (para avisar, no descartar en silencio)
+      const records: {
+        category_id: string;
+        record_type: RecordType;
+        amount_usd: number;
+        record_month: number;
+        record_year: number;
+      }[] = [];
+      const unknownCats = new Set<string>();
+      for (const r of rows) {
+        const id = catMap.get(r.category.toLowerCase());
+        if (!id) {
+          unknownCats.add(r.category);
+          continue;
         }
+        records.push({
+          category_id: id,
+          record_type: r.type as RecordType,
+          amount_usd: r.amount,
+          record_month: r.month,
+          record_year: r.year,
+        });
       }
 
-      if (failed > 0) {
-        toast.warning(`${imported} registros importados, ${failed} con error`);
+      if (records.length === 0) {
+        toast.error("No se importó ningún registro", {
+          description: unknownCats.size
+            ? `Categorías no encontradas: ${[...unknownCats].slice(0, 5).join(", ")}`
+            : "No hay filas válidas en el archivo.",
+        });
+        setImporting(false);
+        return;
+      }
+
+      const { imported } = await bulkUpsertSalesRecords(records);
+      const skipped = rows.length - records.length;
+
+      if (skipped > 0) {
+        toast.warning(
+          `${imported} importados · ${skipped} omitidos por categoría no encontrada` +
+            (unknownCats.size ? ` (${[...unknownCats].slice(0, 3).join(", ")}${unknownCats.size > 3 ? "…" : ""})` : "")
+        );
       } else {
         toast.success(`${imported} registros importados`);
       }
       setRows([]); setFile(null);
     } catch (err) {
-      toast.error("Error", { description: (err as Error).message });
+      toast.error("Error al importar", { description: (err as Error).message });
     }
     setImporting(false);
   };
@@ -144,7 +165,7 @@ export default function ImportPage() {
             </TableHeader>
             <TableBody>
               {rows.slice(0, 50).map((r, i) => (
-                <TableRow key={i}>
+                <TableRow key={`${r.category}-${r.type}-${r.year}-${r.month}-${i}`}>
                   <TableCell>{r.category}</TableCell>
                   <TableCell>{r.type === "SALES_ORDER" ? "OV" : "FAC"}</TableCell>
                   <TableCell>{MONTHS[r.month - 1]?.label}</TableCell>

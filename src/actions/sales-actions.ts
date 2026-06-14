@@ -1,5 +1,6 @@
 "use server";
 
+import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { eq, and, desc, asc, sql } from "drizzle-orm";
 import { db } from "@/db";
@@ -89,6 +90,59 @@ export async function upsertSalesRecord(record: {
   revalidatePath("/sales");
   revalidatePath("/home");
   revalidatePath("/analytics");
+}
+
+// Importación masiva: un único INSERT ... ON CONFLICT DO UPDATE para todas las
+// filas, con una sola verificación de permisos (antes era 1 petición por fila).
+export async function bulkUpsertSalesRecords(
+  records: Array<{
+    category_id: string;
+    record_type: RecordType;
+    amount_usd: number;
+    record_month: number;
+    record_year: number;
+    notes?: string;
+  }>
+): Promise<{ imported: number }> {
+  const { user, profile } = await requireRole("admin", "editor");
+  const parsed = z.array(salesRecordSchema).min(1).max(5000).parse(records);
+
+  await db
+    .insert(salesRecords)
+    .values(
+      parsed.map((r) => ({
+        category_id: r.category_id,
+        record_type: r.record_type,
+        amount_usd: String(r.amount_usd),
+        record_month: r.record_month,
+        record_year: r.record_year,
+        notes: r.notes,
+        company_id: profile.company_id,
+        created_by: user.id,
+        updated_by: user.id,
+      }))
+    )
+    .onConflictDoUpdate({
+      target: [
+        salesRecords.company_id,
+        salesRecords.category_id,
+        salesRecords.record_type,
+        salesRecords.record_month,
+        salesRecords.record_year,
+      ],
+      set: {
+        amount_usd: sql`excluded.amount_usd`,
+        notes: sql`excluded.notes`,
+        updated_by: sql`excluded.updated_by`,
+        updated_at: sql`now()`,
+      },
+    });
+
+  revalidatePath("/tablas");
+  revalidatePath("/sales");
+  revalidatePath("/home");
+  revalidatePath("/analytics");
+  return { imported: parsed.length };
 }
 
 export async function deleteSalesRecord(id: string) {
