@@ -35,12 +35,16 @@ export async function requireUser() {
 
 export async function requireApproved() {
   const u = await requireUser();
-  if (!u.profile?.is_approved) throw new Error("NOT_APPROVED");
-  return u;
+  const profile = u.profile;
+  if (!profile || !profile.is_approved || profile.is_rejected || !profile.is_active) {
+    throw new Error("NOT_APPROVED");
+  }
+  // profile queda garantizado no-nulo para los consumidores.
+  return { user: u.user, profile };
 }
 
 export async function requireRole(...roles: string[]) {
   const u = await requireApproved();
-  if (!u.profile || !roles.includes(u.profile.role)) throw new Error("FORBIDDEN");
+  if (!roles.includes(u.profile.role)) throw new Error("FORBIDDEN");
   return u;
 }

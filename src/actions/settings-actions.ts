@@ -1,10 +1,11 @@
 "use server";
 
-import { eq, desc } from "drizzle-orm";
+import { eq, ne, and, desc } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { companies, profiles, user } from "@/db/schema";
 import { requireApproved, requireRole, requireUser } from "@/lib/auth/guards";
+import { accountUpdateSchema, companyUpdateSchema } from "@/lib/validation";
 
 // ── Empresa ──
 export async function getCompany() {
@@ -21,9 +22,10 @@ export async function updateCompany(updates: {
   logo_url?: string | null;
 }) {
   const { profile } = await requireRole("admin");
+  const parsed = companyUpdateSchema.parse(updates);
   await db
     .update(companies)
-    .set({ ...updates, updated_at: new Date().toISOString() })
+    .set({ ...parsed, updated_at: new Date().toISOString() })
     .where(eq(companies.id, profile.company_id));
   revalidatePath("/settings");
 }
@@ -31,9 +33,22 @@ export async function updateCompany(updates: {
 // ── Cuenta propia (nombre/email viven en better-auth user) ──
 export async function updateMyAccount(updates: { full_name?: string; email?: string }) {
   const { user: u } = await requireUser();
+  const parsed = accountUpdateSchema.parse(updates);
+
   const set: Record<string, unknown> = {};
-  if (updates.full_name !== undefined) set.name = updates.full_name;
-  if (updates.email !== undefined) set.email = updates.email;
+  if (parsed.full_name !== undefined) set.name = parsed.full_name;
+
+  if (parsed.email !== undefined && parsed.email !== u.email) {
+    // Unicidad: better-auth exige email único; comprobamos antes para dar un error claro.
+    const [dupe] = await db
+      .select({ id: user.id })
+      .from(user)
+      .where(and(eq(user.email, parsed.email), ne(user.id, u.id)));
+    if (dupe) throw new Error("EMAIL_EN_USO");
+    set.email = parsed.email;
+    set.emailVerified = false; // requiere re-verificación
+  }
+
   if (Object.keys(set).length === 0) return;
   set.updatedAt = new Date();
   await db.update(user).set(set).where(eq(user.id, u.id));

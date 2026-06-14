@@ -21,7 +21,7 @@ export const RECORD_TYPES = [
 export const ROLES = [
   { value: "admin" as const, label: "Administrador", description: "Control total de la empresa" },
   { value: "editor" as const, label: "Editor", description: "Puede crear y editar registros" },
-  { value: "viewer" as const, label: "Visualizador", description: "Solo lectura" },
+  { value: "lector" as const, label: "Lector", description: "Solo lectura" },
 ] as const;
 
 export const SUBSCRIPTION_CATEGORIES = [

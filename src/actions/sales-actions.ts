@@ -5,6 +5,7 @@ import { eq, and, desc, asc, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { salesRecords, categories } from "@/db/schema";
 import { requireApproved, requireRole } from "@/lib/auth/guards";
+import { salesRecordSchema, uuidSchema } from "@/lib/validation";
 import type {
   SalesFilters,
   RecordType,
@@ -53,17 +54,17 @@ export async function upsertSalesRecord(record: {
   notes?: string;
 }) {
   const { user, profile } = await requireRole("admin", "editor");
-  if (!profile) throw new Error("Sin permisos para esta acción");
+  const data = salesRecordSchema.parse(record);
 
   await db
     .insert(salesRecords)
     .values({
-      category_id: record.category_id,
-      record_type: record.record_type,
-      amount_usd: String(record.amount_usd),
-      record_month: record.record_month,
-      record_year: record.record_year,
-      notes: record.notes,
+      category_id: data.category_id,
+      record_type: data.record_type,
+      amount_usd: String(data.amount_usd),
+      record_month: data.record_month,
+      record_year: data.record_year,
+      notes: data.notes,
       company_id: profile.company_id,
       created_by: user.id,
       updated_by: user.id,
@@ -77,8 +78,8 @@ export async function upsertSalesRecord(record: {
         salesRecords.record_year,
       ],
       set: {
-        amount_usd: String(record.amount_usd),
-        notes: record.notes,
+        amount_usd: String(data.amount_usd),
+        notes: data.notes,
         updated_by: user.id,
         updated_at: sql`now()`,
       },
@@ -92,13 +93,13 @@ export async function upsertSalesRecord(record: {
 
 export async function deleteSalesRecord(id: string) {
   const { profile } = await requireRole("admin", "editor");
-  if (!profile) throw new Error("Sin permisos para esta acción");
+  const recordId = uuidSchema.parse(id);
 
   await db
     .delete(salesRecords)
     .where(
       and(
-        eq(salesRecords.id, id),
+        eq(salesRecords.id, recordId),
         eq(salesRecords.company_id, profile.company_id)
       )
     );

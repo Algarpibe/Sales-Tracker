@@ -26,7 +26,7 @@ const bytea = customType<{ data: Buffer; default: false }>({
 const tsString = { withTimezone: true, mode: "string" as const };
 
 // ───────────────────────── Enums ─────────────────────────
-export const userRole = pgEnum("user_role", ["admin", "editor", "viewer", "lector"]);
+export const userRole = pgEnum("user_role", ["admin", "editor", "lector"]);
 export const recordType = pgEnum("record_type", ["SALES_ORDER", "INVOICE"]);
 export const billingCycle = pgEnum("billing_cycle", ["monthly", "annual", "quarterly", "one-time"]);
 export const subscriptionStatus = pgEnum("subscription_status", ["active", "paused", "cancelled", "trial"]);
@@ -98,7 +98,7 @@ export const companies = pgTable("companies", {
 export const profiles = pgTable("profiles", {
   id: uuid("id").primaryKey().references(() => user.id, { onDelete: "cascade" }),
   company_id: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
-  role: userRole("role").notNull().default("viewer"),
+  role: userRole("role").notNull().default("lector"),
   is_active: boolean("is_active").notNull().default(true),
   is_approved: boolean("is_approved").notNull().default(false),
   is_rejected: boolean("is_rejected").notNull().default(false),

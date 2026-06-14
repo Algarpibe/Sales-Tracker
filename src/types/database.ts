@@ -28,6 +28,8 @@ export interface Company {
   updated_at: string;
 }
 
+// DTO compuesto para la UI: mezcla campos de better-auth `user` (email/full_name/avatar)
+// con el `profiles` de dominio. No es un espejo 1:1 de ninguna tabla.
 export interface Profile {
   id: string;
   company_id: string;
@@ -36,6 +38,8 @@ export interface Profile {
   avatar_url: string | null;
   role: UserRole;
   is_active: boolean;
+  is_approved?: boolean;
+  is_rejected?: boolean;
   created_at: string;
   updated_at: string;
 }

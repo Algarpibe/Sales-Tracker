@@ -12,6 +12,7 @@ import {
   subscriptions,
 } from "@/db/schema";
 import { requireRole } from "@/lib/auth/guards";
+import { uuidSchema, roleSchema } from "@/lib/validation";
 
 // Ensures the acting admin and the target user belong to the same company.
 // Returns the admin's profile for any further checks.
@@ -35,55 +36,63 @@ async function assertSameCompany(userId: string) {
 }
 
 export async function approveUser(userId: string, role?: string) {
-  await assertSameCompany(userId);
+  const uid = uuidSchema.parse(userId);
+  await assertSameCompany(uid);
 
   const updateData: {
     is_approved: boolean;
     is_rejected: boolean;
-    role?: "admin" | "editor" | "viewer" | "lector";
+    is_active: boolean;
+    role?: (typeof roleSchema)["_output"];
   } = {
     is_approved: true,
     is_rejected: false,
+    is_active: true,
   };
 
-  if (role) {
-    updateData.role = role as "admin" | "editor" | "viewer" | "lector";
+  if (role !== undefined) {
+    updateData.role = roleSchema.parse(role);
   }
 
-  await db.update(profiles).set(updateData).where(eq(profiles.id, userId));
+  await db.update(profiles).set(updateData).where(eq(profiles.id, uid));
 
   revalidatePath("/admin/users");
   revalidatePath("/waiting-approval");
 }
 
 export async function updateUserRole(userId: string, role: string) {
-  await assertSameCompany(userId);
+  const uid = uuidSchema.parse(userId);
+  const validRole = roleSchema.parse(role);
+  await assertSameCompany(uid);
 
   await db
     .update(profiles)
-    .set({ role: role as "admin" | "editor" | "viewer" | "lector" })
-    .where(eq(profiles.id, userId));
+    .set({ role: validRole })
+    .where(eq(profiles.id, uid));
 
   revalidatePath("/admin/users");
 }
 
 export async function deactivateUser(userId: string) {
-  await assertSameCompany(userId);
+  const uid = uuidSchema.parse(userId);
+  await assertSameCompany(uid);
 
   await db
     .update(profiles)
     .set({
       is_approved: false,
       is_rejected: true,
+      is_active: false,
     })
-    .where(eq(profiles.id, userId));
+    .where(eq(profiles.id, uid));
 
   revalidatePath("/admin/users");
   revalidatePath("/waiting-approval");
 }
 
 export async function deleteUser(userId: string) {
-  await assertSameCompany(userId);
+  const uid = uuidSchema.parse(userId);
+  await assertSameCompany(uid);
 
   await db.transaction(async (tx) => {
     // 1) sales_records.created_by / updated_by reference user.id with NO cascade,
@@ -91,27 +100,27 @@ export async function deleteUser(userId: string) {
     await tx
       .update(salesRecords)
       .set({ created_by: null })
-      .where(eq(salesRecords.created_by, userId));
+      .where(eq(salesRecords.created_by, uid));
     await tx
       .update(salesRecords)
       .set({ updated_by: null })
-      .where(eq(salesRecords.updated_by, userId));
+      .where(eq(salesRecords.updated_by, uid));
 
     // 2) subscriptions.user_id is ON DELETE SET NULL; null it explicitly to be safe.
     await tx
       .update(subscriptions)
       .set({ user_id: null })
-      .where(eq(subscriptions.user_id, userId));
+      .where(eq(subscriptions.user_id, uid));
 
     // 3) profiles cascades from user, but delete first to be explicit.
-    await tx.delete(profiles).where(eq(profiles.id, userId));
+    await tx.delete(profiles).where(eq(profiles.id, uid));
 
     // 4) better-auth session + account reference user.id (cascade), delete explicitly.
-    await tx.delete(session).where(eq(session.userId, userId));
-    await tx.delete(account).where(eq(account.userId, userId));
+    await tx.delete(session).where(eq(session.userId, uid));
+    await tx.delete(account).where(eq(account.userId, uid));
 
     // 5) finally the user row itself (would cascade the above, done last).
-    await tx.delete(user).where(eq(user.id, userId));
+    await tx.delete(user).where(eq(user.id, uid));
   });
 
   revalidatePath("/admin/users");

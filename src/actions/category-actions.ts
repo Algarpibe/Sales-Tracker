@@ -5,6 +5,7 @@ import { eq, and, asc } from "drizzle-orm";
 import { db } from "@/db";
 import { categories } from "@/db/schema";
 import { requireApproved, requireRole } from "@/lib/auth/guards";
+import { categoryCreateSchema, categoryUpdateSchema, uuidSchema } from "@/lib/validation";
 
 export async function getCategories() {
   const { profile } = await requireApproved();
@@ -30,14 +31,12 @@ export async function createCategory(cat: {
   color?: string;
 }) {
   const { profile } = await requireRole("admin");
-  if (!profile) {
-    throw new Error("Solo administradores pueden gestionar categorías");
-  }
+  const data = categoryCreateSchema.parse(cat);
 
   await db.insert(categories).values({
-    name: cat.name,
-    description: cat.description,
-    color: cat.color,
+    name: data.name,
+    description: data.description,
+    color: data.color,
     company_id: profile.company_id,
   });
 
@@ -50,16 +49,15 @@ export async function updateCategory(
   updates: Partial<{ name: string; description: string; color: string; is_active: boolean }>
 ) {
   const { profile } = await requireRole("admin");
-  if (!profile) {
-    throw new Error("Solo administradores pueden gestionar categorías");
-  }
+  const categoryId = uuidSchema.parse(id);
+  const data = categoryUpdateSchema.parse(updates);
 
   await db
     .update(categories)
-    .set(updates)
+    .set(data)
     .where(
       and(
-        eq(categories.id, id),
+        eq(categories.id, categoryId),
         eq(categories.company_id, profile.company_id)
       )
     );
@@ -69,16 +67,14 @@ export async function updateCategory(
 
 export async function deleteCategory(id: string) {
   const { profile } = await requireRole("admin");
-  if (!profile) {
-    throw new Error("Solo administradores pueden gestionar categorías");
-  }
+  const categoryId = uuidSchema.parse(id);
 
   await db
     .update(categories)
     .set({ is_active: false })
     .where(
       and(
-        eq(categories.id, id),
+        eq(categories.id, categoryId),
         eq(categories.company_id, profile.company_id)
       )
     );

@@ -5,6 +5,11 @@ import { and, desc, eq, ilike, or } from "drizzle-orm";
 import { db } from "@/db";
 import { subscriptions } from "@/db/schema";
 import { requireApproved, requireRole } from "@/lib/auth/guards";
+import {
+  subscriptionCreateSchema,
+  subscriptionUpdateSchema,
+  uuidSchema,
+} from "@/lib/validation";
 import type {
   Subscription,
   SubscriptionCategory,
@@ -74,17 +79,18 @@ export async function createSubscription(sub: {
   url?: string;
 }) {
   const { user, profile } = await requireRole("admin", "editor");
+  const data = subscriptionCreateSchema.parse(sub);
 
   await db.insert(subscriptions).values({
-    tool_name: sub.tool_name,
-    provider: sub.provider,
-    category: sub.category,
-    description: sub.description,
-    monthly_cost_usd: String(sub.monthly_cost_usd),
-    billing_cycle: sub.billing_cycle,
-    status: sub.status,
-    start_date: sub.start_date,
-    url: sub.url,
+    tool_name: data.tool_name,
+    provider: data.provider,
+    category: data.category,
+    description: data.description,
+    monthly_cost_usd: String(data.monthly_cost_usd),
+    billing_cycle: data.billing_cycle,
+    status: data.status,
+    start_date: data.start_date,
+    url: data.url,
     company_id: profile.company_id,
     user_id: user.id,
   });
@@ -94,7 +100,7 @@ export async function createSubscription(sub: {
 
 export async function updateSubscription(
   id: string,
-  updates: Partial<{
+  rawUpdates: Partial<{
     tool_name: string;
     provider: string;
     category: SubscriptionCategory;
@@ -107,6 +113,8 @@ export async function updateSubscription(
   }>
 ) {
   const { profile } = await requireRole("admin", "editor");
+  const subId = uuidSchema.parse(id);
+  const updates = subscriptionUpdateSchema.parse(rawUpdates);
 
   const values: Partial<typeof subscriptions.$inferInsert> = {};
   if (updates.tool_name !== undefined) values.tool_name = updates.tool_name;
@@ -124,7 +132,7 @@ export async function updateSubscription(
     .set(values)
     .where(
       and(
-        eq(subscriptions.id, id),
+        eq(subscriptions.id, subId),
         eq(subscriptions.company_id, profile.company_id as string)
       )
     );
@@ -134,12 +142,13 @@ export async function updateSubscription(
 
 export async function deleteSubscription(id: string) {
   const { profile } = await requireRole("admin", "editor");
+  const subId = uuidSchema.parse(id);
 
   await db
     .delete(subscriptions)
     .where(
       and(
-        eq(subscriptions.id, id),
+        eq(subscriptions.id, subId),
         eq(subscriptions.company_id, profile.company_id as string)
       )
     );

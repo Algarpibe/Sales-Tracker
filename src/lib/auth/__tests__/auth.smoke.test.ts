@@ -17,7 +17,7 @@ describe("better-auth smoke (sales-tracker-db)", () => {
 
     const [p] = await db.select().from(profiles).where(eq(profiles.id, createdId!));
     expect(p).toBeTruthy();
-    expect(p.role).toBe("viewer");
+    expect(p.role).toBe("lector");
     expect(p.is_approved).toBe(false);
 
     const inn: any = await auth.api.signInEmail({
