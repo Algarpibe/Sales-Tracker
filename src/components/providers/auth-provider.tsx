@@ -1,12 +1,20 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
-import type { Profile } from "@/types/database";
-import type { User, AuthChangeEvent, Session } from "@supabase/supabase-js";
+import { createContext, useContext, useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { authClient } from "@/lib/auth/client";
+import { getMyProfile } from "@/actions/profile-actions";
+import type { Profile, UserRole } from "@/types/database";
+
+type SessionUser = {
+  id: string;
+  name: string;
+  email: string;
+  image?: string | null;
+};
 
 interface AuthContextType {
-  user: User | null;
+  user: SessionUser | null;
   profile: Profile | null;
   loading: boolean;
   signOut: () => Promise<void>;
@@ -21,137 +29,97 @@ const AuthContext = createContext<AuthContextType>({
   refreshProfile: async () => {},
 });
 
-import { useRouter } from "next/navigation";
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState(true);
-  const supabase = createClient();
+  const { data: session, isPending } = authClient.useSession();
+  const sessionUser = (session?.user as SessionUser | undefined) ?? null;
+  const userId = sessionUser?.id ?? null;
 
-  const loadProfile = async (userId: string) => {
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
+
+  const loadProfile = useCallback(async () => {
     try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", userId)
-        .single();
-      
-      if (error) {
-        if (error.code !== 'PGRST116') {
-          console.error("Error loading profile details:", {
-            code: error.code,
-            message: error.message,
-            details: error.details,
-            hint: error.hint
-          });
-        }
+      const result = await getMyProfile();
+
+      if (!result) {
         setProfile(null);
-      } else {
-        setProfile(data);
+        return;
       }
+
+      const { user: u, profile: p } = result;
+
+      // Map better-auth user + drizzle profile into the existing Profile shape
+      // so consumer components (header, sidebar, settings) keep working.
+      const mapped: Profile = {
+        id: u.id,
+        company_id: p?.companyId ?? "",
+        email: u.email,
+        full_name: u.name,
+        avatar_url: u.image ?? null,
+        role: (p?.role as UserRole) ?? "lector",
+        is_active: p?.isActive ?? false,
+        created_at:
+          p?.createdAt instanceof Date
+            ? p.createdAt.toISOString()
+            : String(p?.createdAt ?? ""),
+        updated_at:
+          p?.updatedAt instanceof Date
+            ? p.updatedAt.toISOString()
+            : String(p?.updatedAt ?? ""),
+        // Extra approval flags consumed elsewhere in the app.
+        is_approved: p?.isApproved ?? false,
+        is_rejected: p?.isRejected ?? false,
+      } as Profile;
+
+      setProfile(mapped);
     } catch (err) {
       console.error("Critical error in loadProfile:", err);
       setProfile(null);
     }
-  };
+  }, []);
 
   useEffect(() => {
     let mounted = true;
 
-    const initialize = async () => {
-      setLoading(true);
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        if (!mounted) return;
-
-        if (session?.user) {
-          setUser(session.user);
-          await loadProfile(session.user.id);
-        } else {
-          setUser(null);
-          setProfile(null);
-        }
-      } catch (err) {
-        console.error("Auth initialization error:", err);
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    };
-
-    initialize();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event: AuthChangeEvent, session: Session | null) => {
-      if (!mounted) return;
-
-      if (event === 'SIGNED_OUT') {
-        setUser(null);
-        setProfile(null);
-        setLoading(false);
-        router.push('/login');
-        router.refresh();
-      } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
-        const currentUser = session?.user ?? null;
-        setUser(currentUser);
-        if (currentUser) {
-          // Do not await loadProfile here to prevent GoTrue Client deadlock!
-          loadProfile(currentUser.id).finally(() => {
-            if (mounted) setLoading(false);
-          });
-        } else {
-          setProfile(null);
-          setLoading(false);
-        }
-      }
-    });
-
-    // Set up Realtime subscription for profile changes
-    let profileChannel: any = null;
-    if (user?.id) {
-      profileChannel = supabase
-        .channel(`public:profiles:id=eq.${user.id}`)
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'profiles',
-            filter: `id=eq.${user.id}`
-          },
-          (payload: any) => {
-            if (mounted) {
-              setProfile(payload.new as Profile);
-            }
-          }
-        )
-        .subscribe();
+    if (!userId) {
+      setProfile(null);
+      return;
     }
+
+    setProfileLoading(true);
+    loadProfile().finally(() => {
+      if (mounted) setProfileLoading(false);
+    });
 
     return () => {
       mounted = false;
-      subscription.unsubscribe();
-      if (profileChannel) {
-        supabase.removeChannel(profileChannel);
-      }
     };
-  }, [supabase, user?.id, router]);
+  }, [userId, loadProfile]);
 
   const signOut = async () => {
     try {
-      await supabase.auth.signOut();
-      setUser(null);
+      await authClient.signOut();
       setProfile(null);
-      router.push('/login');
+      router.push("/login");
       router.refresh();
     } catch (err) {
       console.error("Error during sign out:", err);
     }
   };
 
+  const loading = isPending || (!!userId && profileLoading);
+
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signOut, refreshProfile: () => loadProfile(user?.id || "") }}>
+    <AuthContext.Provider
+      value={{
+        user: sessionUser,
+        profile,
+        loading,
+        signOut,
+        refreshProfile: loadProfile,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
