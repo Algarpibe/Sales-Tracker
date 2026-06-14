@@ -1,5 +1,5 @@
 import { headers } from "next/headers";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { auth } from "./auth";
 import { db } from "@/db";
 import { profiles } from "@/db/schema";
@@ -7,7 +7,23 @@ import { profiles } from "@/db/schema";
 export async function getSessionUser() {
   const s = await auth.api.getSession({ headers: await headers() });
   if (!s) return null;
-  const [profile] = await db.select().from(profiles).where(eq(profiles.id, s.user.id));
+  // Selecciona columnas explícitas: NO traer el binario `avatar` (bytea) al cliente;
+  // en su lugar expone `has_avatar` para construir la URL /api/avatar/[id].
+  const [profile] = await db
+    .select({
+      id: profiles.id,
+      company_id: profiles.company_id,
+      role: profiles.role,
+      is_active: profiles.is_active,
+      is_approved: profiles.is_approved,
+      is_rejected: profiles.is_rejected,
+      rejection_reason: profiles.rejection_reason,
+      created_at: profiles.created_at,
+      updated_at: profiles.updated_at,
+      has_avatar: sql<boolean>`${profiles.avatar} is not null`,
+    })
+    .from(profiles)
+    .where(eq(profiles.id, s.user.id));
   return { user: s.user, profile: profile ?? null };
 }
 

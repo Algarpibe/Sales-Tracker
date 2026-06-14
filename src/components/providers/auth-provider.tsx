@@ -56,7 +56,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         company_id: p?.company_id ?? "",
         email: u.email,
         full_name: u.name,
-        avatar_url: u.image ?? null,
+        avatar_url: p?.has_avatar ? `/api/avatar/${u.id}` : u.image ?? null,
         role: (p?.role as UserRole) ?? "lector",
         is_active: p?.is_active ?? false,
         created_at:
