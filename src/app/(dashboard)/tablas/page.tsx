@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import { MONTHS, RECORD_TYPES, formatUSD, getYearRange } from "@/lib/constants";
 import type { SalesRecord, Category, RecordType } from "@/types/database";
 import { Button } from "@/components/ui/button";
@@ -48,7 +47,6 @@ export default function TablasPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [pendingChanges, setPendingChanges] = useState<Record<string, Record<number, number>>>( {});
 
-  const supabase = createClient();
   const canEdit = profile?.role === "admin" || profile?.role === "editor";
 
   const fetchData = useCallback(async () => {

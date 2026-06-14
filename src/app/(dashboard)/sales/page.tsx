@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, useMemo, useCallback } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { MONTHS, RECORD_TYPES, formatUSD, getYearRange } from "@/lib/constants";
 import type { SalesRecord, Category, RecordType } from "@/types/database";
 import { Button } from "@/components/ui/button";
@@ -25,7 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Download, Plus, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { upsertSalesRecord, deleteSalesRecord } from "@/actions/sales-actions";
+import { getSalesData, upsertSalesRecord, deleteSalesRecord } from "@/actions/sales-actions";
 import { useAuth } from "@/components/providers/auth-provider";
 
 export default function SalesPage() {
@@ -35,21 +34,13 @@ export default function SalesPage() {
   const [yearFil, setYearFil] = useState(new Date().getFullYear());
   const [typeFil, setTypeFil] = useState<RecordType>("SALES_ORDER");
 
-  const supabase = createClient();
   const { profile } = useAuth();
   const canEdit = profile?.role === "admin" || profile?.role === "editor";
 
   const fetchRecords = useCallback(async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("sales_records")
-        .select("*, categories(name, color)")
-        .eq("record_year", yearFil)
-        .eq("record_type", typeFil)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
+      const data = await getSalesData({ year: yearFil, record_type: typeFil });
       setRecords(data || []);
     } catch (error) {
       console.error("Error fetching sales records:", error);
@@ -57,7 +48,7 @@ export default function SalesPage() {
     } finally {
       setLoading(false);
     }
-  }, [yearFil, typeFil, supabase]);
+  }, [yearFil, typeFil]);
 
   useEffect(() => {
     fetchRecords();

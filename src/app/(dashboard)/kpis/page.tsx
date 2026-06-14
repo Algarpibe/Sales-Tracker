@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { getSalesData } from "@/actions/sales-actions";
+import { getCategories } from "@/actions/category-actions";
 import { getYearRange } from "@/lib/constants";
 import {
   Select,
@@ -28,22 +29,15 @@ export default function KPIsPage() {
     concentration: [] as { categoryName: string; amount: number; percentage: number }[]
   });
 
-  const supabase = createClient();
-
   useEffect(() => {
     async function fetchKPIData() {
       setIsLoading(true);
       try {
-        const [recordsResponse, categoriesResponse] = await Promise.all([
-          supabase.from("sales_records").select("record_month, record_type, amount_usd, category_id").eq("record_year", year),
-          supabase.from("categories").select("id, name")
+        const [records, categories] = await Promise.all([
+          getSalesData({ year }),
+          getCategories()
         ]);
 
-        if (recordsResponse.error) throw recordsResponse.error;
-        if (categoriesResponse.error) throw categoriesResponse.error;
-
-        const records = recordsResponse.data || [];
-        const categories = categoriesResponse.data || [];
         const catMap = new Map(categories.map((c: any) => [c.id, c.name]));
 
         let totalSales = 0;
@@ -130,7 +124,7 @@ export default function KPIsPage() {
     }
 
     fetchKPIData();
-  }, [year, supabase]);
+  }, [year]);
 
   if (isLoading) {
     return (

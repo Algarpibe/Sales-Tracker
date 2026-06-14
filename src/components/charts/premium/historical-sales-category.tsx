@@ -20,7 +20,8 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Check, ChevronsUpDown, X, LayoutTemplate, Activity, FileText, Receipt } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { createClient } from "@/lib/supabase/client";
+import { getSalesData } from "@/actions/sales-actions";
+import { getCategories } from "@/actions/category-actions";
 
 // --- Types ---
 type RecordType = "SALES_ORDER" | "INVOICE";
@@ -61,28 +62,22 @@ export function HistoricalSalesCategory() {
   const [availableYears, setAvailableYears] = useState<number[]>([]);
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
 
-  const supabase = createClient();
-
   // Fetch categories once on mount
   useEffect(() => {
     const fetchCategories = async () => {
-      const { data, error } = await supabase
-        .from("categories")
-        .select("id, name, color")
-        .order("name");
-      
-      if (error) {
+      try {
+        const data = await getCategories();
+
+        const cats: CategoryInfo[] = (data || []).map((cat: any) => ({
+          id: String(cat.id),
+          name: String(cat.name),
+          color: cat.color || DEFAULT_COLOR,
+        }));
+
+        setAllCategories(cats);
+      } catch (error) {
         console.error("Error fetching categories:", error);
-        return;
       }
-
-      const cats: CategoryInfo[] = (data || []).map((cat: any) => ({
-        id: String(cat.id),
-        name: String(cat.name),
-        color: cat.color || DEFAULT_COLOR,
-      }));
-
-      setAllCategories(cats);
     };
 
     fetchCategories();
@@ -93,18 +88,8 @@ export function HistoricalSalesCategory() {
     const fetchSalesData = async () => {
       setIsLoading(true);
       try {
-        const { data, error } = await supabase
-          .from("sales_records")
-          .select("category_id, record_year, record_month, amount_usd")
-          .eq("record_type", recordType);
+        const records = await getSalesData({ record_type: recordType });
 
-        if (error) {
-          console.error("Error fetching sales data:", error);
-          return;
-        }
-
-        const records = data || [];
-        
         // --- 1. Available Years ---
         const yearsSet = new Set<number>();
         records.forEach((r: any) => yearsSet.add(Number(r.record_year)));

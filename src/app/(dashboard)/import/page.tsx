@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/components/providers/auth-provider";
+import { getCategories } from "@/actions/category-actions";
+import { upsertSalesRecord } from "@/actions/sales-actions";
+import type { RecordType } from "@/types/database";
 import { MONTHS } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,7 +27,6 @@ export default function ImportPage() {
   const [file, setFile] = useState<File | null>(null);
   const [rows, setRows] = useState<ParsedRow[]>([]);
   const [importing, setImporting] = useState(false);
-  const supabase = createClient();
 
   const handleFile = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
@@ -58,26 +59,33 @@ export default function ImportPage() {
 
     try {
       // Get categories map
-      const { data: cats } = await supabase.from("categories").select("id, name").eq("is_active", true);
-      const catMap = new Map((cats || []).map((c: { id: string; name: string }) => [c.name.toLowerCase(), c.id]));
+      const cats = await getCategories();
+      const catMap = new Map((cats || []).map((c) => [c.name.toLowerCase(), c.id]));
 
       const records = rows.filter((r) => catMap.has(r.category.toLowerCase())).map((r) => ({
-        company_id: profile.company_id,
         category_id: catMap.get(r.category.toLowerCase())!,
-        record_type: r.type,
+        record_type: r.type as RecordType,
         amount_usd: r.amount,
         record_month: r.month,
         record_year: r.year,
-        created_by: profile.id,
-        updated_by: profile.id,
       }));
 
-      const { error } = await supabase.from("sales_records").upsert(records, {
-        onConflict: "company_id,category_id,record_type,record_month,record_year",
-      });
+      let imported = 0;
+      let failed = 0;
+      for (const record of records) {
+        try {
+          await upsertSalesRecord(record);
+          imported++;
+        } catch {
+          failed++;
+        }
+      }
 
-      if (error) throw error;
-      toast.success(`${records.length} registros importados`);
+      if (failed > 0) {
+        toast.warning(`${imported} registros importados, ${failed} con error`);
+      } else {
+        toast.success(`${imported} registros importados`);
+      }
       setRows([]); setFile(null);
     } catch (err) {
       toast.error("Error", { description: (err as Error).message });
