@@ -1,7 +1,15 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { eq, and, inArray, asc, desc, sql } from "drizzle-orm";
+import { db } from "@/db";
+import {
+  categoryGroups,
+  categoryGroupMappings,
+  categories,
+  salesRecords,
+} from "@/db/schema";
+import { requireRole, requireApproved } from "@/lib/auth/guards";
 import type {
   CategoryGroup,
   RecordType,
@@ -10,38 +18,19 @@ import type {
 } from "@/types/database";
 
 // ─── Helpers ───
+// getAdminProfile() → requireRole("admin"); getCompanyProfile() → requireApproved().
+// Both return a profile that always has a company_id (every query is scoped by it).
 
 async function getAdminProfile() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("No autenticado");
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("company_id, role")
-    .eq("id", user.id)
-    .single();
-
-  if (!profile || profile.role !== "admin") {
-    throw new Error("Solo administradores pueden gestionar agrupaciones");
-  }
-
-  return { supabase, profile, userId: user.id };
+  const { user, profile } = await requireRole("admin");
+  if (!profile?.company_id) throw new Error("Perfil sin empresa asignada");
+  return { profile, userId: user.id };
 }
 
 async function getCompanyProfile() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("No autenticado");
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("company_id, role")
-    .eq("id", user.id)
-    .single();
-
-  if (!profile) throw new Error("Perfil no encontrado");
-  return { supabase, profile, userId: user.id };
+  const { user, profile } = await requireApproved();
+  if (!profile?.company_id) throw new Error("Perfil sin empresa asignada");
+  return { profile, userId: user.id };
 }
 
 // ─── CRUD ───
@@ -51,70 +40,97 @@ export async function saveCategoryGrouping(
   categoryIds: string[],
   color: string = "#6366f1"
 ): Promise<{ success: boolean; groupId?: string }> {
-  const { supabase, profile } = await getAdminProfile();
+  const { profile } = await getAdminProfile();
+  const companyId = profile.company_id!;
 
-  // Get max sort_order
-  const { data: maxOrder } = await supabase
-    .from("category_groups")
-    .select("sort_order")
-    .eq("company_id", profile.company_id)
-    .order("sort_order", { ascending: false })
-    .limit(1)
-    .single();
+  const groupId = await db.transaction(async (tx) => {
+    // Get max sort_order
+    const [maxOrder] = await tx
+      .select({ sort_order: categoryGroups.sort_order })
+      .from(categoryGroups)
+      .where(eq(categoryGroups.company_id, companyId))
+      .orderBy(desc(categoryGroups.sort_order))
+      .limit(1);
 
-  const nextOrder = (maxOrder?.sort_order || 0) + 1;
+    const nextOrder = (maxOrder?.sort_order ?? 0) + 1;
 
-  // Insert group
-  const { data: group, error: groupError } = await supabase
-    .from("category_groups")
-    .insert({
-      name: groupName.trim(),
-      color: color,
-      sort_order: nextOrder,
-      company_id: profile.company_id,
-    })
-    .select("id")
-    .single();
+    // Insert group
+    const [group] = await tx
+      .insert(categoryGroups)
+      .values({
+        name: groupName.trim(),
+        color: color,
+        sort_order: nextOrder,
+        company_id: companyId,
+      })
+      .returning({ id: categoryGroups.id });
 
-  if (groupError) throw new Error(groupError.message);
+    // Insert mappings
+    if (categoryIds.length > 0) {
+      await tx.insert(categoryGroupMappings).values(
+        categoryIds.map((catId) => ({
+          group_id: group.id,
+          category_id: catId,
+          company_id: companyId,
+        }))
+      );
+    }
 
-  // Insert mappings
-  if (categoryIds.length > 0) {
-    const mappings = categoryIds.map((catId) => ({
-      group_id: group.id,
-      category_id: catId,
-      company_id: profile.company_id,
-    }));
-
-    const { error: mapError } = await supabase
-      .from("category_group_mappings")
-      .insert(mappings);
-
-    if (mapError) throw new Error(mapError.message);
-  }
+    return group.id;
+  });
 
   revalidatePath("/analytics");
-  return { success: true, groupId: group.id };
+  return { success: true, groupId };
 }
 
 export async function getSavedCategoryGroupings(): Promise<{
   groups: CategoryGroup[];
   success: boolean;
 }> {
-  const { supabase, profile } = await getCompanyProfile();
+  const { profile } = await getCompanyProfile();
+  const companyId = profile.company_id!;
 
-  const { data, error } = await supabase
-    .from("category_groups")
-    .select("*, category_group_mappings(id, group_id, category_id, company_id)")
-    .eq("company_id", profile.company_id)
-    .order("sort_order", { ascending: true });
+  // 1. Fetch groups for this company
+  const groupRows = await db
+    .select()
+    .from(categoryGroups)
+    .where(eq(categoryGroups.company_id, companyId))
+    .orderBy(asc(categoryGroups.sort_order));
 
-  if (error) throw new Error(error.message);
+  if (groupRows.length === 0) {
+    return { groups: [], success: true };
+  }
 
-  // Map the nested join to the expected shape
-  const groups: CategoryGroup[] = (data || []).map((g: any) => ({
+  // 2. Fetch all mappings for those groups (scoped by company too)
+  const groupIds = groupRows.map((g) => g.id);
+  const mappingRows = await db
+    .select({
+      id: categoryGroupMappings.id,
+      group_id: categoryGroupMappings.group_id,
+      category_id: categoryGroupMappings.category_id,
+      company_id: categoryGroupMappings.company_id,
+    })
+    .from(categoryGroupMappings)
+    .where(
+      and(
+        eq(categoryGroupMappings.company_id, companyId),
+        inArray(categoryGroupMappings.group_id, groupIds)
+      )
+    );
+
+  // 3. Assemble: embed mappings under each group
+  const mappingsByGroup = new Map<string, typeof mappingRows>();
+  for (const m of mappingRows) {
+    const list = mappingsByGroup.get(m.group_id) ?? [];
+    list.push(m);
+    mappingsByGroup.set(m.group_id, list);
+  }
+
+  const groups: CategoryGroup[] = groupRows.map((g) => ({
     ...g,
-    mappings: g.category_group_mappings || [],
+    created_at: g.created_at as unknown as string,
+    updated_at: g.updated_at as unknown as string,
+    mappings: mappingsByGroup.get(g.id) ?? [],
   }));
 
   return { groups, success: true };
@@ -126,42 +142,45 @@ export async function updateCategoryGrouping(
   categoryIds: string[],
   color?: string
 ): Promise<{ success: boolean }> {
-  const { supabase, profile } = await getAdminProfile();
+  const { profile } = await getAdminProfile();
+  const companyId = profile.company_id!;
 
-  // Update name and color
-  const { error: updateError } = await supabase
-    .from("category_groups")
-    .update({ 
-      name: groupName.trim(), 
-      color: color,
-      updated_at: new Date().toISOString() 
-    })
-    .eq("id", groupId)
-    .eq("company_id", profile.company_id);
+  await db.transaction(async (tx) => {
+    // Update name and color (scoped by company)
+    await tx
+      .update(categoryGroups)
+      .set({
+        name: groupName.trim(),
+        color: color,
+        updated_at: new Date().toISOString(),
+      })
+      .where(
+        and(
+          eq(categoryGroups.id, groupId),
+          eq(categoryGroups.company_id, companyId)
+        )
+      );
 
-  if (updateError) throw new Error(updateError.message);
+    // Replace mappings: delete old, insert new (scoped by company)
+    await tx
+      .delete(categoryGroupMappings)
+      .where(
+        and(
+          eq(categoryGroupMappings.group_id, groupId),
+          eq(categoryGroupMappings.company_id, companyId)
+        )
+      );
 
-  // Replace mappings: delete old, insert new
-  const { error: deleteError } = await supabase
-    .from("category_group_mappings")
-    .delete()
-    .eq("group_id", groupId);
-
-  if (deleteError) throw new Error(deleteError.message);
-
-  if (categoryIds.length > 0) {
-    const mappings = categoryIds.map((catId) => ({
-      group_id: groupId,
-      category_id: catId,
-      company_id: profile.company_id,
-    }));
-
-    const { error: mapError } = await supabase
-      .from("category_group_mappings")
-      .insert(mappings);
-
-    if (mapError) throw new Error(mapError.message);
-  }
+    if (categoryIds.length > 0) {
+      await tx.insert(categoryGroupMappings).values(
+        categoryIds.map((catId) => ({
+          group_id: groupId,
+          category_id: catId,
+          company_id: companyId,
+        }))
+      );
+    }
+  });
 
   revalidatePath("/analytics");
   return { success: true };
@@ -170,15 +189,18 @@ export async function updateCategoryGrouping(
 export async function deleteCategoryGrouping(
   groupId: string
 ): Promise<{ success: boolean }> {
-  const { supabase, profile } = await getAdminProfile();
+  const { profile } = await getAdminProfile();
+  const companyId = profile.company_id!;
 
-  const { error } = await supabase
-    .from("category_groups")
-    .delete()
-    .eq("id", groupId)
-    .eq("company_id", profile.company_id);
-
-  if (error) throw new Error(error.message);
+  // Mappings are removed by ON DELETE CASCADE on group_id.
+  await db
+    .delete(categoryGroups)
+    .where(
+      and(
+        eq(categoryGroups.id, groupId),
+        eq(categoryGroups.company_id, companyId)
+      )
+    );
 
   revalidatePath("/analytics");
   return { success: true };
@@ -190,18 +212,22 @@ export async function deleteCategoryGrouping(
 export async function reorderCategoryGroupings(
   orderedIds: string[]
 ): Promise<{ success: boolean }> {
-  const { supabase, profile } = await getAdminProfile();
+  const { profile } = await getAdminProfile();
+  const companyId = profile.company_id!;
 
-  // Perform updates in parallel
-  const updates = orderedIds.map((id, index) => 
-    supabase
-      .from("category_groups")
-      .update({ sort_order: index + 1 })
-      .eq("id", id)
-      .eq("company_id", profile.company_id)
-  );
-
-  await Promise.all(updates);
+  await db.transaction(async (tx) => {
+    for (let index = 0; index < orderedIds.length; index++) {
+      await tx
+        .update(categoryGroups)
+        .set({ sort_order: index + 1 })
+        .where(
+          and(
+            eq(categoryGroups.id, orderedIds[index]),
+            eq(categoryGroups.company_id, companyId)
+          )
+        );
+    }
+  });
 
   revalidatePath("/analytics");
   return { success: true };
@@ -212,58 +238,74 @@ export async function reorderCategoryGroupings(
 export async function getGroupingAnalysisData(
   recordType: RecordType
 ): Promise<GroupingAnalysisResult> {
-  const { supabase, profile } = await getCompanyProfile();
+  const { profile } = await getCompanyProfile();
+  const companyId = profile.company_id!;
 
-  // 1. Fetch all groups + mappings for this company
-  const { data: groups, error: groupsError } = await supabase
-    .from("category_groups")
-    .select(`
-      *,
-      mappings: category_group_mappings(*)
-    `)
-    .eq("company_id", profile.company_id)
-    .order("sort_order", { ascending: true });
+  // 1. Fetch all groups for this company
+  const groups = await db
+    .select()
+    .from(categoryGroups)
+    .where(eq(categoryGroups.company_id, companyId))
+    .orderBy(asc(categoryGroups.sort_order));
 
-  if (groupsError) throw new Error(groupsError.message);
-  if (!groups || groups.length === 0) {
+  if (groups.length === 0) {
     return { rows: [], years: [], yearTotals: {} };
   }
 
+  // 1b. Fetch mappings for those groups (scoped by company)
+  const groupIds = groups.map((g) => g.id);
+  const mappings = await db
+    .select({
+      group_id: categoryGroupMappings.group_id,
+      category_id: categoryGroupMappings.category_id,
+    })
+    .from(categoryGroupMappings)
+    .where(
+      and(
+        eq(categoryGroupMappings.company_id, companyId),
+        inArray(categoryGroupMappings.group_id, groupIds)
+      )
+    );
+
   // Build mapping: categoryId → groupId
   const catToGroup = new Map<string, string>();
-  const groupMap = new Map<string, { name: string }>();
+  for (const m of mappings) {
+    catToGroup.set(String(m.category_id), m.group_id);
+  }
 
-  (groups as any[]).forEach((g) => {
-    groupMap.set(g.id, { name: g.name });
-    (g.mappings || []).forEach((m: any) => {
-      catToGroup.set(String(m.category_id), g.id);
-    });
-  });
+  // 2. Fetch category colors (scoped by company)
+  const cats = await db
+    .select({ id: categories.id, color: categories.color })
+    .from(categories)
+    .where(eq(categories.company_id, companyId));
 
-  // 2. Fetch category colors
-  const { data: categories } = await supabase
-    .from("categories")
-    .select("id, color")
-    .eq("company_id", profile.company_id);
-
+  // (catColorMap kept to mirror original; group colors come from the saved group color)
   const catColorMap = new Map<string, string>();
-  (categories || []).forEach((c: any) => {
+  for (const c of cats) {
     catColorMap.set(String(c.id), c.color || "#6366f1");
-  });
+  }
 
   // Assign the saved color to each group
   const groupColors = new Map<string, string>();
-  (groups as any[]).forEach((g) => {
+  for (const g of groups) {
     groupColors.set(g.id, g.color || "#6366f1");
-  });
+  }
 
   // 3. Fetch all sales records for the company and record type
-  const { data: records, error: recordsError } = await supabase
-    .from("sales_records")
-    .select("category_id, record_year, record_month, amount_usd")
-    .eq("record_type", recordType);
-
-  if (recordsError) throw new Error(recordsError.message);
+  const records = await db
+    .select({
+      category_id: salesRecords.category_id,
+      record_year: salesRecords.record_year,
+      record_month: salesRecords.record_month,
+      amount_usd: salesRecords.amount_usd,
+    })
+    .from(salesRecords)
+    .where(
+      and(
+        eq(salesRecords.company_id, companyId),
+        eq(salesRecords.record_type, recordType)
+      )
+    );
 
   // 4. Aggregate: group → year → sum
   const yearsSet = new Set<number>();
@@ -272,16 +314,16 @@ export async function getGroupingAnalysisData(
   const yearTotals: Record<number, number> = {};
 
   // Initialize group accumulators
-  (groups as any[]).forEach((g) => {
+  for (const g of groups) {
     groupYearSums[g.id] = {};
     groupMonthSums[g.id] = {};
-  });
+  }
 
-  (records || []).forEach((r: any) => {
+  for (const r of records) {
     const catId = String(r.category_id);
     const year = Number(r.record_year);
     const month = Number(r.record_month);
-    const amount = Number(r.amount_usd) || 0;
+    const amount = Number(r.amount_usd) || 0; // NUMERIC → Number
     const groupId = catToGroup.get(catId);
 
     yearsSet.add(year);
@@ -289,17 +331,18 @@ export async function getGroupingAnalysisData(
 
     if (groupId && groupYearSums[groupId]) {
       groupYearSums[groupId][year] = (groupYearSums[groupId][year] || 0) + amount;
-      
+
       // Monthly aggregation
       if (!groupMonthSums[groupId][year]) groupMonthSums[groupId][year] = {};
-      groupMonthSums[groupId][year][month] = (groupMonthSums[groupId][year][month] || 0) + amount;
+      groupMonthSums[groupId][year][month] =
+        (groupMonthSums[groupId][year][month] || 0) + amount;
     }
-  });
+  }
 
   const years = Array.from(yearsSet).sort((a, b) => a - b);
 
   // 5. Build result rows with percentages and averages
-  const rows: GroupingAnalysisRow[] = (groups as any[]).map((g) => {
+  const rows: GroupingAnalysisRow[] = groups.map((g) => {
     const sums = groupYearSums[g.id] || {};
     const yearData: Record<number, { amount: number; percentage: number }> = {};
     let totalAmount = 0;
@@ -316,9 +359,13 @@ export async function getGroupingAnalysisData(
       yearCount++;
     });
 
-    const totalOfAllYearTotals = years.reduce((acc, y) => acc + (yearTotals[y] || 0), 0);
+    const totalOfAllYearTotals = years.reduce(
+      (acc, y) => acc + (yearTotals[y] || 0),
+      0
+    );
     const avgAmount = yearCount > 0 ? totalAmount / yearCount : 0;
-    const avgPercentage = totalOfAllYearTotals > 0 ? (totalAmount / totalOfAllYearTotals) * 100 : 0;
+    const avgPercentage =
+      totalOfAllYearTotals > 0 ? (totalAmount / totalOfAllYearTotals) * 100 : 0;
 
     return {
       groupId: g.id,

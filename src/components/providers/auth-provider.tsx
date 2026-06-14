@@ -60,13 +60,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         role: (p?.role as UserRole) ?? "lector",
         is_active: p?.is_active ?? false,
         created_at:
-          p?.created_at instanceof Date
-            ? p.created_at.toISOString()
-            : String(p?.created_at ?? ""),
+          String(p?.created_at ?? ""),
         updated_at:
-          p?.updated_at instanceof Date
-            ? p.updated_at.toISOString()
-            : String(p?.updated_at ?? ""),
+          String(p?.updated_at ?? ""),
         // Extra approval flags consumed elsewhere in the app.
         is_approved: p?.is_approved ?? false,
         is_rejected: p?.is_rejected ?? false,
