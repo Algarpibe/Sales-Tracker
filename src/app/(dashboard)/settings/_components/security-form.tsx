@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { createClient } from "@/lib/supabase/client";
+import { authClient } from "@/lib/auth/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +13,7 @@ import { Loader2, KeyRound, Eye, EyeOff, ShieldCheck, Save } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
 const passwordSchema = z.object({
+  currentPassword: z.string().min(1, "Debes ingresar tu contraseña actual"),
   password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres"),
   confirmPassword: z.string(),
 }).refine((data) => data.password === data.confirmPassword, {
@@ -25,7 +26,6 @@ type PasswordFormValues = z.infer<typeof passwordSchema>;
 export function SecurityForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const supabase = createClient();
 
   const {
     register,
@@ -35,6 +35,7 @@ export function SecurityForm() {
   } = useForm<PasswordFormValues>({
     resolver: zodResolver(passwordSchema),
     defaultValues: {
+      currentPassword: "",
       password: "",
       confirmPassword: "",
     },
@@ -44,18 +45,13 @@ export function SecurityForm() {
     setIsLoading(true);
 
     try {
-      // Create a timeout race so it doesn't hang forever
-      const updatePromise = supabase.auth.updateUser({
-        password: values.password,
+      const { error } = await authClient.changePassword({
+        currentPassword: values.currentPassword,
+        newPassword: values.password,
+        revokeOtherSessions: true,
       });
-      
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error("La solicitud ha tardado demasiado")), 15000)
-      );
 
-      const { data, error } = await Promise.race([updatePromise, timeoutPromise]) as any;
-
-      if (error) throw error;
+      if (error) throw new Error(error.message || "Error al actualizar la contraseña");
 
       toast.success("Contraseña actualizada correctamente");
       reset();
@@ -82,6 +78,37 @@ export function SecurityForm() {
       <CardContent className="pt-6">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           <div className="grid gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="currentPassword" className="text-sm font-medium text-muted-foreground">
+                Contraseña Actual
+              </Label>
+              <div className="relative">
+                <Input
+                  id="currentPassword"
+                  type={showPassword ? "text" : "password"}
+                  {...register("currentPassword")}
+                  className="pl-9 pr-10 bg-white/5 border-white/10 focus:border-primary/50 transition-all font-mono"
+                  placeholder="••••••••"
+                />
+                <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/50" />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  onMouseDown={(e) => e.preventDefault()}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-md text-muted-foreground/50 hover:text-primary hover:bg-primary/5 transition-all z-20 cursor-pointer"
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
+              {errors.currentPassword && (
+                <p className="text-xs font-medium text-destructive">{errors.currentPassword.message}</p>
+              )}
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="password" className="text-sm font-medium text-muted-foreground">
                 Nueva Contraseña

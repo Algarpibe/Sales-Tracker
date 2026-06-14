@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { createClient } from "@/lib/supabase/client";
+import { updateMyAccount } from "@/actions/settings-actions";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,7 +25,6 @@ type ProfileFormValues = z.infer<typeof profileSchema>;
 export function ProfileForm() {
   const { profile, user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-  const supabase = createClient();
   const roleInfo = ROLES.find((r) => r.value === profile?.role);
 
   const {
@@ -46,25 +45,14 @@ export function ProfileForm() {
     setIsLoading(true);
 
     try {
-      // 1. Update Profile in public.profiles
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .update({
-          full_name: values.full_name,
-          email: values.email,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", user.id);
+      // Update own account (name/email)
+      await updateMyAccount({
+        full_name: values.full_name,
+        email: values.email,
+      });
 
-      if (profileError) throw profileError;
-
-      // 2. Update Email in Auth if changed
       if (values.email !== profile?.email) {
-        const { error: authError } = await supabase.auth.updateUser({
-          email: values.email,
-        });
-        if (authError) throw authError;
-        toast.info("Se ha enviado un correo de confirmación a tu nueva dirección.");
+        toast.info("Tu dirección de correo ha sido actualizada.");
       }
 
       toast.success("Perfil actualizado correctamente");
