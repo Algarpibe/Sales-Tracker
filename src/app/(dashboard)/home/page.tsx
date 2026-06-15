@@ -58,16 +58,11 @@ export default function HomePage() {
     let totalInvoices = 0;
     let salesCount = 0;
 
-    // Estructura para cruzar meses y categorías: category_id -> month -> { sales, invoices }
-    const dataMap = new Map<string, Map<number, { sales: number; invoices: number }>>();
-
     records.forEach((r: any) => {
       const amount = Number(r.amount_usd);
       const mLabel = MONTHS.find(m => m.value === r.record_month)?.label;
-      const month = r.record_month || 1;
-      const catId = r.category_id || "unassigned";
 
-      // Monthly trends
+      // Monthly trends (solo OV/Factura)
       if (mLabel && monthlyMap.has(mLabel)) {
         const entry = monthlyMap.get(mLabel);
         if (r.record_type === "SALES_ORDER") {
@@ -79,57 +74,41 @@ export default function HomePage() {
           totalInvoices += amount;
         }
       }
-
-      // KPI Aggregation logic (as in KPIsPage)
-      if (!dataMap.has(catId)) dataMap.set(catId, new Map());
-      const monthMap = dataMap.get(catId)!;
-      if (!monthMap.has(month)) monthMap.set(month, { sales: 0, invoices: 0 });
-
-      if (r.record_type === "SALES_ORDER") monthMap.get(month)!.sales += amount;
-      else if (r.record_type === "INVOICE") monthMap.get(month)!.invoices += amount;
     });
 
-    // --- KPI Calculations ---
-    const backlog = Math.max(0, totalSales - totalInvoices);
     const execution_rate = totalSales > 0 ? (totalInvoices / totalSales) * 100 : 0;
 
-    // Aging and Concentration
+    // Backlog REAL: filas record_type='BACKLOG' (pendiente de facturar por orden,
+    // calculado en el transform vía invoiced_status de Zoho). Sustituye al antiguo
+    // OV−Factura del año, engañoso por el desfase temporal orden↔factura.
+    const backlogRecords = records.filter((r: any) => r.record_type === "BACKLOG");
+    const backlog = backlogRecords.reduce((s: number, r: any) => s + Number(r.amount_usd), 0);
+
+    // Antigüedad (Aging) del backlog según el mes/año de la orden
     const currentYearDB = new Date().getFullYear();
     const currentMonth = new Date().getMonth() + 1;
-
     let lowRisk = 0;
     let mediumRisk = 0;
     let highRisk = 0;
-    let totalAgingBacklog = 0;
+    for (const r of backlogRecords) {
+      const amount = Number(r.amount_usd);
+      const ageMonths = (currentYearDB - r.record_year) * 12 + (currentMonth - r.record_month);
+      const ageDays = Math.max(0, ageMonths * 30);
+      if (ageDays <= 30) lowRisk += amount;
+      else if (ageDays <= 90) mediumRisk += amount;
+      else highRisk += amount;
+    }
 
+    // Concentración del backlog por categoría
     const concentrationMap = new Map<string, number>();
-
-    dataMap.forEach((monthMap, catId) => {
-      let catBacklog = 0;
-      monthMap.forEach((vals, m) => {
-        const netBacklog = Math.max(0, vals.sales - vals.invoices);
-        if (netBacklog > 0) {
-          catBacklog += netBacklog;
-          totalAgingBacklog += netBacklog;
-
-          const ageMonths = (currentYearDB - year) * 12 + (currentMonth - m);
-          const ageDays = Math.max(0, ageMonths * 30);
-
-          if (ageDays <= 30) lowRisk += netBacklog;
-          else if (ageDays <= 90) mediumRisk += netBacklog;
-          else highRisk += netBacklog;
-        }
-      });
-
-      if (catBacklog > 0) {
-        concentrationMap.set(catId, catBacklog);
-      }
-    });
-
+    for (const r of backlogRecords) {
+      const catId = r.category_id || "unassigned";
+      concentrationMap.set(catId, (concentrationMap.get(catId) || 0) + Number(r.amount_usd));
+    }
     const concentrationData = Array.from(concentrationMap.entries()).map(([catId, amount]) => ({
       categoryName: String(catId === "unassigned" ? "Sin Asignar" : (catMap.get(catId) || "Desconocida")),
       amount,
-      percentage: totalAgingBacklog > 0 ? (amount / totalAgingBacklog) * 100 : 0
+      percentage: backlog > 0 ? (amount / backlog) * 100 : 0
     }));
 
     return {
@@ -141,7 +120,7 @@ export default function HomePage() {
         conversion: (totalInvoices / (totalSales || 1)) * 100,
         backlog,
         execution_rate,
-        aging: { lowRisk, mediumRisk, highRisk, total: totalAgingBacklog },
+        aging: { lowRisk, mediumRisk, highRisk, total: backlog },
         concentration: concentrationData
       }
     };

@@ -27,7 +27,7 @@ const tsString = { withTimezone: true, mode: "string" as const };
 
 // ───────────────────────── Enums ─────────────────────────
 export const userRole = pgEnum("user_role", ["admin", "editor", "lector"]);
-export const recordType = pgEnum("record_type", ["SALES_ORDER", "INVOICE"]);
+export const recordType = pgEnum("record_type", ["SALES_ORDER", "INVOICE", "BACKLOG"]);
 export const billingCycle = pgEnum("billing_cycle", ["monthly", "annual", "quarterly", "one-time"]);
 export const subscriptionStatus = pgEnum("subscription_status", ["active", "paused", "cancelled", "trial"]);
 export const subscriptionCategory = pgEnum("subscription_category", [
