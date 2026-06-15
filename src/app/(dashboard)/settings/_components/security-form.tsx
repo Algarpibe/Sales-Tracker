@@ -106,7 +106,7 @@ export function SecurityForm() {
                   type={show.current ? "text" : "password"}
                   {...register("currentPassword")}
                   className={inputClass}
-                  placeholder="••••••••"
+                  placeholder="Tu contraseña actual"
                 />
                 <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/50" />
                 <EyeToggle visible={show.current} onToggle={() => setShow((s) => ({ ...s, current: !s.current }))} />
@@ -126,7 +126,7 @@ export function SecurityForm() {
                   type={show.next ? "text" : "password"}
                   {...register("password")}
                   className={inputClass}
-                  placeholder="••••••••"
+                  placeholder="Mínimo 6 caracteres"
                 />
                 <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/50" />
                 <EyeToggle visible={show.next} onToggle={() => setShow((s) => ({ ...s, next: !s.next }))} />
@@ -146,7 +146,7 @@ export function SecurityForm() {
                   type={show.confirm ? "text" : "password"}
                   {...register("confirmPassword")}
                   className={inputClass}
-                  placeholder="••••••••"
+                  placeholder="Repite la nueva contraseña"
                 />
                 <ShieldCheck className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/50" />
                 <EyeToggle visible={show.confirm} onToggle={() => setShow((s) => ({ ...s, confirm: !s.confirm }))} />
