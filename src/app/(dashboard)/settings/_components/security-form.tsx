@@ -6,7 +6,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { authClient } from "@/lib/auth/client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Loader2, KeyRound, Eye, EyeOff, ShieldCheck, Save } from "lucide-react";
@@ -23,9 +22,14 @@ const passwordSchema = z.object({
 
 type PasswordFormValues = z.infer<typeof passwordSchema>;
 
+// Estilo compartido de los inputs (igual que el componente Input de la app).
+const inputClass =
+  "h-9 w-full min-w-0 rounded-lg border border-white/10 bg-white/5 pl-9 pr-10 py-1 text-base transition-colors outline-none placeholder:text-muted-foreground focus:border-primary/50 font-mono md:text-sm";
+
 export function SecurityForm() {
   const [isLoading, setIsLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
+  // Cada campo tiene su propio toggle de visibilidad.
+  const [show, setShow] = useState({ current: false, next: false, confirm: false });
 
   const {
     register,
@@ -55,6 +59,7 @@ export function SecurityForm() {
 
       toast.success("Contraseña actualizada correctamente");
       reset();
+      setShow({ current: false, next: false, confirm: false });
     } catch (error: any) {
       console.error("Error updating password:", error);
       toast.error(error.message || "Error al actualizar la contraseña");
@@ -62,6 +67,19 @@ export function SecurityForm() {
       setIsLoading(false);
     }
   };
+
+  // Botón "ojo" reutilizable por campo.
+  const EyeToggle = ({ visible, onToggle }: { visible: boolean; onToggle: () => void }) => (
+    <button
+      type="button"
+      onClick={onToggle}
+      onMouseDown={(e) => e.preventDefault()}
+      aria-label={visible ? "Ocultar contraseña" : "Mostrar contraseña"}
+      className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-md text-muted-foreground/50 hover:text-primary hover:bg-primary/5 transition-all z-20 cursor-pointer"
+    >
+      {visible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+    </button>
+  );
 
   return (
     <Card className="overflow-hidden border-none bg-card/50 backdrop-blur-xl shadow-2xl ring-1 ring-white/10">
@@ -83,26 +101,15 @@ export function SecurityForm() {
                 Contraseña Actual
               </Label>
               <div className="relative">
-                <Input
+                <input
                   id="currentPassword"
-                  type={showPassword ? "text" : "password"}
+                  type={show.current ? "text" : "password"}
                   {...register("currentPassword")}
-                  className="pl-9 pr-10 bg-white/5 border-white/10 focus:border-primary/50 transition-all font-mono"
+                  className={inputClass}
                   placeholder="••••••••"
                 />
                 <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/50" />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  onMouseDown={(e) => e.preventDefault()}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-md text-muted-foreground/50 hover:text-primary hover:bg-primary/5 transition-all z-20 cursor-pointer"
-                >
-                  {showPassword ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
-                </button>
+                <EyeToggle visible={show.current} onToggle={() => setShow((s) => ({ ...s, current: !s.current }))} />
               </div>
               {errors.currentPassword && (
                 <p className="text-xs font-medium text-destructive">{errors.currentPassword.message}</p>
@@ -114,26 +121,15 @@ export function SecurityForm() {
                 Nueva Contraseña
               </Label>
               <div className="relative">
-                <Input
+                <input
                   id="password"
-                  type={showPassword ? "text" : "password"}
+                  type={show.next ? "text" : "password"}
                   {...register("password")}
-                  className="pl-9 pr-10 bg-white/5 border-white/10 focus:border-primary/50 transition-all font-mono"
+                  className={inputClass}
                   placeholder="••••••••"
                 />
                 <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/50" />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    onMouseDown={(e) => e.preventDefault()}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-md text-muted-foreground/50 hover:text-primary hover:bg-primary/5 transition-all z-20 cursor-pointer"
-                  >
-                  {showPassword ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
-                </button>
+                <EyeToggle visible={show.next} onToggle={() => setShow((s) => ({ ...s, next: !s.next }))} />
               </div>
               {errors.password && (
                 <p className="text-xs font-medium text-destructive">{errors.password.message}</p>
@@ -144,28 +140,17 @@ export function SecurityForm() {
               <Label htmlFor="confirmPassword" className="text-sm font-medium text-muted-foreground">
                 Confirmar Contraseña
               </Label>
-                <div className="relative">
-                  <Input
-                    id="confirmPassword"
-                    type={showPassword ? "text" : "password"}
-                    {...register("confirmPassword")}
-                    className="pl-9 pr-10 bg-white/5 border-white/10 focus:border-primary/50 transition-all font-mono"
-                    placeholder="••••••••"
-                  />
-                  <ShieldCheck className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/50" />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    onMouseDown={(e) => e.preventDefault()}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-md text-muted-foreground/50 hover:text-primary hover:bg-primary/5 transition-all z-20 cursor-pointer"
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
-                  </button>
-                </div>
+              <div className="relative">
+                <input
+                  id="confirmPassword"
+                  type={show.confirm ? "text" : "password"}
+                  {...register("confirmPassword")}
+                  className={inputClass}
+                  placeholder="••••••••"
+                />
+                <ShieldCheck className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/50" />
+                <EyeToggle visible={show.confirm} onToggle={() => setShow((s) => ({ ...s, confirm: !s.confirm }))} />
+              </div>
               {errors.confirmPassword && (
                 <p className="text-xs font-medium text-destructive">{errors.confirmPassword.message}</p>
               )}
@@ -173,8 +158,8 @@ export function SecurityForm() {
           </div>
 
           <div className="pt-4 border-t border-white/5">
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               disabled={isLoading}
               className="w-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20 transition-all"
             >
