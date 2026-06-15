@@ -26,9 +26,11 @@ export function KPIDashboardSection({
   showGrid = true, 
   showCharts = true 
 }: KPIDashboardSectionProps) {
-  const backlogPercentageOfSales = metrics.sales_orders > 0 
-    ? (metrics.backlog / metrics.sales_orders) * 100 
-    : 0;
+  // Cobertura a nivel de orden = (OV − Backlog) / OV. Coherente con el backlog real
+  // y acotada a [0,100]: si hay backlog, baja de 100; si todo está facturado, 100.
+  const coverage = metrics.sales_orders > 0
+    ? Math.min(100, Math.max(0, ((metrics.sales_orders - metrics.backlog) / metrics.sales_orders) * 100))
+    : 100;
 
   return (
     <div className="space-y-8">
@@ -46,13 +48,13 @@ export function KPIDashboardSection({
             icon={FileText} 
             variant="premium"
           />
-          <BacklogCard 
-            value={formatUSD(metrics.backlog)} 
-            percentageGoal={backlogPercentageOfSales} 
+          <BacklogCard
+            value={formatUSD(metrics.backlog)}
+            percentageGoal={coverage}
             className="lg:col-span-1"
           />
-          <ExecutionCard 
-            percentage={metrics.execution_rate} 
+          <ExecutionCard
+            percentage={coverage}
             className="lg:col-span-1"
           />
         </div>
