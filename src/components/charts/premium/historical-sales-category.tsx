@@ -22,10 +22,13 @@ import { Check, ChevronsUpDown, X, LayoutTemplate, Activity, FileText, Receipt }
 import { cn } from "@/lib/utils";
 import { getSalesData } from "@/actions/sales-actions";
 import { getCategories } from "@/actions/category-actions";
+import type { ChartTooltipEntry, ChartTooltipProps } from "@/lib/chart-types";
 
 // --- Types ---
 type RecordType = "SALES_ORDER" | "INVOICE";
 type ViewMode = "ANNUAL" | "MONTHLY" | "QUARTERLY";
+// Punto del gráfico: una clave de eje (year/month/quarter) + montos por category_id.
+type ChartPoint = Record<string, string | number>;
 
 interface CategoryInfo {
   id: string;
@@ -55,9 +58,9 @@ export function HistoricalSalesCategory() {
   const [viewMode, setViewMode] = useState<ViewMode>("ANNUAL");
   const [allCategories, setAllCategories] = useState<CategoryInfo[]>([]);
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
-  const [annualData, setAnnualData] = useState<Record<string, any>[]>([]);
-  const [monthlyData, setMonthlyData] = useState<Record<number, Record<string, any>[]>>({});
-  const [quarterlyData, setQuarterlyData] = useState<Record<number, Record<string, any>[]>>({});
+  const [annualData, setAnnualData] = useState<ChartPoint[]>([]);
+  const [monthlyData, setMonthlyData] = useState<Record<number, ChartPoint[]>>({});
+  const [quarterlyData, setQuarterlyData] = useState<Record<number, ChartPoint[]>>({});
   const [openPopover, setOpenPopover] = useState(false);
   const [availableYears, setAvailableYears] = useState<number[]>([]);
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
@@ -68,7 +71,7 @@ export function HistoricalSalesCategory() {
       try {
         const data = await getCategories();
 
-        const cats: CategoryInfo[] = (data || []).map((cat: any) => ({
+        const cats: CategoryInfo[] = (data || []).map((cat) => ({
           id: String(cat.id),
           name: String(cat.name),
           color: cat.color || DEFAULT_COLOR,
@@ -92,7 +95,7 @@ export function HistoricalSalesCategory() {
 
         // --- 1. Available Years ---
         const yearsSet = new Set<number>();
-        records.forEach((r: any) => yearsSet.add(Number(r.record_year)));
+        records.forEach((r) => yearsSet.add(Number(r.record_year)));
         const years = Array.from(yearsSet).sort((a, b) => a - b);
         setAvailableYears(years);
         if (!selectedYear && years.length > 0) {
@@ -103,7 +106,7 @@ export function HistoricalSalesCategory() {
         const annualGrouped: Record<number, Record<string, number>> = {};
         years.forEach(y => { annualGrouped[y] = {}; });
 
-        records.forEach((r: any) => {
+        records.forEach((r) => {
           const year = Number(r.record_year);
           const catId = String(r.category_id);
           const amount = Number(r.amount_usd) || 0;
@@ -111,7 +114,7 @@ export function HistoricalSalesCategory() {
         });
 
         const annChartData = years.map(year => {
-          const dataPoint: Record<string, any> = { year: String(year) };
+          const dataPoint: ChartPoint = { year: String(year) };
           Object.entries(annualGrouped[year]).forEach(([catId, total]) => {
             dataPoint[catId] = Math.round(total * 100) / 100;
           });
@@ -120,8 +123,8 @@ export function HistoricalSalesCategory() {
         setAnnualData(annChartData);
 
         // --- 3. Monthly Aggregation for each year ---
-        const monthlyRecords: Record<number, Record<string, any>[]> = {};
-        const quarterlyRecords: Record<number, Record<string, any>[]> = {};
+        const monthlyRecords: Record<number, ChartPoint[]> = {};
+        const quarterlyRecords: Record<number, ChartPoint[]> = {};
 
         years.forEach(year => {
           // Initialize 12 months
@@ -129,7 +132,7 @@ export function HistoricalSalesCategory() {
           const yearGrouped: Record<number, Record<string, number>> = {};
           for (let i = 1; i <= 12; i++) yearGrouped[i] = {};
 
-          records.filter((r: any) => Number(r.record_year) === year).forEach((r: any) => {
+          records.filter((r) => Number(r.record_year) === year).forEach((r) => {
             const month = Number(r.record_month);
             const catId = String(r.category_id);
             const amount = Number(r.amount_usd) || 0;
@@ -137,7 +140,7 @@ export function HistoricalSalesCategory() {
           });
 
           monthlyRecords[year] = yearMonths.map(m => {
-            const dataPoint: Record<string, any> = { month: m.month };
+            const dataPoint: ChartPoint = { month: m.month };
             Object.entries(yearGrouped[m.monthIdx]).forEach(([catId, total]) => {
               dataPoint[catId] = Math.round(total * 100) / 100;
             });
@@ -153,10 +156,10 @@ export function HistoricalSalesCategory() {
           ];
 
           quarterlyRecords[year] = qs.map(q => {
-            const dataPoint: Record<string, any> = { quarter: q.label };
+            const dataPoint: ChartPoint = { quarter: q.label };
             q.months.forEach(mIdx => {
               Object.entries(yearGrouped[mIdx]).forEach(([catId, total]) => {
-                dataPoint[catId] = (dataPoint[catId] || 0) + (Math.round(total * 100) / 100);
+                dataPoint[catId] = (Number(dataPoint[catId]) || 0) + (Math.round(total * 100) / 100);
               });
             });
             return dataPoint;
@@ -196,10 +199,10 @@ export function HistoricalSalesCategory() {
   const handleClearCategories = () => setSelectedCategoryIds([]);
 
   // --- Custom Tooltip ---
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  const CustomTooltip = ({ active, payload, label }: ChartTooltipProps) => {
     if (active && payload && payload.length) {
-      const sortedPayload = [...payload].sort((a: any, b: any) => b.value - a.value);
-      const total = sortedPayload.reduce((sum: number, entry: any) => sum + entry.value, 0);
+      const sortedPayload = [...payload].sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
+      const total = sortedPayload.reduce((sum: number, entry) => sum + (entry.value ?? 0), 0);
 
       return (
         <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-black/5 dark:border-white/5 p-4 rounded-xl shadow-2xl min-w-[240px]">
@@ -207,8 +210,8 @@ export function HistoricalSalesCategory() {
             {viewMode === "ANNUAL" ? label : `${label} ${selectedYear}`}
           </h3>
           <div className="space-y-2">
-            {sortedPayload.map((entry: any, index: number) => {
-              const category = catMap.get(entry.dataKey);
+            {sortedPayload.map((entry: ChartTooltipEntry, index: number) => {
+              const category = catMap.get(String(entry.dataKey));
               return (
                 <div key={`item-${index}`} className="flex items-center justify-between text-sm">
                   <div className="flex items-center gap-2">
@@ -221,7 +224,7 @@ export function HistoricalSalesCategory() {
                     </span>
                   </div>
                   <span className="font-mono font-bold text-slate-700 dark:text-slate-300">
-                    {formatCurrency(entry.value)}
+                    {formatCurrency(entry.value ?? 0)}
                   </span>
                 </div>
               );

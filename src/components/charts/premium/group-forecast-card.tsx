@@ -41,6 +41,10 @@ import { cn } from "@/lib/utils";
 import { getGroupingAnalysisData } from "@/actions/grouping-actions";
 import { calculateSeasonalityFactors, getSeasonalForecast, calculateRunRate } from "@/lib/math-utils";
 import type { CategoryGroup, GroupingAnalysisResult, RecordType } from "@/types/database";
+import type { ChartTooltipEntry, ChartTooltipProps } from "@/lib/chart-types";
+
+// Punto del gráfico: clave de eje (month) + claves dinámicas por grupo y forecast.
+type ForecastChartPoint = Record<string, string | number>;
 
 const MONTHS = [
   "Ene", "Feb", "Mar", "Abr", "May", "Jun", 
@@ -113,7 +117,7 @@ export function GroupForecastCard({ savedGroups, recordType: initialRecordType, 
     const lastElapsedMonth = isCurrentActualYear ? currentMonthIdx + 1 : 12;
 
     const monthlyEntries = MONTHS.map((name, idx) => {
-      const entry: any = { month: name };
+      const entry: ForecastChartPoint = { month: name };
       const monthNum = idx + 1;
       let totalForecastVal = 0;
 
@@ -159,7 +163,7 @@ export function GroupForecastCard({ savedGroups, recordType: initialRecordType, 
       // Calculate percentages based on the forecast for tooltip comparison
       data.rows.forEach(row => {
           if (selectedGroupIds.includes(row.groupId)) {
-              const val = entry[`${row.groupName}_forecast`] || 0;
+              const val = Number(entry[`${row.groupName}_forecast`] || 0);
               entry[`${row.groupName}_percent`] = totalForecastVal > 0 ? (val / totalForecastVal) * 100 : 0;
           }
       });
@@ -174,9 +178,9 @@ export function GroupForecastCard({ savedGroups, recordType: initialRecordType, 
     return data?.rows.filter(r => selectedGroupIds.includes(r.groupId)) || [];
   }, [data, selectedGroupIds]);
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  const CustomTooltip = ({ active, payload, label }: ChartTooltipProps<ForecastChartPoint>) => {
     if (active && payload && payload.length) {
-      const sortedPayload = [...payload].sort((a, b) => b.value - a.value);
+      const sortedPayload = [...payload].sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
       
       return (
         <div className="bg-background/95 backdrop-blur-xl border border-white/10 p-4 rounded-xl shadow-2xl min-w-[260px]">
@@ -188,17 +192,17 @@ export function GroupForecastCard({ savedGroups, recordType: initialRecordType, 
           </div>
           <div className="mb-3 flex justify-between items-center text-xs">
             <span className="text-muted-foreground font-bold">Total Forecast:</span>
-            <span className="text-primary font-mono font-bold text-sm">{formatCurrencyFull(payload[0].payload.total_forecast)}</span>
+            <span className="text-primary font-mono font-bold text-sm">{formatCurrencyFull(Number(payload[0].payload?.total_forecast ?? 0))}</span>
           </div>
           <div className="space-y-4">
             {sortedPayload
-              .filter((entry: any) => entry.dataKey !== "total_forecast")
-              .map((entry: any, index: number) => {
-                const groupName = entry.name;
-                const color = entry.payload[`${groupName}_color`];
-                const percent = entry.payload[`${groupName}_percent`];
-                const forecastVal = entry.payload[`${groupName}_forecast`] || 0;
-                const realSalesVal = entry.payload[groupName] || 0;
+              .filter((entry: ChartTooltipEntry<ForecastChartPoint>) => entry.dataKey !== "total_forecast")
+              .map((entry: ChartTooltipEntry<ForecastChartPoint>, index: number) => {
+                const groupName = String(entry.name ?? "");
+                const color = String(entry.payload?.[`${groupName}_color`] ?? "");
+                const percent = Number(entry.payload?.[`${groupName}_percent`] ?? 0);
+                const forecastVal = Number(entry.payload?.[`${groupName}_forecast`] || 0);
+                const realSalesVal = Number(entry.payload?.[groupName] || 0);
                 
                 return (
                   <div key={index} className="space-y-1.5 border-l-2 pl-3 py-1" style={{ borderLeftColor: color }}>

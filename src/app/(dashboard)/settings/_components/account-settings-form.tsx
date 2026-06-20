@@ -90,7 +90,7 @@ export function AccountSettingsForm() {
 
       toast.success("Información de cuenta actualizada");
       reset(values);
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error updating account settings:", error);
       toast.error("Error de red. Inténtalo de nuevo.");
     } finally {
@@ -132,9 +132,9 @@ export function AccountSettingsForm() {
 
       toast.success("Foto de perfil actualizada correctamente");
       await refreshProfile();
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error uploading avatar:", error);
-      toast.error(error.message || "Error al subir la imagen.");
+      toast.error(error instanceof Error ? error.message : "Error al subir la imagen.");
     } finally {
       setIsUploading(false);
     }

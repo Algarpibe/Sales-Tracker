@@ -42,6 +42,7 @@ import { cn } from "@/lib/utils";
 import { GroupingManager } from "./grouping-manager";
 import { getGroupingAnalysisData } from "@/actions/grouping-actions";
 import type { Category, GroupingAnalysisResult, RecordType } from "@/types/database";
+import type { ChartTooltipProps } from "@/lib/chart-types";
 
 // --- Helpers ---
 const formatCurrency = (value: number) => {
@@ -110,8 +111,8 @@ export function GroupingAnalysisCard({ categories, recordType: initialRecordType
     let sortableRows = [...filteredRows];
     if (sortConfig !== null) {
       sortableRows.sort((a, b) => {
-        let aValue: any;
-        let bValue: any;
+        let aValue: string | number = 0;
+        let bValue: string | number = 0;
 
         if (sortConfig.key === "name") {
           aValue = a.groupName.toLowerCase();
@@ -207,23 +208,24 @@ export function GroupingAnalysisCard({ categories, recordType: initialRecordType
   }, [pieData]);
 
   // --- Custom Tooltip ---
-  const CustomPieTooltip = ({ active, payload }: any) => {
+  type PiePoint = { name?: string; value?: number; amount?: number; color?: string };
+  const CustomPieTooltip = ({ active, payload }: ChartTooltipProps<PiePoint>) => {
     if (active && payload && payload.length) {
       const entry = payload[0].payload;
       return (
         <div className="bg-background/80 backdrop-blur-xl border border-white/10 p-4 rounded-xl shadow-2xl ring-1 ring-black/5 min-w-[200px]">
           <div className="flex items-center gap-2 mb-2">
-            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.color }} />
-            <span className="font-bold text-foreground">{entry.name}</span>
+            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry?.color }} />
+            <span className="font-bold text-foreground">{entry?.name}</span>
           </div>
           <div className="space-y-1 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Promedio Anu.:</span>
-              <span className="font-mono font-medium">{formatCurrency(entry.amount)}</span>
+              <span className="font-mono font-medium">{formatCurrency(entry?.amount ?? 0)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Participación:</span>
-              <span className="font-mono font-bold text-primary">{formatPercent(entry.value)}</span>
+              <span className="font-mono font-bold text-primary">{formatPercent(entry?.value ?? 0)}</span>
             </div>
           </div>
         </div>

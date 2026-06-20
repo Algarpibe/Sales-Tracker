@@ -60,9 +60,9 @@ export function SecurityForm() {
       toast.success("Contraseña actualizada correctamente");
       reset();
       setShow({ current: false, next: false, confirm: false });
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error updating password:", error);
-      toast.error(error.message || "Error al actualizar la contraseña");
+      toast.error(error instanceof Error ? error.message : "Error al actualizar la contraseña");
     } finally {
       setIsLoading(false);
     }

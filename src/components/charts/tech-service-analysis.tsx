@@ -13,6 +13,7 @@ import {
   ResponsiveContainer,
   Legend
 } from "recharts";
+import type { ChartTooltipProps } from "@/lib/chart-types";
 
 export interface TechServiceDataPoint {
   label: string; // T1, Ene, 2024, etc.
@@ -66,7 +67,7 @@ function formatYoY(value: number | null): React.ReactNode {
 
 export function TechServiceAnalysis({ data, yearA, yearB, viewMode, onViewModeChange }: TechServiceAnalysisProps) {
   // Custom Tooltip
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  const CustomTooltip = ({ active, payload, label }: ChartTooltipProps) => {
     if (active && payload && payload.length) {
       const qData = data.find(d => d.label === label);
       if (!qData) return null;

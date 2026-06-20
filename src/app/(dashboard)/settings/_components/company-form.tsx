@@ -65,7 +65,7 @@ export function CompanyForm() {
       toast.success("Información de la empresa actualizada");
       queryClient.invalidateQueries({ queryKey: ["company", profile.company_id] });
       reset(values);
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error updating company:", error);
       toast.error("Error de red. Inténtalo de nuevo.");
     } finally {

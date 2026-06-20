@@ -13,6 +13,7 @@ import {
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCompactUSD, formatUSD } from "@/lib/constants";
+import type { ChartTooltipProps } from "@/lib/chart-types";
 
 interface BarChartMonthlyProps {
   data: Array<{
@@ -23,7 +24,9 @@ interface BarChartMonthlyProps {
   title?: string;
 }
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+type MonthlyPoint = { cum_sales_orders?: number; cum_invoices?: number };
+
+const CustomTooltip = ({ active, payload, label }: ChartTooltipProps<MonthlyPoint>) => {
   if (active && payload && payload.length) {
     return (
       <div className="bg-slate-900/90 backdrop-blur-xl border border-white/10 p-4 rounded-xl shadow-2xl min-w-[220px]">
@@ -31,9 +34,9 @@ const CustomTooltip = ({ active, payload, label }: any) => {
           Mes: {label}
         </h3>
         <div className="space-y-4">
-          {payload.map((entry: any, index: number) => {
+          {payload.map((entry, index) => {
             const isSales = entry.dataKey === "sales_orders";
-            const cumValue = isSales ? entry.payload.cum_sales_orders : entry.payload.cum_invoices;
+            const cumValue = isSales ? entry.payload?.cum_sales_orders : entry.payload?.cum_invoices;
             return (
               <div key={index} className="flex flex-col gap-1">
                 <div className="flex items-center justify-between gap-4">
@@ -47,7 +50,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
                     </span>
                   </div>
                   <span className="text-sm font-bold text-white font-mono">
-                    {formatUSD(entry.value)}
+                    {formatUSD(entry.value ?? 0)}
                   </span>
                 </div>
                 <div className="flex items-center justify-between pl-5">

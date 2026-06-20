@@ -27,6 +27,17 @@ import type { Category, CategoryGroup } from "@/types/database";
 import { Sparkles, BarChart3, TrendingUp, Activity, FileText, Receipt } from "lucide-react";
 import { motion } from "framer-motion";
 import type { SalesRecord } from "@/types/database";
+import type { ChartTooltipProps } from "@/lib/chart-types";
+
+// Punto de la serie mensual: month + claves dinámicas `Año X` + acumulados.
+type MonthlyPoint = {
+  month: string;
+  acumA: number;
+  acumB: number;
+  rawA: number;
+  tendencia?: number;
+  [key: string]: string | number | undefined;
+};
 
 const ST_CATEGORIES = [
   'Alquileres', 'CAL CO', 'CAL NOx', 'CAL O3', 'CAL PM', 'CAL SO2', 'ST', 
@@ -88,7 +99,7 @@ function AnalyticsContent() {
 
     let runningAcumA = 0;
     let runningAcumB = 0;
-    const parsedMonthlyData: any[] = MONTHS.map(m => {
+    const parsedMonthlyData: MonthlyPoint[] = MONTHS.map(m => {
       const totalA = dataA.filter((r: SalesRecord) => r.record_month === m.value && r.record_type === recordType)
         .reduce((acc: number, r: SalesRecord) => acc + Number(r.amount_usd), 0) || 0;
 
@@ -125,7 +136,7 @@ function AnalyticsContent() {
     const isCurrentActualYear = yearA === now.getFullYear();
     const lastElapsedMonth = isCurrentActualYear ? currentMonthIdx + 1 : 12;
 
-    const currentYearElapsedData = parsedMonthlyData.slice(0, lastElapsedMonth).map((d: any) => d.rawA);
+    const currentYearElapsedData = parsedMonthlyData.slice(0, lastElapsedMonth).map((d) => d.rawA);
 
     // Proyectar el cierre del mes actual para mayor precisión (Run-Rate)
     if (isCurrentActualYear && currentYearElapsedData.length > currentMonthIdx) {
@@ -152,7 +163,7 @@ function AnalyticsContent() {
     const dataA = allRecords.filter((r: SalesRecord) => r.record_year === yearA);
     const dataB = allRecords.filter((r: SalesRecord) => r.record_year === yearB);
     const catMap = new Map<string, string>(
-      categories.map((c: any) => [String(c.id), String(c.name)])
+      categories.map((c) => [String(c.id), String(c.name)])
     );
 
     let timeSlots: { label: string; months: number[] }[] = [];
@@ -175,19 +186,19 @@ function AnalyticsContent() {
     let acumB = 0;
 
     return timeSlots.map(slot => {
-      const recordsA = dataA.filter((r: any) => slot.months.includes(Number(r.record_month)) && r.record_type === recordType);
-      const recordsB = dataB.filter((r: any) => slot.months.includes(Number(r.record_month)) && r.record_type === recordType);
+      const recordsA = dataA.filter((r) => slot.months.includes(Number(r.record_month)) && r.record_type === recordType);
+      const recordsB = dataB.filter((r) => slot.months.includes(Number(r.record_month)) && r.record_type === recordType);
 
       let stA = 0, crA = 0, stB = 0, crB = 0;
 
-      recordsA.forEach((r: any) => {
+      recordsA.forEach((r) => {
         const catName = catMap.get(r.category_id);
         const amt = Number(r.amount_usd);
         if (catName && ST_CATEGORIES.includes(catName)) stA += amt;
         else if (catName && CR_CATEGORIES.includes(catName)) crA += amt;
       });
 
-      recordsB.forEach((r: any) => {
+      recordsB.forEach((r) => {
         const catName = catMap.get(r.category_id);
         const amt = Number(r.amount_usd);
         if (catName && ST_CATEGORIES.includes(catName)) stB += amt;
@@ -223,7 +234,7 @@ function AnalyticsContent() {
   }
 
   // Componente Tooltip personalizado para el gráfico mensual
-  const CustomMonthlyTooltip = ({ active, payload, label }: any) => {
+  const CustomMonthlyTooltip = ({ active, payload, label }: ChartTooltipProps<MonthlyPoint>) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       return (
@@ -233,21 +244,21 @@ function AnalyticsContent() {
             {/* Valores Mensuales */}
             <div className="flex items-center justify-between gap-8">
               <span className="text-xs font-semibold text-primary">Año {yearA}:</span>
-              <span className="text-xs font-bold text-zinc-900">{formatUSD(data[`Año ${yearA}`])}</span>
+              <span className="text-xs font-bold text-zinc-900">{formatUSD(Number(data?.[`Año ${yearA}`] ?? 0))}</span>
             </div>
             <div className="flex items-center justify-between gap-8">
               <span className="text-xs font-semibold text-rose-500">Año {yearB}:</span>
-              <span className="text-xs font-bold text-zinc-900">{formatUSD(data[`Año ${yearB}`])}</span>
+              <span className="text-xs font-bold text-zinc-900">{formatUSD(Number(data?.[`Año ${yearB}`] ?? 0))}</span>
             </div>
             {/* Valores Acumulados */}
             <div className="pt-2 mt-2 border-t border-zinc-100 space-y-2">
               <div className="flex items-center justify-between gap-8">
                 <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Acumulado {yearA}:</span>
-                <span className="text-xs font-bold text-primary">{formatUSD(data.acumA)}</span>
+                <span className="text-xs font-bold text-primary">{formatUSD(data?.acumA ?? 0)}</span>
               </div>
               <div className="flex items-center justify-between gap-8">
                 <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Acumulado {yearB}:</span>
-                <span className="text-xs font-bold text-rose-500">{formatUSD(data.acumB)}</span>
+                <span className="text-xs font-bold text-rose-500">{formatUSD(data?.acumB ?? 0)}</span>
               </div>
             </div>
           </div>
@@ -294,7 +305,7 @@ function AnalyticsContent() {
                 <div className="flex flex-col sm:flex-row gap-4 items-center">
                   <Tabs 
                     value={recordType} 
-                    onValueChange={(v) => setRecordType(v as any)}
+                    onValueChange={(v) => setRecordType(v as "SALES_ORDER" | "INVOICE")}
                     className="w-full sm:w-auto"
                   >
                     <TabsList className="grid w-full grid-cols-2 bg-card/50 backdrop-blur-sm border border-white/10 h-10 p-1">
@@ -408,7 +419,7 @@ function AnalyticsContent() {
                 <div className="flex flex-col sm:flex-row gap-4 items-center">
                   <Tabs 
                     value={recordType} 
-                    onValueChange={(v) => setRecordType(v as any)}
+                    onValueChange={(v) => setRecordType(v as "SALES_ORDER" | "INVOICE")}
                     className="w-full sm:w-auto"
                   >
                     <TabsList className="grid w-full grid-cols-2 bg-white/5 backdrop-blur-md border border-white/10 h-10 p-1 rounded-xl">
@@ -433,8 +444,8 @@ function AnalyticsContent() {
                 {/* Task 1 & 1.5: Projection Cards in a full-width 2-column grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full">
                   <PredictiveRunRateCard 
-                    currentTotal={monthlyData[new Date().getMonth()]?.[`Año ${yearA}`] || 0}
-                    lastYearMonthTotal={monthlyData[new Date().getMonth()]?.[`Año ${yearB}`] || 0}
+                    currentTotal={Number(monthlyData[new Date().getMonth()]?.[`Año ${yearA}`] || 0)}
+                    lastYearMonthTotal={Number(monthlyData[new Date().getMonth()]?.[`Año ${yearB}`] || 0)}
                     projectedTotal={forecastMonthlyData[new Date().getMonth()]?.tendencia}
                   />
 
@@ -442,9 +453,9 @@ function AnalyticsContent() {
                     title={`Proyección de Cierre Año ${yearA}`}
                     currentLabel="Ventas Acum. (YTD)"
                     targetLabel={`Total Año ${yearB}`}
-                    currentTotal={monthlyData.slice(0, new Date().getMonth() + 1).reduce((acc: number, m: any) => acc + (m[`Año ${yearA}`] || 0), 0)}
-                    lastYearMonthTotal={monthlyData.reduce((acc: number, m: any) => acc + (m[`Año ${yearB}`] || 0), 0)}
-                    projectedTotal={forecastMonthlyData.reduce((acc: number, m: any) => acc + (m.tendencia || 0), 0)}
+                    currentTotal={monthlyData.slice(0, new Date().getMonth() + 1).reduce((acc: number, m) => acc + Number(m[`Año ${yearA}`] || 0), 0)}
+                    lastYearMonthTotal={monthlyData.reduce((acc: number, m) => acc + Number(m[`Año ${yearB}`] || 0), 0)}
+                    projectedTotal={forecastMonthlyData.reduce((acc: number, m) => acc + (m.tendencia || 0), 0)}
                   />
                 </div>
 
@@ -502,14 +513,14 @@ function AnalyticsContent() {
                                 return (
                                   <div className="bg-black/80 backdrop-blur-xl border border-white/10 p-4 rounded-xl shadow-2xl space-y-2">
                                     <p className="font-bold text-white mb-2">{label}</p>
-                                    {payload.map((entry: any, index: number) => (
+                                    {payload.map((entry, index: number) => (
                                       <div key={index} className="flex items-center justify-between gap-6 text-sm">
                                         <div className="flex items-center gap-2">
                                           <div className="size-2 rounded-full" style={{ backgroundColor: entry.color }} />
                                           <span className="text-white/60">{entry.name}</span>
                                         </div>
                                         <span className="font-mono font-bold text-white">
-                                          {formatUSD(entry.value)}
+                                          {formatUSD(Number(entry.value ?? 0))}
                                         </span>
                                       </div>
                                     ))}

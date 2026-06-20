@@ -40,8 +40,11 @@ import {
 import { cn } from "@/lib/utils";
 import { getGroupingAnalysisData } from "@/actions/grouping-actions";
 import type { CategoryGroup, GroupingAnalysisResult, RecordType } from "@/types/database";
+import type { ChartTooltipEntry, ChartTooltipProps } from "@/lib/chart-types";
 
 // --- Helpers ---
+// Punto del gráfico: clave de eje (year/quarter/month) + claves dinámicas por grupo.
+type GroupChartPoint = Record<string, string | number>;
 const MONTHS = [
   "Ene", "Feb", "Mar", "Abr", "May", "Jun", 
   "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"
@@ -117,7 +120,7 @@ export function GroupEvolutionCard({ savedGroups, recordType: initialRecordType 
     
     if (viewMode === "ANNUAL") {
       return data.years.map(year => {
-        const entry: any = { year };
+        const entry: GroupChartPoint = { year };
         data.rows.forEach(row => {
           if (selectedGroupIds.includes(row.groupId)) {
             entry[row.groupName] = row.years[year]?.amount || 0;
@@ -132,7 +135,7 @@ export function GroupEvolutionCard({ savedGroups, recordType: initialRecordType 
       
       const quarterlyEntries = QUARTERS.map((name, idx) => {
         const startMonth = idx * 3 + 1;
-        const entry: any = { quarter: name };
+        const entry: GroupChartPoint = { quarter: name };
         
         let grandQuarterlyTotal = 0;
         data.rows.forEach(r => {
@@ -161,7 +164,7 @@ export function GroupEvolutionCard({ savedGroups, recordType: initialRecordType 
       
       const monthlyEntries = MONTHS.map((name, idx) => {
         const monthNum = idx + 1;
-        const entry: any = { month: name };
+        const entry: GroupChartPoint = { month: name };
         
         data.rows.forEach(row => {
           if (selectedGroupIds.includes(row.groupId)) {
@@ -184,10 +187,10 @@ export function GroupEvolutionCard({ savedGroups, recordType: initialRecordType 
   }, [data, selectedGroupIds]);
 
   // --- Custom Tooltip ---
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  const CustomTooltip = ({ active, payload, label }: ChartTooltipProps<GroupChartPoint>) => {
     if (active && payload && payload.length) {
       // Sort items by value descending
-      const sortedPayload = [...payload].sort((a, b) => b.value - a.value);
+      const sortedPayload = [...payload].sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
       
       return (
         <div className="bg-background/95 backdrop-blur-xl border border-white/10 p-4 rounded-xl shadow-2xl min-w-[260px]">
@@ -198,9 +201,9 @@ export function GroupEvolutionCard({ savedGroups, recordType: initialRecordType 
             </span>
           </div>
           <div className="space-y-2">
-            {sortedPayload.map((entry: any, index: number) => {
-              const color = entry.payload[`${entry.name}_color`];
-              const percent = entry.payload[`${entry.name}_percent`];
+            {sortedPayload.map((entry: ChartTooltipEntry<GroupChartPoint>, index: number) => {
+              const color = String(entry.payload?.[`${entry.name}_color`] ?? "");
+              const percent = Number(entry.payload?.[`${entry.name}_percent`] ?? 0);
               return (
                 <div key={index} className="flex items-center justify-between gap-4">
                   <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -209,7 +212,7 @@ export function GroupEvolutionCard({ savedGroups, recordType: initialRecordType 
                   </div>
                   <div className="flex items-center gap-3 shrink-0">
                     <span className="text-sm font-mono font-bold text-foreground">
-                      {formatCurrencyFull(entry.value)}
+                      {formatCurrencyFull(entry.value ?? 0)}
                     </span>
                     <Badge variant="outline" className="text-[10px] py-0 px-1.5 h-4 bg-primary/5 text-primary border-primary/20">
                       {percent.toFixed(1)}%

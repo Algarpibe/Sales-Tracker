@@ -42,8 +42,11 @@ import { cn } from "@/lib/utils";
 import { getSalesData } from "@/actions/sales-actions";
 import { getCategories } from "@/actions/category-actions";
 import { calculateSeasonalityFactors, getSeasonalForecast, calculateRunRate } from "@/lib/math-utils";
+import type { ChartTooltipProps } from "@/lib/chart-types";
 
 type RecordType = "SALES_ORDER" | "INVOICE";
+// Punto del gráfico: clave de eje (month) + claves dinámicas por categoría y forecast.
+type ForecastChartPoint = Record<string, string | number>;
 
 interface CategoryInfo {
   id: string;
@@ -91,7 +94,7 @@ export function ForecastSalesCategory({ baseYear = new Date().getFullYear() }: F
     const fetchCategories = async () => {
       try {
         const data = await getCategories();
-        setAllCategories((data || []).map((cat: any) => ({
+        setAllCategories((data || []).map((cat) => ({
           id: String(cat.id),
           name: String(cat.name),
           color: cat.color || DEFAULT_COLOR,
@@ -110,7 +113,7 @@ export function ForecastSalesCategory({ baseYear = new Date().getFullYear() }: F
         const records = await getSalesData({ record_type: recordType });
         const newSums: Record<string, Record<number, Record<number, number>>> = {};
 
-        records.forEach((r: any) => {
+        records.forEach((r) => {
           const year = Number(r.record_year);
           const month = Number(r.record_month);
           const catId = String(r.category_id);
@@ -151,7 +154,7 @@ export function ForecastSalesCategory({ baseYear = new Date().getFullYear() }: F
     const lastElapsedMonth = isCurrentActualYear ? currentMonthIdx + 1 : 12;
 
     const monthlyEntries = MONTHS.map((name, idx) => {
-      const entry: any = { month: name };
+      const entry: ForecastChartPoint = { month: name };
       const monthNum = idx + 1;
       let totalForecastVal = 0;
 
@@ -196,7 +199,7 @@ export function ForecastSalesCategory({ baseYear = new Date().getFullYear() }: F
       entry.total_forecast = totalForecastVal;
 
       selectedCategoryIds.forEach(catId => {
-          const val = entry[`${catId}_forecast`] || 0;
+          const val = Number(entry[`${catId}_forecast`] || 0);
           entry[`${catId}_percent`] = totalForecastVal > 0 ? (val / totalForecastVal) * 100 : 0;
       });
       
@@ -210,8 +213,9 @@ export function ForecastSalesCategory({ baseYear = new Date().getFullYear() }: F
     return selectedCategoryIds.map(id => catMap.get(id)).filter(Boolean) as CategoryInfo[];
   }, [selectedCategoryIds, catMap]);
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  const CustomTooltip = ({ active, payload, label }: ChartTooltipProps<ForecastChartPoint>) => {
     if (active && payload && payload.length) {
+      const point = payload[0].payload;
       return (
         <div className="bg-background/95 backdrop-blur-xl border border-white/10 p-4 rounded-xl shadow-2xl min-w-[260px]">
           <div className="flex items-center gap-2 mb-3 border-b border-white/5 pb-2">
@@ -222,15 +226,15 @@ export function ForecastSalesCategory({ baseYear = new Date().getFullYear() }: F
           </div>
           <div className="mb-3 flex justify-between items-center text-xs">
             <span className="text-muted-foreground font-bold">Total Forecast:</span>
-            <span className="text-emerald-500 font-mono font-bold text-sm">{formatCurrencyFull(payload[0].payload.total_forecast)}</span>
+            <span className="text-emerald-500 font-mono font-bold text-sm">{formatCurrencyFull(Number(point?.total_forecast ?? 0))}</span>
           </div>
           <div className="space-y-4">
             {selectedCategoryIds.map((catId, index) => {
                 const cat = catMap.get(catId);
                 if (!cat) return null;
-                const percent = payload[0].payload[`${cat.id}_percent`];
-                const forecastVal = payload[0].payload[`${cat.id}_forecast`] || 0;
-                const realSalesVal = payload[0].payload[cat.id] || 0;
+                const percent = Number(point?.[`${cat.id}_percent`] ?? 0);
+                const forecastVal = Number(point?.[`${cat.id}_forecast`] || 0);
+                const realSalesVal = Number(point?.[cat.id] || 0);
 
                 return (
                   <div key={index} className="space-y-1.5 border-l-2 pl-3 py-1" style={{ borderLeftColor: cat.color }}>
