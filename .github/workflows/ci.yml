@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint (informativo, no bloquea por deuda de lint preexistente)
+        run: npm run lint
+        continue-on-error: true
+
+      - name: Build
+        run: npm run build
+        env:
+          # next build fija NEXT_PHASE=phase-production-build, así que el fail-fast de
+          # BETTER_AUTH_SECRET se omite. Las páginas son dinámicas (no tocan la BD en build).
+          NEXT_TELEMETRY_DISABLED: "1"
