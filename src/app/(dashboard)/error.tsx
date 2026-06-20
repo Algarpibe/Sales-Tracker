@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, RotateCw } from "lucide-react";
+import { logError } from "@/lib/logger";
 
 // Error boundary del área privada: captura errores de render y de las lecturas
 // (react-query con throwOnError). Muestra una pantalla consistente con reintento.
@@ -14,7 +15,7 @@ export default function DashboardError({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error("[dashboard] error:", error);
+    logError("dashboard error boundary", error, { digest: error.digest });
   }, [error]);
 
   return (

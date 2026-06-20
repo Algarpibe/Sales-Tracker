@@ -1,4 +1,5 @@
 import { ZodError } from "zod";
+import { logError } from "@/lib/logger";
 
 // Contrato uniforme de errores para Server Actions mutadoras.
 // Los errores ESPERADOS viajan como datos (ActionResult) para que el mensaje real
@@ -39,7 +40,7 @@ export async function runAction<T>(fn: () => Promise<T>): Promise<ActionResult<T
     if (e instanceof ZodError) {
       return { ok: false, error: e.issues[0]?.message ?? "Datos inválidos", code: "VALIDATION" };
     }
-    console.error("[action] error inesperado:", e);
+    logError("server action falló (error inesperado)", e, { code: "INTERNAL" });
     return { ok: false, error: "Ocurrió un error interno. Inténtalo de nuevo.", code: "INTERNAL" };
   }
 }

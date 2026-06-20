@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { logError } from "@/lib/logger";
 
 // Fallback de último recurso: captura errores del layout raíz. Reemplaza todo el
 // documento, por eso incluye <html>/<body> y estilos en línea mínimos.
@@ -12,7 +13,7 @@ export default function GlobalError({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error("[global] error:", error);
+    logError("global error boundary", error, { digest: error.digest });
   }, [error]);
 
   return (
