@@ -13,7 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 
 const passwordSchema = z.object({
   currentPassword: z.string().min(1, "Debes ingresar tu contraseña actual"),
-  password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres"),
+  password: z.string().min(10, "La contraseña debe tener al menos 10 caracteres"),
   confirmPassword: z.string(),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Las contraseñas no coinciden",
@@ -126,7 +126,7 @@ export function SecurityForm() {
                   type={show.next ? "text" : "password"}
                   {...register("password")}
                   className={inputClass}
-                  placeholder="Mínimo 6 caracteres"
+                  placeholder="Mínimo 10 caracteres"
                 />
                 <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/50" />
                 <EyeToggle visible={show.next} onToggle={() => setShow((s) => ({ ...s, next: !s.next }))} />

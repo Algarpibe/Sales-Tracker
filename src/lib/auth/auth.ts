@@ -24,9 +24,11 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     autoSignIn: true,
+    minPasswordLength: 10,
     // bcryptjs para verificar los hashes migrados desde Supabase/GoTrue ($2a$...)
+    // verify sigue aceptando hashes antiguos (cost 10); los nuevos se generan con cost 12.
     password: {
-      hash: async (password) => bcrypt.hash(password, 10),
+      hash: async (password) => bcrypt.hash(password, 12),
       verify: async ({ hash, password }) => bcrypt.compare(password, hash),
     },
   },

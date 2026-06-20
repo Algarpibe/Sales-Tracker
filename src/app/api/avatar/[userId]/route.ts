@@ -22,7 +22,17 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ use
   const sameCompany = !!session.profile && p.company_id === session.profile.company_id;
   if (!isSelf && !sameCompany) return new NextResponse(null, { status: 403 });
 
+  // Defensa en profundidad: solo se sirve un Content-Type de imagen de la whitelist
+  // (nunca text/html ni image/svg+xml) y como adjunto inline, no como documento navegable.
+  const ALLOWED = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
+  const safeMime = p.mime && ALLOWED.has(p.mime) ? p.mime : "image/png";
+
   return new NextResponse(new Uint8Array(p.avatar), {
-    headers: { "Content-Type": p.mime ?? "image/png", "Cache-Control": "private, max-age=60" },
+    headers: {
+      "Content-Type": safeMime,
+      "Content-Disposition": "inline",
+      "X-Content-Type-Options": "nosniff",
+      "Cache-Control": "private, max-age=60",
+    },
   });
 }

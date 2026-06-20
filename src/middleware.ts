@@ -15,14 +15,21 @@ export async function middleware(req: NextRequest) {
   }
 
   const [p] = await db
-    .select({ approved: profiles.is_approved })
+    .select({
+      approved: profiles.is_approved,
+      rejected: profiles.is_rejected,
+      active: profiles.is_active,
+    })
     .from(profiles)
     .where(eq(profiles.id, session.user.id));
 
-  if (!p?.approved && pathname !== "/waiting-approval") {
+  // Acceso pleno solo si está aprobado, no rechazado y activo (coherente con requireApproved)
+  const allowed = !!p?.approved && !p?.rejected && !!p?.active;
+
+  if (!allowed && pathname !== "/waiting-approval") {
     return NextResponse.redirect(new URL("/waiting-approval", req.url));
   }
-  if (p?.approved && (isAuthPage || pathname === "/waiting-approval")) {
+  if (allowed && (isAuthPage || pathname === "/waiting-approval")) {
     return NextResponse.redirect(new URL("/home", req.url));
   }
   return NextResponse.next();
