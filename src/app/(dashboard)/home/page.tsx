@@ -16,7 +16,6 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { DollarSign, TrendingUp } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { KPIDashboardSection } from "@/components/dashboard/kpi-dashboard-section";
 import { Separator } from "@/components/ui/separator";

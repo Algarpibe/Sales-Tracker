@@ -34,10 +34,8 @@ import {
   Plus, 
   X, 
   Check, 
-  History, 
+  History,
   Layers,
-  Sparkles,
-  MousePointer2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getGroupingAnalysisData } from "@/actions/grouping-actions";

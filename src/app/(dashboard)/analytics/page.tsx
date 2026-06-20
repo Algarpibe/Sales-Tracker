@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TechServiceAnalysis, TechServiceDataPoint, TechServiceViewMode } from "@/components/charts/tech-service-analysis";
+import { TechServiceAnalysis } from "@/components/charts/tech-service-analysis";
 import { HistoricalSalesCategory } from "@/components/charts/premium/historical-sales-category";
 import { GroupingAnalysisCard } from "@/components/charts/premium/grouping-analysis-card";
 import { GroupEvolutionCard } from "@/components/charts/premium/group-evolution-card";
@@ -20,7 +20,7 @@ import { GroupForecastCard } from "@/components/charts/premium/group-forecast-ca
 import { ForecastSalesCategory } from "@/components/charts/premium/forecast-sales-category";
 import { PredictiveRunRateCard } from "@/components/charts/premium/predictive-run-rate";
 import { MeshBackground } from "@/components/ui/mesh-background";
-import { getTrendPoints, calculateSeasonalityFactors, getSeasonalForecast, calculateRunRate } from "@/lib/math-utils";
+import { calculateSeasonalityFactors, getSeasonalForecast, calculateRunRate } from "@/lib/math-utils";
 import { ComposedChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from "recharts";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import type { Category, CategoryGroup } from "@/types/database";
@@ -595,7 +595,7 @@ function AnalyticsContent() {
                       <TrendingUp className="size-5" /> Estimación de Seguimiento (Run-Rate)
                     </h4>
                     <p className="text-muted-foreground leading-relaxed text-sm">
-                      El Run-Rate mensual calcula el promedio de ventas diarias del mes actual y lo proyecta linealmente. Al compararlo con el Forecast Estacional, el sistema determina automáticamente si el mes está <strong>"En Trayectoria" (On Track)</strong> o <strong>"En Riesgo" (At Risk)</strong>, permitiendo tomar acciones correctivas antes del cierre.
+                      El Run-Rate mensual calcula el promedio de ventas diarias del mes actual y lo proyecta linealmente. Al compararlo con el Forecast Estacional, el sistema determina automáticamente si el mes está <strong>&quot;En Trayectoria&quot; (On Track)</strong> o <strong>&quot;En Riesgo&quot; (At Risk)</strong>, permitiendo tomar acciones correctivas antes del cierre.
                     </p>
                 </div>
               </div>

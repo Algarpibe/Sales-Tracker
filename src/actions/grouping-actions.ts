@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { eq, and, inArray, asc, desc, sql } from "drizzle-orm";
+import { eq, and, inArray, asc, desc } from "drizzle-orm";
 import { db } from "@/db";
 import {
   categories,
@@ -395,7 +395,6 @@ export async function getGroupingAnalysisData(
     const sums = groupYearSums[g.id] || {};
     const yearData: Record<number, { amount: number; percentage: number }> = {};
     let totalAmount = 0;
-    let totalPercentage = 0;
     let yearCount = 0;
 
     years.forEach((y) => {
@@ -404,7 +403,6 @@ export async function getGroupingAnalysisData(
       const percentage = grandTotal > 0 ? (amount / grandTotal) * 100 : 0;
       yearData[y] = { amount, percentage };
       totalAmount += amount;
-      totalPercentage += percentage;
       yearCount++;
     });
 

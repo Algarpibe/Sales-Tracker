@@ -212,8 +212,6 @@ export function ForecastSalesCategory({ baseYear = new Date().getFullYear() }: F
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
-      const sortedPayload = [...payload].sort((a, b) => b.value - a.value);
-      
       return (
         <div className="bg-background/95 backdrop-blur-xl border border-white/10 p-4 rounded-xl shadow-2xl min-w-[260px]">
           <div className="flex items-center gap-2 mb-3 border-b border-white/5 pb-2">

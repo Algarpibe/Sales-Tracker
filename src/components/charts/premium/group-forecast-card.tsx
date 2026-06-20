@@ -28,16 +28,13 @@ import {
   CommandItem, 
   CommandList 
 } from "@/components/ui/command";
-import { 
-  BarChart3, 
-  FileText, 
-  Receipt, 
-  Plus, 
-  X, 
-  Check, 
-  History, 
+import {
+  FileText,
+  Receipt,
+  Plus,
+  X,
+  Check,
   Layers,
-  Sparkles,
   TrendingUp
 } from "lucide-react";
 import { cn } from "@/lib/utils";

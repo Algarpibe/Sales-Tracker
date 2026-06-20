@@ -3,7 +3,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
-import { TrendingUp, Activity } from "lucide-react";
+import { TrendingUp } from "lucide-react";
 import { formatUSD } from "@/lib/constants";
 import { calculateRunRate } from "@/lib/math-utils";
 import { cn } from "@/lib/utils";

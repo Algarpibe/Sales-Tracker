@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CreditCard, DollarSign, Wrench, Plus, Trash2, Pencil, Loader2 } from "lucide-react";
+import { CreditCard, DollarSign, Wrench, Plus, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 export default function SubscriptionsPage() {

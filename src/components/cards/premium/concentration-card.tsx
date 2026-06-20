@@ -18,7 +18,6 @@ interface ConcentrationCardProps {
 export function ConcentrationCard({ data, className }: ConcentrationCardProps) {
   // Encontrar el valor más alto para relocalizar el Badge de "Focus"
   const highestValue = Math.max(...data.map(d => d.amount), 0);
-  const total = data.reduce((acc, curr) => acc + curr.amount, 0);
 
   // Ordenamos para que las barras más altas no estropéen el flujo visual si hay muchas
   // O simplemente mostramos el top 5

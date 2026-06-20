@@ -7,7 +7,6 @@ import {
   BarChart3,
   Home,
   TrendingUp,
-  CreditCard,
   FolderOpen,
   Settings,
 } from "lucide-react";

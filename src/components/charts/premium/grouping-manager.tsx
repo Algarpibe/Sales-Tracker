@@ -6,7 +6,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -65,7 +64,7 @@ export function GroupingManager({ categories, onGroupsChanged }: GroupingManager
     try {
       const { groups: data } = await getSavedCategoryGroupings();
       setGroups(data);
-    } catch (err) {
+    } catch {
       toast.error("Error al cargar agrupaciones");
     } finally {
       setLoading(false);
