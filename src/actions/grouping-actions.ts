@@ -12,12 +12,19 @@ import {
 import { hubEnabled } from "@/db/hub";
 import { getHubSalesRows } from "@/db/hub-sales";
 import { requireRole, requireApproved } from "@/lib/auth/guards";
+import { z } from "zod";
 import type {
   CategoryGroup,
   RecordType,
   GroupingAnalysisResult,
   GroupingAnalysisRow,
 } from "@/types/database";
+
+// ─── Validación de entrada (F2-03) ───
+const uuidSchema = z.string().uuid("ID inválido");
+const groupNameSchema = z.string().trim().min(1, "El nombre es obligatorio").max(100);
+const categoryIdsSchema = z.array(uuidSchema).max(500);
+const hexColorSchema = z.string().regex(/^#[0-9a-fA-F]{6}$/, "Color inválido");
 
 // ─── Helpers ───
 // getAdminProfile() → requireRole("admin"); getCompanyProfile() → requireApproved().
@@ -45,6 +52,10 @@ export async function saveCategoryGrouping(
   const { profile } = await getAdminProfile();
   const companyId = profile.company_id!;
 
+  const name = groupNameSchema.parse(groupName);
+  const catIds = categoryIdsSchema.parse(categoryIds);
+  const col = hexColorSchema.parse(color);
+
   const groupId = await db.transaction(async (tx) => {
     // Get max sort_order
     const [maxOrder] = await tx
@@ -60,17 +71,17 @@ export async function saveCategoryGrouping(
     const [group] = await tx
       .insert(categoryGroups)
       .values({
-        name: groupName.trim(),
-        color: color,
+        name,
+        color: col,
         sort_order: nextOrder,
         company_id: companyId,
       })
       .returning({ id: categoryGroups.id });
 
     // Insert mappings
-    if (categoryIds.length > 0) {
+    if (catIds.length > 0) {
       await tx.insert(categoryGroupMappings).values(
-        categoryIds.map((catId) => ({
+        catIds.map((catId) => ({
           group_id: group.id,
           category_id: catId,
           company_id: companyId,
@@ -147,18 +158,23 @@ export async function updateCategoryGrouping(
   const { profile } = await getAdminProfile();
   const companyId = profile.company_id!;
 
+  const gid = uuidSchema.parse(groupId);
+  const name = groupNameSchema.parse(groupName);
+  const catIds = categoryIdsSchema.parse(categoryIds);
+  const col = color === undefined ? undefined : hexColorSchema.parse(color);
+
   await db.transaction(async (tx) => {
     // Update name and color (scoped by company)
     await tx
       .update(categoryGroups)
       .set({
-        name: groupName.trim(),
-        color: color,
+        name,
+        color: col,
         updated_at: new Date().toISOString(),
       })
       .where(
         and(
-          eq(categoryGroups.id, groupId),
+          eq(categoryGroups.id, gid),
           eq(categoryGroups.company_id, companyId)
         )
       );
@@ -168,15 +184,15 @@ export async function updateCategoryGrouping(
       .delete(categoryGroupMappings)
       .where(
         and(
-          eq(categoryGroupMappings.group_id, groupId),
+          eq(categoryGroupMappings.group_id, gid),
           eq(categoryGroupMappings.company_id, companyId)
         )
       );
 
-    if (categoryIds.length > 0) {
+    if (catIds.length > 0) {
       await tx.insert(categoryGroupMappings).values(
-        categoryIds.map((catId) => ({
-          group_id: groupId,
+        catIds.map((catId) => ({
+          group_id: gid,
           category_id: catId,
           company_id: companyId,
         }))
@@ -194,12 +210,14 @@ export async function deleteCategoryGrouping(
   const { profile } = await getAdminProfile();
   const companyId = profile.company_id!;
 
+  const gid = uuidSchema.parse(groupId);
+
   // Mappings are removed by ON DELETE CASCADE on group_id.
   await db
     .delete(categoryGroups)
     .where(
       and(
-        eq(categoryGroups.id, groupId),
+        eq(categoryGroups.id, gid),
         eq(categoryGroups.company_id, companyId)
       )
     );
@@ -217,14 +235,16 @@ export async function reorderCategoryGroupings(
   const { profile } = await getAdminProfile();
   const companyId = profile.company_id!;
 
+  const ids = z.array(uuidSchema).max(500).parse(orderedIds);
+
   await db.transaction(async (tx) => {
-    for (let index = 0; index < orderedIds.length; index++) {
+    for (let index = 0; index < ids.length; index++) {
       await tx
         .update(categoryGroups)
         .set({ sort_order: index + 1 })
         .where(
           and(
-            eq(categoryGroups.id, orderedIds[index]),
+            eq(categoryGroups.id, ids[index]),
             eq(categoryGroups.company_id, companyId)
           )
         );
