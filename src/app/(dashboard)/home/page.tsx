@@ -2,11 +2,11 @@
 
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { KPICard } from "@/components/cards/kpi-card";
 import { BarChartMonthly } from "@/components/charts/bar-chart-monthly";
 import { getSalesData } from "@/actions/sales-actions";
 import { getCategories } from "@/actions/category-actions";
-import { MONTHS, formatUSD, getYearRange } from "@/lib/constants";
+import { getYearRange } from "@/lib/constants";
+import { computeDashboardMetrics } from "@/lib/dashboard-metrics";
 import {
   Select,
   SelectContent,
@@ -44,96 +44,20 @@ export default function HomePage() {
     );
   };
 
-  // Cálculo idéntico al anterior, ahora memorizado a partir de los datos cacheados.
-  const data = useMemo(() => {
-    const records = recordsData ?? [];
-    const categories = catsData ?? [];
-    const catMap = new Map(categories.map((c: any) => [c.id, c.name]));
-
-    // --- Monthly Trend Data ---
-    const monthlyMap = new Map();
-    MONTHS.forEach(m => monthlyMap.set(m.label, { month: m.label, sales_orders: 0, invoices: 0 }));
-
-    let totalSales = 0;
-    let totalInvoices = 0;
-    let salesCount = 0;
-
-    records.forEach((r: any) => {
-      const amount = Number(r.amount_usd);
-      const mLabel = MONTHS.find(m => m.value === r.record_month)?.label;
-
-      // Monthly trends (solo OV/Factura)
-      if (mLabel && monthlyMap.has(mLabel)) {
-        const entry = monthlyMap.get(mLabel);
-        if (r.record_type === "SALES_ORDER") {
-          entry.sales_orders += amount;
-          totalSales += amount;
-          salesCount++;
-        } else if (r.record_type === "INVOICE") {
-          entry.invoices += amount;
-          totalInvoices += amount;
-        }
-      }
-    });
-
-    const execution_rate = totalSales > 0 ? (totalInvoices / totalSales) * 100 : 0;
-
-    // Backlog REAL: filas record_type='BACKLOG' (pendiente de facturar por orden,
-    // calculado en el transform vía invoiced_status de Zoho). Sustituye al antiguo
-    // OV−Factura del año, engañoso por el desfase temporal orden↔factura.
-    const backlogRecords = records.filter((r: any) => r.record_type === "BACKLOG");
-    const backlog = backlogRecords.reduce((s: number, r: any) => s + Number(r.amount_usd), 0);
-
-    // Antigüedad (Aging) del backlog según el mes/año de la orden
-    const currentYearDB = new Date().getFullYear();
-    const currentMonth = new Date().getMonth() + 1;
-    let lowRisk = 0;
-    let mediumRisk = 0;
-    let highRisk = 0;
-    for (const r of backlogRecords) {
-      const amount = Number(r.amount_usd);
-      const ageMonths = (currentYearDB - r.record_year) * 12 + (currentMonth - r.record_month);
-      const ageDays = Math.max(0, ageMonths * 30);
-      if (ageDays <= 30) lowRisk += amount;
-      else if (ageDays <= 90) mediumRisk += amount;
-      else highRisk += amount;
-    }
-
-    // Concentración del backlog por categoría
-    const concentrationMap = new Map<string, number>();
-    for (const r of backlogRecords) {
-      const catId = r.category_id || "unassigned";
-      concentrationMap.set(catId, (concentrationMap.get(catId) || 0) + Number(r.amount_usd));
-    }
-    const concentrationData = Array.from(concentrationMap.entries()).map(([catId, amount]) => ({
-      categoryName: String(catId === "unassigned" ? "Sin Asignar" : (catMap.get(catId) || "Desconocida")),
-      amount,
-      percentage: backlog > 0 ? (amount / backlog) * 100 : 0
-    }));
-
-    return {
-      monthly: Array.from(monthlyMap.values()),
-      totals: {
-        sales_orders: totalSales,
-        invoices: totalInvoices,
-        avg_ticket: totalSales / (salesCount || 1),
-        conversion: (totalInvoices / (totalSales || 1)) * 100,
-        backlog,
-        execution_rate,
-        aging: { lowRisk, mediumRisk, highRisk, total: backlog },
-        concentration: concentrationData
-      }
-    };
-  }, [recordsData, catsData, year]);
+  // Métricas (lógica compartida con KPIs — ver src/lib/dashboard-metrics.ts).
+  const metrics = useMemo(
+    () => computeDashboardMetrics(recordsData ?? [], catsData ?? []),
+    [recordsData, catsData]
+  );
 
   // Filtrar los datos que se pasan al gráfico basándose en la selección
   const chartData = useMemo(() => {
-    return data.monthly.map(m => ({
+    return metrics.monthly.map(m => ({
       month: m.month,
       sales_orders: selectedTypes.includes("SALES_ORDER") ? m.sales_orders : 0,
       invoices: selectedTypes.includes("INVOICE") ? m.invoices : 0,
     }));
-  }, [data.monthly, selectedTypes]);
+  }, [metrics.monthly, selectedTypes]);
 
   if (isLoading) {
     return (
@@ -176,7 +100,7 @@ export default function HomePage() {
 
       {/* Sección 1: KPIs de Ejecución (Principal) */}
       <section>
-        <KPIDashboardSection metrics={data.totals} showCharts={false} />
+        <KPIDashboardSection metrics={metrics} showCharts={false} />
       </section>
 
       <Separator className="opacity-50" />
@@ -222,7 +146,7 @@ export default function HomePage() {
           <h2 className="text-2xl font-bold tracking-tight">Análisis Detallado de Backlog</h2>
           <p className="text-sm text-muted-foreground">Distribución por antigüedad y categorías de riesgo.</p>
         </div>
-        <KPIDashboardSection metrics={data.totals} showGrid={false} />
+        <KPIDashboardSection metrics={metrics} showGrid={false} />
       </section>
     </div>
   );
