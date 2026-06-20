@@ -7,7 +7,8 @@ import { user, account, profiles } from "@/db/schema";
 const email = `smoke_${Date.now()}@example.com`;
 let createdId: string | undefined;
 
-describe("better-auth smoke (sales-tracker-db)", () => {
+// Integración: requiere BD real. Se salta si no hay DATABASE_URL (p.ej. en CI).
+describe.skipIf(!process.env.DATABASE_URL)("better-auth smoke (sales-tracker-db)", () => {
   it("signup crea user + profile (hook) y signin valida", async () => {
     const up: any = await auth.api.signUpEmail({
       body: { email, password: "Smoke1234!", name: "Smoke Test" },

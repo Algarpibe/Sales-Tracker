@@ -23,6 +23,9 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      - name: Test (unit; el smoke de integración se salta sin DATABASE_URL)
+        run: npm test
+
       - name: Lint (informativo, no bloquea por deuda de lint preexistente)
         run: npm run lint
         continue-on-error: true
