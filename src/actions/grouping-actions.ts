@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { eq, and, inArray, asc, desc } from "drizzle-orm";
+import { eq, and, inArray, asc, desc, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   categories,
@@ -12,7 +12,7 @@ import {
 import { hubEnabled } from "@/db/hub";
 import { getHubSalesRows } from "@/db/hub-sales";
 import { requireRole, requireApproved } from "@/lib/auth/guards";
-import { runAction, type ActionResult } from "@/lib/errors";
+import { runAction, AppError, type ActionResult } from "@/lib/errors";
 import { z } from "zod";
 import type {
   CategoryGroup,
@@ -43,6 +43,18 @@ async function getCompanyProfile() {
   return { profile, userId: user.id };
 }
 
+// Verifica que TODAS las categorías indicadas pertenezcan a la empresa (F2-03).
+async function assertCategoriesOwned(catIds: string[], companyId: string) {
+  if (catIds.length === 0) return;
+  const owned = await db
+    .select({ id: categories.id })
+    .from(categories)
+    .where(and(eq(categories.company_id, companyId), inArray(categories.id, catIds)));
+  if (owned.length !== new Set(catIds).size) {
+    throw new AppError("Alguna categoría no pertenece a tu empresa.", "FORBIDDEN");
+  }
+}
+
 // ─── CRUD ───
 
 export async function saveCategoryGrouping(
@@ -56,6 +68,7 @@ export async function saveCategoryGrouping(
 
   const name = groupNameSchema.parse(groupName);
   const catIds = categoryIdsSchema.parse(categoryIds);
+  await assertCategoriesOwned(catIds, companyId);
   const col = hexColorSchema.parse(color);
 
   const groupId = await db.transaction(async (tx) => {
@@ -165,6 +178,7 @@ export async function updateCategoryGrouping(
   const gid = uuidSchema.parse(groupId);
   const name = groupNameSchema.parse(groupName);
   const catIds = categoryIdsSchema.parse(categoryIds);
+  await assertCategoriesOwned(catIds, companyId);
   const col = color === undefined ? undefined : hexColorSchema.parse(color);
 
   await db.transaction(async (tx) => {
@@ -242,20 +256,20 @@ export async function reorderCategoryGroupings(
   const companyId = profile.company_id!;
 
   const ids = z.array(uuidSchema).max(500).parse(orderedIds);
+  if (ids.length === 0) {
+    revalidatePath("/analytics");
+    return;
+  }
 
-  await db.transaction(async (tx) => {
-    for (let index = 0; index < ids.length; index++) {
-      await tx
-        .update(categoryGroups)
-        .set({ sort_order: index + 1 })
-        .where(
-          and(
-            eq(categoryGroups.id, ids[index]),
-            eq(categoryGroups.company_id, companyId)
-          )
-        );
-    }
-  });
+  // Un único UPDATE con unnest (antes: N updates en bucle — F3-05).
+  // Scoped por company_id: solo reordena grupos de la empresa.
+  const ord = ids.map((_, i) => i + 1);
+  await db.execute(sql`
+    UPDATE category_groups AS g
+    SET sort_order = v.ord
+    FROM unnest(${ids}::uuid[], ${ord}::int[]) AS v(id, ord)
+    WHERE g.id = v.id AND g.company_id = ${companyId}
+  `);
 
   revalidatePath("/analytics");
   });

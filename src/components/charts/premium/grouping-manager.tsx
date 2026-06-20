@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
   DialogContent,
@@ -39,6 +40,12 @@ interface GroupingManagerProps {
 }
 
 export function GroupingManager({ categories, onGroupsChanged }: GroupingManagerProps) {
+  const queryClient = useQueryClient();
+  // Invalida la caché react-query de agrupaciones (F3-03) y avisa al padre.
+  const notifyChanged = () => {
+    queryClient.invalidateQueries({ queryKey: ["groupings"] });
+    onGroupsChanged?.();
+  };
   const [open, setOpen] = useState(false);
   const [groups, setGroups] = useState<CategoryGroup[]>([]);
   const [loading, setLoading] = useState(false);
@@ -97,7 +104,7 @@ export function GroupingManager({ categories, onGroupsChanged }: GroupingManager
       }
       resetForm();
       await loadGroups();
-      onGroupsChanged?.();
+      notifyChanged();
     } catch {
       toast.error("Error de red. Inténtalo de nuevo.");
     } finally {
@@ -118,7 +125,7 @@ export function GroupingManager({ categories, onGroupsChanged }: GroupingManager
       if (!res.ok) { toast.error(res.error); return; }
       toast.success("Agrupación eliminada");
       await loadGroups();
-      onGroupsChanged?.();
+      notifyChanged();
     } catch {
       toast.error("Error de red. Inténtalo de nuevo.");
     }
@@ -135,7 +142,7 @@ export function GroupingManager({ categories, onGroupsChanged }: GroupingManager
     try {
       const res = await reorderCategoryGroupings(newGroups.map(g => g.id));
       if (!res.ok) { toast.error(res.error); await loadGroups(); return; }
-      onGroupsChanged?.();
+      notifyChanged();
     } catch {
       toast.error("Error al reordenar");
       await loadGroups();
