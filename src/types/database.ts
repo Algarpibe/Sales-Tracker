@@ -1,21 +1,21 @@
 // ===== Tipos de Base de Datos =====
 
-export type UserRole = "admin" | "editor" | "lector";
-export type RecordType = "SALES_ORDER" | "INVOICE";
-export type BillingCycle = "monthly" | "annual" | "quarterly" | "one-time";
-export type SubscriptionStatus = "active" | "paused" | "cancelled" | "trial";
-export type SubscriptionCategory =
-  | "Marketing"
-  | "Development"
-  | "Design"
-  | "HR"
-  | "Finance"
-  | "Operations"
-  | "Communication"
-  | "Analytics"
-  | "Security"
-  | "Infrastructure"
-  | "General";
+// Enums derivados del schema Drizzle (única fuente de verdad; antes duplicados a
+// mano — F4-05). `import type` se elide en runtime. RecordType ahora incluye
+// "BACKLOG" (estaba en la BD pero faltaba en el tipo).
+import type {
+  userRole,
+  recordType,
+  billingCycle,
+  subscriptionStatus,
+  subscriptionCategory,
+} from "@/db/schema";
+
+export type UserRole = (typeof userRole.enumValues)[number];
+export type RecordType = (typeof recordType.enumValues)[number];
+export type BillingCycle = (typeof billingCycle.enumValues)[number];
+export type SubscriptionStatus = (typeof subscriptionStatus.enumValues)[number];
+export type SubscriptionCategory = (typeof subscriptionCategory.enumValues)[number];
 
 export interface Company {
   id: string;
