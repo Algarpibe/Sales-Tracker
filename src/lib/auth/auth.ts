@@ -63,5 +63,18 @@ export const auth = betterAuth({
       },
     },
   },
+  // Rate limiting: tope global por IP + reglas estrictas en login/registro para
+  // frenar fuerza bruta y enumeración. Almacenamiento en memoria (la app corre con
+  // 1 réplica). enabled:true lo activa también en desarrollo para poder validarlo.
+  rateLimit: {
+    enabled: true,
+    window: 60,
+    max: 100,
+    customRules: {
+      "/sign-in/email": { window: 60, max: 5 },
+      "/sign-up/email": { window: 60, max: 5 },
+      "/forget-password": { window: 60, max: 3 },
+    },
+  },
   plugins: [nextCookies()], // nextCookies SIEMPRE el último
 });
