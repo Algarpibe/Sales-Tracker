@@ -54,19 +54,20 @@ export function CompanyForm() {
     setIsLoading(true);
 
     try {
-      await updateCompany({
+      const res = await updateCompany({
         name: values.name,
         tax_id: values.tax_id,
         country: values.country,
         industry: values.industry,
       });
+      if (!res.ok) { toast.error(res.error); setIsLoading(false); return; }
 
       toast.success("Información de la empresa actualizada");
       queryClient.invalidateQueries({ queryKey: ["company", profile.company_id] });
       reset(values);
     } catch (error: any) {
       console.error("Error updating company:", error);
-      toast.error(error.message || "Error al actualizar la empresa");
+      toast.error("Error de red. Inténtalo de nuevo.");
     } finally {
       setIsLoading(false);
     }

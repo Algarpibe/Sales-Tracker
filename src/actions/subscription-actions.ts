@@ -10,6 +10,7 @@ import {
   subscriptionUpdateSchema,
   uuidSchema,
 } from "@/lib/validation";
+import { runAction, type ActionResult } from "@/lib/errors";
 import type {
   Subscription,
   SubscriptionCategory,
@@ -77,25 +78,27 @@ export async function createSubscription(sub: {
   status: SubscriptionStatus;
   start_date: string;
   url?: string;
-}) {
-  const { user, profile } = await requireRole("admin", "editor");
-  const data = subscriptionCreateSchema.parse(sub);
+}): Promise<ActionResult> {
+  return runAction(async () => {
+    const { user, profile } = await requireRole("admin", "editor");
+    const data = subscriptionCreateSchema.parse(sub);
 
-  await db.insert(subscriptions).values({
-    tool_name: data.tool_name,
-    provider: data.provider,
-    category: data.category,
-    description: data.description,
-    monthly_cost_usd: String(data.monthly_cost_usd),
-    billing_cycle: data.billing_cycle,
-    status: data.status,
-    start_date: data.start_date,
-    url: data.url,
-    company_id: profile.company_id,
-    user_id: user.id,
+    await db.insert(subscriptions).values({
+      tool_name: data.tool_name,
+      provider: data.provider,
+      category: data.category,
+      description: data.description,
+      monthly_cost_usd: String(data.monthly_cost_usd),
+      billing_cycle: data.billing_cycle,
+      status: data.status,
+      start_date: data.start_date,
+      url: data.url,
+      company_id: profile.company_id,
+      user_id: user.id,
+    });
+
+    revalidatePath("/subscriptions");
   });
-
-  revalidatePath("/subscriptions");
 }
 
 export async function updateSubscription(
@@ -111,47 +114,51 @@ export async function updateSubscription(
     cancel_date: string;
     url: string;
   }>
-) {
-  const { profile } = await requireRole("admin", "editor");
-  const subId = uuidSchema.parse(id);
-  const updates = subscriptionUpdateSchema.parse(rawUpdates);
+): Promise<ActionResult> {
+  return runAction(async () => {
+    const { profile } = await requireRole("admin", "editor");
+    const subId = uuidSchema.parse(id);
+    const updates = subscriptionUpdateSchema.parse(rawUpdates);
 
-  const values: Partial<typeof subscriptions.$inferInsert> = {};
-  if (updates.tool_name !== undefined) values.tool_name = updates.tool_name;
-  if (updates.provider !== undefined) values.provider = updates.provider;
-  if (updates.category !== undefined) values.category = updates.category;
-  if (updates.description !== undefined) values.description = updates.description;
-  if (updates.monthly_cost_usd !== undefined) values.monthly_cost_usd = String(updates.monthly_cost_usd);
-  if (updates.billing_cycle !== undefined) values.billing_cycle = updates.billing_cycle;
-  if (updates.status !== undefined) values.status = updates.status;
-  if (updates.cancel_date !== undefined) values.cancel_date = updates.cancel_date;
-  if (updates.url !== undefined) values.url = updates.url;
+    const values: Partial<typeof subscriptions.$inferInsert> = {};
+    if (updates.tool_name !== undefined) values.tool_name = updates.tool_name;
+    if (updates.provider !== undefined) values.provider = updates.provider;
+    if (updates.category !== undefined) values.category = updates.category;
+    if (updates.description !== undefined) values.description = updates.description;
+    if (updates.monthly_cost_usd !== undefined) values.monthly_cost_usd = String(updates.monthly_cost_usd);
+    if (updates.billing_cycle !== undefined) values.billing_cycle = updates.billing_cycle;
+    if (updates.status !== undefined) values.status = updates.status;
+    if (updates.cancel_date !== undefined) values.cancel_date = updates.cancel_date;
+    if (updates.url !== undefined) values.url = updates.url;
 
-  await db
-    .update(subscriptions)
-    .set(values)
-    .where(
-      and(
-        eq(subscriptions.id, subId),
-        eq(subscriptions.company_id, profile.company_id as string)
-      )
-    );
+    await db
+      .update(subscriptions)
+      .set(values)
+      .where(
+        and(
+          eq(subscriptions.id, subId),
+          eq(subscriptions.company_id, profile.company_id as string)
+        )
+      );
 
-  revalidatePath("/subscriptions");
+    revalidatePath("/subscriptions");
+  });
 }
 
-export async function deleteSubscription(id: string) {
-  const { profile } = await requireRole("admin", "editor");
-  const subId = uuidSchema.parse(id);
+export async function deleteSubscription(id: string): Promise<ActionResult> {
+  return runAction(async () => {
+    const { profile } = await requireRole("admin", "editor");
+    const subId = uuidSchema.parse(id);
 
-  await db
-    .delete(subscriptions)
-    .where(
-      and(
-        eq(subscriptions.id, subId),
-        eq(subscriptions.company_id, profile.company_id as string)
-      )
-    );
+    await db
+      .delete(subscriptions)
+      .where(
+        and(
+          eq(subscriptions.id, subId),
+          eq(subscriptions.company_id, profile.company_id as string)
+        )
+      );
 
-  revalidatePath("/subscriptions");
+    revalidatePath("/subscriptions");
+  });
 }

@@ -3,6 +3,7 @@ import { eq, sql } from "drizzle-orm";
 import { auth } from "./auth";
 import { db } from "@/db";
 import { profiles } from "@/db/schema";
+import { AppError } from "@/lib/errors";
 
 export async function getSessionUser() {
   const s = await auth.api.getSession({ headers: await headers() });
@@ -29,7 +30,7 @@ export async function getSessionUser() {
 
 export async function requireUser() {
   const u = await getSessionUser();
-  if (!u) throw new Error("UNAUTHORIZED");
+  if (!u) throw new AppError("Debes iniciar sesión.", "UNAUTHORIZED");
   return u;
 }
 
@@ -37,7 +38,7 @@ export async function requireApproved() {
   const u = await requireUser();
   const profile = u.profile;
   if (!profile || !profile.is_approved || profile.is_rejected || !profile.is_active) {
-    throw new Error("NOT_APPROVED");
+    throw new AppError("Tu cuenta está pendiente de aprobación.", "NOT_APPROVED");
   }
   // profile queda garantizado no-nulo para los consumidores.
   return { user: u.user, profile };
@@ -45,6 +46,8 @@ export async function requireApproved() {
 
 export async function requireRole(...roles: string[]) {
   const u = await requireApproved();
-  if (!roles.includes(u.profile.role)) throw new Error("FORBIDDEN");
+  if (!roles.includes(u.profile.role)) {
+    throw new AppError("No tienes permisos para esta acción.", "FORBIDDEN");
+  }
   return u;
 }

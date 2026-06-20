@@ -53,10 +53,11 @@ export function UserActions({ userId, isApproved, isRejected, currentRole }: Use
   const handleApprove = () => {
     startTransition(async () => {
       try {
-        await approveUser(userId, role);
+        const res = await approveUser(userId, role);
+        if (!res.ok) { toast.error(res.error); return; }
         toast.success("Usuario aprobado correctamente con rol " + role);
-      } catch (error) {
-        toast.error("Error al aprobar usuario");
+      } catch {
+        toast.error("Error de red. Inténtalo de nuevo.");
       }
     });
   };
@@ -64,10 +65,11 @@ export function UserActions({ userId, isApproved, isRejected, currentRole }: Use
   const handleUpdateRole = () => {
     startTransition(async () => {
       try {
-        await updateUserRole(userId, role);
+        const res = await updateUserRole(userId, role);
+        if (!res.ok) { toast.error(res.error); return; }
         toast.success("Rol actualizado a " + role);
-      } catch (error) {
-        toast.error("Error al actualizar rol");
+      } catch {
+        toast.error("Error de red. Inténtalo de nuevo.");
       }
     });
   };
@@ -75,10 +77,11 @@ export function UserActions({ userId, isApproved, isRejected, currentRole }: Use
   const handleReject = () => {
     startTransition(async () => {
       try {
-        await deactivateUser(userId);
+        const res = await deactivateUser(userId);
+        if (!res.ok) { toast.error(res.error); return; }
         toast.success("Usuario desactivado/rechazado");
-      } catch (error) {
-        toast.error("Error al realizar la acción");
+      } catch {
+        toast.error("Error de red. Inténtalo de nuevo.");
       }
     });
   };
@@ -86,11 +89,12 @@ export function UserActions({ userId, isApproved, isRejected, currentRole }: Use
   const handleDelete = () => {
     startTransition(async () => {
       try {
-        await deleteUser(userId);
+        const res = await deleteUser(userId);
+        if (!res.ok) { toast.error(res.error); return; }
         toast.success("Usuario eliminado definitivamente");
         setShowDeleteDialog(false);
-      } catch (error) {
-        toast.error("Error al eliminar usuario");
+      } catch {
+        toast.error("Error de red. Inténtalo de nuevo.");
       }
     });
   };

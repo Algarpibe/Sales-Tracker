@@ -66,10 +66,11 @@ export function AccountSettingsForm() {
 
     try {
       // 1. Update own account (name/email)
-      await updateMyAccount({
+      const accRes = await updateMyAccount({
         full_name: values.full_name,
         email: values.email,
       });
+      if (!accRes.ok) { toast.error(accRes.error); setIsLoading(false); return; }
 
       if (values.email !== profile?.email) {
         toast.info("Tu dirección de correo ha sido actualizada.");
@@ -77,12 +78,13 @@ export function AccountSettingsForm() {
 
       // 2. Update Company info if Admin
       if (profile?.company_id && profile?.role === "admin") {
-        await updateCompany({
+        const compRes = await updateCompany({
           name: values.name,
           tax_id: values.tax_id,
           country: values.country,
           industry: values.industry,
         });
+        if (!compRes.ok) { toast.error(compRes.error); setIsLoading(false); return; }
         queryClient.invalidateQueries({ queryKey: ["company", profile.company_id] });
       }
 
@@ -90,7 +92,7 @@ export function AccountSettingsForm() {
       reset(values);
     } catch (error: any) {
       console.error("Error updating account settings:", error);
-      toast.error(error.message || "Error al actualizar la cuenta");
+      toast.error("Error de red. Inténtalo de nuevo.");
     } finally {
       setIsLoading(false);
     }

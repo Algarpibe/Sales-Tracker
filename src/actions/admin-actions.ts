@@ -13,6 +13,7 @@ import {
 } from "@/db/schema";
 import { requireRole } from "@/lib/auth/guards";
 import { uuidSchema, roleSchema } from "@/lib/validation";
+import { runAction, AppError, type ActionResult } from "@/lib/errors";
 
 // Ensures the acting admin and the target user belong to the same company.
 // Returns the admin's profile for any further checks.
@@ -25,76 +26,83 @@ async function assertSameCompany(userId: string) {
     .where(eq(profiles.id, userId));
 
   if (!target) {
-    throw new Error("USER_NOT_FOUND");
+    throw new AppError("Usuario no encontrado.", "USER_NOT_FOUND");
   }
 
   if (!admin.profile?.company_id || target.company_id !== admin.profile.company_id) {
-    throw new Error("FORBIDDEN");
+    throw new AppError("No tienes permisos para esta acción.", "FORBIDDEN");
   }
 
   return admin;
 }
 
-export async function approveUser(userId: string, role?: string) {
-  const uid = uuidSchema.parse(userId);
-  await assertSameCompany(uid);
+export async function approveUser(userId: string, role?: string): Promise<ActionResult> {
+  return runAction(async () => {
+    const uid = uuidSchema.parse(userId);
+    await assertSameCompany(uid);
 
-  const updateData: {
-    is_approved: boolean;
-    is_rejected: boolean;
-    is_active: boolean;
-    role?: (typeof roleSchema)["_output"];
-  } = {
-    is_approved: true,
-    is_rejected: false,
-    is_active: true,
-  };
+    const updateData: {
+      is_approved: boolean;
+      is_rejected: boolean;
+      is_active: boolean;
+      role?: (typeof roleSchema)["_output"];
+    } = {
+      is_approved: true,
+      is_rejected: false,
+      is_active: true,
+    };
 
-  if (role !== undefined) {
-    updateData.role = roleSchema.parse(role);
-  }
+    if (role !== undefined) {
+      updateData.role = roleSchema.parse(role);
+    }
 
-  await db.update(profiles).set(updateData).where(eq(profiles.id, uid));
+    await db.update(profiles).set(updateData).where(eq(profiles.id, uid));
 
-  revalidatePath("/admin/users");
-  revalidatePath("/waiting-approval");
+    revalidatePath("/admin/users");
+    revalidatePath("/waiting-approval");
+  });
 }
 
-export async function updateUserRole(userId: string, role: string) {
-  const uid = uuidSchema.parse(userId);
-  const validRole = roleSchema.parse(role);
-  await assertSameCompany(uid);
+export async function updateUserRole(userId: string, role: string): Promise<ActionResult> {
+  return runAction(async () => {
+    const uid = uuidSchema.parse(userId);
+    const validRole = roleSchema.parse(role);
+    await assertSameCompany(uid);
 
-  await db
-    .update(profiles)
-    .set({ role: validRole })
-    .where(eq(profiles.id, uid));
+    await db
+      .update(profiles)
+      .set({ role: validRole })
+      .where(eq(profiles.id, uid));
 
-  revalidatePath("/admin/users");
+    revalidatePath("/admin/users");
+  });
 }
 
-export async function deactivateUser(userId: string) {
-  const uid = uuidSchema.parse(userId);
-  await assertSameCompany(uid);
+export async function deactivateUser(userId: string): Promise<ActionResult> {
+  return runAction(async () => {
+    const uid = uuidSchema.parse(userId);
+    await assertSameCompany(uid);
 
-  await db
-    .update(profiles)
-    .set({
-      is_approved: false,
-      is_rejected: true,
-      is_active: false,
-    })
-    .where(eq(profiles.id, uid));
+    await db
+      .update(profiles)
+      .set({
+        is_approved: false,
+        is_rejected: true,
+        is_active: false,
+      })
+      .where(eq(profiles.id, uid));
 
-  revalidatePath("/admin/users");
-  revalidatePath("/waiting-approval");
+    revalidatePath("/admin/users");
+    revalidatePath("/waiting-approval");
+  });
 }
 
-export async function deleteUser(userId: string) {
-  const uid = uuidSchema.parse(userId);
-  await assertSameCompany(uid);
+export async function deleteUser(userId: string): Promise<ActionResult> {
+  return runAction(async () => {
+    const uid = uuidSchema.parse(userId);
+    await assertSameCompany(uid);
 
-  await db.transaction(async (tx) => {
+    await db.transaction(async (tx) => {
     // 1) sales_records.created_by / updated_by reference user.id with NO cascade,
     //    so null them out to avoid FK restrict violations.
     await tx
@@ -120,9 +128,10 @@ export async function deleteUser(userId: string) {
     await tx.delete(account).where(eq(account.userId, uid));
 
     // 5) finally the user row itself (would cascade the above, done last).
-    await tx.delete(user).where(eq(user.id, uid));
-  });
+      await tx.delete(user).where(eq(user.id, uid));
+    });
 
-  revalidatePath("/admin/users");
-  revalidatePath("/waiting-approval");
+    revalidatePath("/admin/users");
+    revalidatePath("/waiting-approval");
+  });
 }

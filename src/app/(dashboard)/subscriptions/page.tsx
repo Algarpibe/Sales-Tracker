@@ -57,7 +57,8 @@ export default function SubscriptionsPage() {
   const handleCreate = async () => {
     setSaving(true);
     try {
-      await createSubscription(form);
+      const res = await createSubscription(form);
+      if (!res.ok) { toast.error(res.error); setSaving(false); return; }
       toast.success("Suscripción creada");
       setOpen(false);
       setForm({
@@ -66,18 +67,19 @@ export default function SubscriptionsPage() {
         status: "active", start_date: new Date().toISOString().split("T")[0], url: "",
       });
       invalidate();
-    } catch (err) {
-      toast.error((err as Error).message);
+    } catch {
+      toast.error("Error de red. Inténtalo de nuevo.");
     }
     setSaving(false);
   };
 
   const handleDelete = async (id: string) => {
     try {
-      await deleteSubscription(id);
+      const res = await deleteSubscription(id);
+      if (!res.ok) { toast.error(res.error); return; }
       toast.success("Eliminada");
       invalidate();
-    } catch (err) { toast.error((err as Error).message); }
+    } catch { toast.error("Error de red. Inténtalo de nuevo."); }
   };
 
   const getStatusBadge = (status: SubscriptionStatus) => {

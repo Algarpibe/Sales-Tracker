@@ -50,11 +50,12 @@ export default function CategoriesPage() {
     if (!name.trim()) return;
     setSaving(true);
     try {
-      await createCategory({ name, description, color });
+      const res = await createCategory({ name, description, color });
+      if (!res.ok) { toast.error(res.error); setSaving(false); return; }
       toast.success("Categoría creada");
       setName(""); setDescription(""); setColor("#3B82F6"); setOpen(false);
       invalidate();
-    } catch (err) { toast.error((err as Error).message); }
+    } catch { toast.error("Error de red. Inténtalo de nuevo."); }
     setSaving(false);
   };
 
@@ -70,25 +71,27 @@ export default function CategoriesPage() {
     if (!editingId || !editName.trim()) return;
     setSaving(true);
     try {
-      await updateCategory(editingId, {
+      const res = await updateCategory(editingId, {
         name: editName,
         description: editDescription,
         color: editColor
       });
+      if (!res.ok) { toast.error(res.error); setSaving(false); return; }
       toast.success("Categoría actualizada");
       setEditOpen(false);
       setEditingId(null);
       invalidate();
-    } catch (err) { toast.error((err as Error).message); }
+    } catch { toast.error("Error de red. Inténtalo de nuevo."); }
     setSaving(false);
   };
 
   const handleDelete = async (id: string) => {
     try {
-      await deleteCategory(id);
+      const res = await deleteCategory(id);
+      if (!res.ok) { toast.error(res.error); return; }
       toast.success("Categoría desactivada");
       invalidate();
-    } catch (err) { toast.error((err as Error).message); }
+    } catch { toast.error("Error de red. Inténtalo de nuevo."); }
   };
 
   if (loading) {

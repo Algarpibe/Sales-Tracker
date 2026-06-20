@@ -88,17 +88,19 @@ export function GroupingManager({ categories, onGroupsChanged }: GroupingManager
     setSaving(true);
     try {
       if (editingId) {
-        await updateCategoryGrouping(editingId, groupName, selectedCatIds, selectedColor);
+        const res = await updateCategoryGrouping(editingId, groupName, selectedCatIds, selectedColor);
+        if (!res.ok) { toast.error(res.error); setSaving(false); return; }
         toast.success("Agrupación actualizada");
       } else {
-        await saveCategoryGrouping(groupName, selectedCatIds, selectedColor);
+        const res = await saveCategoryGrouping(groupName, selectedCatIds, selectedColor);
+        if (!res.ok) { toast.error(res.error); setSaving(false); return; }
         toast.success("Agrupación creada");
       }
       resetForm();
       await loadGroups();
       onGroupsChanged?.();
-    } catch (err) {
-      toast.error((err as Error).message);
+    } catch {
+      toast.error("Error de red. Inténtalo de nuevo.");
     } finally {
       setSaving(false);
     }
@@ -113,12 +115,13 @@ export function GroupingManager({ categories, onGroupsChanged }: GroupingManager
 
   const handleDelete = async (groupId: string) => {
     try {
-      await deleteCategoryGrouping(groupId);
+      const res = await deleteCategoryGrouping(groupId);
+      if (!res.ok) { toast.error(res.error); return; }
       toast.success("Agrupación eliminada");
       await loadGroups();
       onGroupsChanged?.();
-    } catch (err) {
-      toast.error((err as Error).message);
+    } catch {
+      toast.error("Error de red. Inténtalo de nuevo.");
     }
   };
 
@@ -131,9 +134,10 @@ export function GroupingManager({ categories, onGroupsChanged }: GroupingManager
     setGroups(newGroups);
 
     try {
-      await reorderCategoryGroupings(newGroups.map(g => g.id));
+      const res = await reorderCategoryGroupings(newGroups.map(g => g.id));
+      if (!res.ok) { toast.error(res.error); await loadGroups(); return; }
       onGroupsChanged?.();
-    } catch (err) {
+    } catch {
       toast.error("Error al reordenar");
       await loadGroups();
     }

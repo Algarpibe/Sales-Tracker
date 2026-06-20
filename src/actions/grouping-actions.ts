@@ -12,6 +12,7 @@ import {
 import { hubEnabled } from "@/db/hub";
 import { getHubSalesRows } from "@/db/hub-sales";
 import { requireRole, requireApproved } from "@/lib/auth/guards";
+import { runAction, type ActionResult } from "@/lib/errors";
 import { z } from "zod";
 import type {
   CategoryGroup,
@@ -48,7 +49,8 @@ export async function saveCategoryGrouping(
   groupName: string,
   categoryIds: string[],
   color: string = "#6366f1"
-): Promise<{ success: boolean; groupId?: string }> {
+): Promise<ActionResult<{ groupId: string }>> {
+  return runAction(async () => {
   const { profile } = await getAdminProfile();
   const companyId = profile.company_id!;
 
@@ -93,7 +95,8 @@ export async function saveCategoryGrouping(
   });
 
   revalidatePath("/analytics");
-  return { success: true, groupId };
+  return { groupId };
+  });
 }
 
 export async function getSavedCategoryGroupings(): Promise<{
@@ -154,7 +157,8 @@ export async function updateCategoryGrouping(
   groupName: string,
   categoryIds: string[],
   color?: string
-): Promise<{ success: boolean }> {
+): Promise<ActionResult> {
+  return runAction(async () => {
   const { profile } = await getAdminProfile();
   const companyId = profile.company_id!;
 
@@ -201,12 +205,13 @@ export async function updateCategoryGrouping(
   });
 
   revalidatePath("/analytics");
-  return { success: true };
+  });
 }
 
 export async function deleteCategoryGrouping(
   groupId: string
-): Promise<{ success: boolean }> {
+): Promise<ActionResult> {
+  return runAction(async () => {
   const { profile } = await getAdminProfile();
   const companyId = profile.company_id!;
 
@@ -223,7 +228,7 @@ export async function deleteCategoryGrouping(
     );
 
   revalidatePath("/analytics");
-  return { success: true };
+  });
 }
 
 /**
@@ -231,7 +236,8 @@ export async function deleteCategoryGrouping(
  */
 export async function reorderCategoryGroupings(
   orderedIds: string[]
-): Promise<{ success: boolean }> {
+): Promise<ActionResult> {
+  return runAction(async () => {
   const { profile } = await getAdminProfile();
   const companyId = profile.company_id!;
 
@@ -252,7 +258,7 @@ export async function reorderCategoryGroupings(
   });
 
   revalidatePath("/analytics");
-  return { success: true };
+  });
 }
 
 // ─── Analysis Data Processing ───
