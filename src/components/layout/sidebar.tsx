@@ -8,7 +8,6 @@ import {
   BarChart3,
   Home,
   TrendingUp,
-  FileUp,
   FolderOpen,
   Settings,
   ChevronLeft,
@@ -24,7 +23,6 @@ const navItems = [
   { href: "/tablas", label: "Tablas", icon: BarChart3 },
   { href: "/analytics", label: "Análisis", icon: TrendingUp },
   { href: "/analytics?tab=forecast", label: "Forecasting", icon: Sparkles },
-  { href: "/import", label: "Importar", icon: FileUp },
   { href: "/categories", label: "Categorías", icon: FolderOpen },
   { href: "/settings", label: "Configuración", icon: Settings },
 ];

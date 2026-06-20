@@ -8,7 +8,6 @@ import {
   Home,
   TrendingUp,
   CreditCard,
-  FileUp,
   FolderOpen,
   Settings,
 } from "lucide-react";
@@ -17,7 +16,6 @@ const navItems = [
   { href: "/home", label: "Inicio", icon: Home },
   { href: "/tablas", label: "Tablas", icon: BarChart3 },
   { href: "/analytics", label: "Análisis", icon: TrendingUp },
-  { href: "/import", label: "Importar", icon: FileUp },
   { href: "/categories", label: "Categorías", icon: FolderOpen },
   { href: "/settings", label: "Configuración", icon: Settings },
 ];

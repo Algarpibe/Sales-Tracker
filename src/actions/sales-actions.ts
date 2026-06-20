@@ -9,6 +9,12 @@ import { requireApproved, requireRole } from "@/lib/auth/guards";
 import { salesRecordSchema, uuidSchema } from "@/lib/validation";
 import { hubEnabled } from "@/db/hub";
 import { getHubSalesRows } from "@/db/hub-sales";
+
+// Con el hub como fuente, las ventas son de SOLO LECTURA (las gobierna Zoho).
+// Defensa en profundidad: aunque la UI oculte los controles, ninguna escritura
+// debe tocar sales_records (que ya no se lee).
+const SALES_READONLY_MSG =
+  "Las ventas son de solo lectura: se sincronizan automáticamente desde Zoho (zoho-hub).";
 import type {
   SalesFilters,
   RecordType,
@@ -97,6 +103,7 @@ export async function upsertSalesRecord(record: {
   record_year: number;
   notes?: string;
 }) {
+  if (hubEnabled()) throw new Error(SALES_READONLY_MSG);
   const { user, profile } = await requireRole("admin", "editor");
   const data = salesRecordSchema.parse(record);
 
@@ -147,6 +154,7 @@ export async function bulkUpsertSalesRecords(
     notes?: string;
   }>
 ): Promise<{ imported: number; invalid: number }> {
+  if (hubEnabled()) throw new Error(SALES_READONLY_MSG);
   const { user, profile } = await requireRole("admin", "editor");
 
   if (records.length > 5000) throw new Error("Demasiados registros (máx 5000 por importación)");
@@ -202,6 +210,7 @@ export async function bulkUpsertSalesRecords(
 }
 
 export async function deleteSalesRecord(id: string) {
+  if (hubEnabled()) throw new Error(SALES_READONLY_MSG);
   const { profile } = await requireRole("admin", "editor");
   const recordId = uuidSchema.parse(id);
 

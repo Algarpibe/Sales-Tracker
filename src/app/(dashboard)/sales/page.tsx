@@ -1,10 +1,9 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { MONTHS, RECORD_TYPES, formatUSD, getYearRange } from "@/lib/constants";
-import type { SalesRecord, Category, RecordType } from "@/types/database";
-import { Button } from "@/components/ui/button";
+import type { SalesRecord, RecordType } from "@/types/database";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -21,22 +20,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Download, Plus, Search, Trash2 } from "lucide-react";
-import { toast } from "sonner";
-import { getSalesData, upsertSalesRecord, deleteSalesRecord } from "@/actions/sales-actions";
-import { useAuth } from "@/components/providers/auth-provider";
+import { Search } from "lucide-react";
+import { getSalesData } from "@/actions/sales-actions";
 
 export default function SalesPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [yearFil, setYearFil] = useState(new Date().getFullYear());
   const [typeFil, setTypeFil] = useState<RecordType>("SALES_ORDER");
 
-  const { profile } = useAuth();
-  const canEdit = profile?.role === "admin" || profile?.role === "editor";
-
-  const queryClient = useQueryClient();
   const { data, isLoading: loading } = useQuery({
     queryKey: ["sales", { year: yearFil, record_type: typeFil }],
     queryFn: () => getSalesData({ year: yearFil, record_type: typeFil }),
@@ -44,21 +36,10 @@ export default function SalesPage() {
   const records: SalesRecord[] = data ?? [];
 
   const filteredRecords = useMemo(() => {
-    return records.filter(r => 
+    return records.filter(r =>
       r.categories?.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [records, searchTerm]);
-
-  const handleDelete = async (id: string) => {
-    if (!confirm("¿Estás seguro de eliminar este registro?")) return;
-    try {
-      await deleteSalesRecord(id);
-      toast.success("Registro eliminado");
-      queryClient.invalidateQueries({ queryKey: ["sales"] });
-    } catch (error) {
-      toast.error("Error al eliminar");
-    }
-  };
 
   if (loading && records.length === 0) {
     return <Skeleton className="h-[500px] w-full" />;
@@ -67,19 +48,19 @@ export default function SalesPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Listado de Registros</h1>
-        <div className="flex gap-2">
-           <Button size="sm">
-            <Plus className="mr-2 h-4 w-4" /> Nuevo Registro
-          </Button>
+        <div>
+          <h1 className="text-2xl font-bold">Listado de Registros</h1>
+          <p className="text-sm text-muted-foreground">
+            Datos sincronizados automáticamente desde Zoho (solo lectura).
+          </p>
         </div>
       </div>
 
       <div className="flex flex-wrap gap-4 items-center">
         <div className="relative flex-1 min-w-[300px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input 
-            placeholder="Buscar por categoría..." 
+          <Input
+            placeholder="Buscar por categoría..."
             className="pl-10"
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
@@ -106,7 +87,6 @@ export default function SalesPage() {
               <TableHead>Categoría</TableHead>
               <TableHead>Mes</TableHead>
               <TableHead className="text-right">Monto</TableHead>
-              <TableHead className="text-right">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -115,13 +95,6 @@ export default function SalesPage() {
                 <TableCell className="font-medium">{r.categories?.name}</TableCell>
                 <TableCell>{MONTHS.find(m => m.value === r.record_month)?.label}</TableCell>
                 <TableCell className="text-right">{formatUSD(Number(r.amount_usd))}</TableCell>
-                <TableCell className="text-right">
-                  {canEdit && (
-                    <Button variant="ghost" size="icon" onClick={() => handleDelete(r.id)}>
-                      <Trash2 className="h-4 w-4 text-red-500" />
-                    </Button>
-                  )}
-                </TableCell>
               </TableRow>
             ))}
           </TableBody>

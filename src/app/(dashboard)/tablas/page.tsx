@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import { MONTHS, RECORD_TYPES, formatUSD, getYearRange } from "@/lib/constants";
 import type { SalesRecord, Category, RecordType } from "@/types/database";
 import { Button } from "@/components/ui/button";
@@ -21,14 +20,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Edit2, Save, X, Download } from "lucide-react";
+import { Download } from "lucide-react";
 import { toast } from "sonner";
-import { upsertSalesRecord, getSalesData } from "@/actions/sales-actions";
+import { getSalesData } from "@/actions/sales-actions";
 import { getCategories } from "@/actions/category-actions";
-import { useAuth } from "@/components/providers/auth-provider";
-import { cn } from "@/lib/utils";
 
 interface PivotRow {
   category_id: string;
@@ -38,15 +34,8 @@ interface PivotRow {
 }
 
 export default function TablasPage() {
-  const { profile } = useAuth();
-  const router = useRouter();
-  const queryClient = useQueryClient();
   const [year, setYear] = useState(new Date().getFullYear());
   const [typeFilter, setTypeFilter] = useState<RecordType>("SALES_ORDER");
-  const [isEditing, setIsEditing] = useState(false);
-  const [pendingChanges, setPendingChanges] = useState<Record<string, Record<number, number>>>( {});
-
-  const canEdit = profile?.role === "admin" || profile?.role === "editor";
 
   const { data: salesData, isLoading: salesLoading } = useQuery({
     queryKey: ["sales", { year, record_type: typeFilter }],
@@ -90,18 +79,15 @@ export default function TablasPage() {
   const monthlyTotals = useMemo(() => {
     const totals: Record<number, number> = {};
     MONTHS.forEach(m => totals[m.value] = 0);
-    
+
     pivotRows.forEach(row => {
       MONTHS.forEach(m => {
-        const val = pendingChanges[row.category_id]?.[m.value] !== undefined 
-          ? pendingChanges[row.category_id][m.value] 
-          : (row.months[m.value]?.amount ?? 0);
-        totals[m.value] += val;
+        totals[m.value] += row.months[m.value]?.amount ?? 0;
       });
     });
-    
+
     return totals;
-  }, [pivotRows, pendingChanges]);
+  }, [pivotRows]);
 
   const cumulativeTotals = useMemo(() => {
     const totals: Record<number, number> = {};
@@ -116,64 +102,6 @@ export default function TablasPage() {
   const grandTotal = useMemo(() => {
     return Object.values(monthlyTotals).reduce((sum, val) => sum + val, 0);
   }, [monthlyTotals]);
-
-  const handleInputChange = (categoryId: string, month: number, value: string) => {
-    const amount = parseFloat(value);
-    setPendingChanges(prev => ({
-      ...prev,
-      [categoryId]: {
-        ...(prev[categoryId] || {}),
-        [month]: isNaN(amount) ? 0 : amount
-      }
-    }));
-  };
-
-  const handleSaveChanges = async () => {
-    const changesCount = Object.values(pendingChanges).reduce(
-      (acc, months) => acc + Object.keys(months).length, 0
-    );
-
-    if (changesCount === 0) {
-      setIsEditing(false);
-      return;
-    }
-
-    const toastId = toast.loading(`Guardando ${changesCount} cambios...`);
-    
-    try {
-      // Procesamiento secuencial para evitar bloqueos en la DB
-      for (const [categoryId, months] of Object.entries(pendingChanges)) {
-        for (const [month, amount] of Object.entries(months)) {
-          await upsertSalesRecord({
-            category_id: categoryId,
-            record_type: typeFilter,
-            amount_usd: amount,
-            record_month: parseInt(month),
-            record_year: year,
-          });
-        }
-      }
-      
-      await new Promise(r => setTimeout(r, 500));
-      
-      toast.success("Cambios guardados correctamente", { id: toastId });
-      setPendingChanges({});
-      setIsEditing(false);
-      await queryClient.invalidateQueries({ queryKey: ["sales"] });
-      router.refresh();
-    } catch (err) {
-      console.error("Error al guardar:", err);
-      toast.error("Error al guardar cambios", { 
-        id: toastId,
-        description: (err as Error).message 
-      });
-    }
-  };
-
-  const handleCancel = () => {
-    setPendingChanges({});
-    setIsEditing(false);
-  };
 
   const handleExportCSV = () => {
     const headers = ["Categoría", ...MONTHS.map((m) => m.label), "Total"];
@@ -208,31 +136,10 @@ export default function TablasPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Tablas de Datos</h1>
           <p className="text-muted-foreground">
-            Visualización y edición masiva — Estilo {typeFilter === "SALES_ORDER" ? "OV" : "FAC"} {year}
+            Estilo {typeFilter === "SALES_ORDER" ? "OV" : "FAC"} {year} — sincronizado desde Zoho (solo lectura)
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {canEdit && (
-            <>
-              {isEditing ? (
-                <>
-                  <Button variant="outline" size="sm" onClick={handleCancel}>
-                    <X className="mr-2 h-4 w-4" />
-                    Cancelar
-                  </Button>
-                  <Button size="sm" onClick={handleSaveChanges} className="bg-emerald-600 hover:bg-emerald-700">
-                    <Save className="mr-2 h-4 w-4" />
-                    Guardar Cambios
-                  </Button>
-                </>
-              ) : (
-                <Button size="sm" onClick={() => setIsEditing(true)}>
-                  <Edit2 className="mr-2 h-4 w-4" />
-                  Editar Datos
-                </Button>
-              )}
-            </>
-          )}
           <Button variant="outline" size="sm" onClick={handleExportCSV}>
             <Download className="mr-2 h-4 w-4" />
             CSV
@@ -242,7 +149,7 @@ export default function TablasPage() {
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
-        <Select value={String(year)} onValueChange={(v) => setYear(Number(v))} disabled={isEditing}>
+        <Select value={String(year)} onValueChange={(v) => setYear(Number(v))}>
           <SelectTrigger className="w-[120px]">
             <SelectValue placeholder="Año" />
           </SelectTrigger>
@@ -255,10 +162,9 @@ export default function TablasPage() {
           </SelectContent>
         </Select>
 
-        <Select 
-          value={typeFilter} 
+        <Select
+          value={typeFilter}
           onValueChange={(v) => setTypeFilter(v as RecordType)}
-          disabled={isEditing}
         >
           <SelectTrigger className="w-[190px]">
             <SelectValue placeholder="Tipo de Dato">
@@ -273,12 +179,6 @@ export default function TablasPage() {
             ))}
           </SelectContent>
         </Select>
-
-        {isEditing && (
-          <Badge variant="outline" className="border-emerald-500 text-emerald-500 animate-pulse px-3 py-1">
-            Modo Edición Activo
-          </Badge>
-        )}
       </div>
 
       {/* Main Table */}
@@ -301,53 +201,27 @@ export default function TablasPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {pivotRows.map((row) => {
-                const totalWithPending = MONTHS.reduce((acc, m) => {
-                  const val = pendingChanges[row.category_id]?.[m.value] !== undefined 
-                    ? pendingChanges[row.category_id][m.value] 
-                    : (row.months[m.value]?.amount ?? 0);
-                  return acc + val;
-                }, 0);
+              {pivotRows.map((row) => (
+                <TableRow key={row.category_id} className="hover:bg-primary/5 transition-colors group">
+                  <TableCell className="sticky left-0 z-10 bg-background/80 backdrop-blur-sm font-medium border-r group-hover:bg-primary/5">
+                    {row.category_name}
+                  </TableCell>
+                  {MONTHS.map((m) => {
+                    const currentValue = row.months[m.value]?.amount ?? 0;
+                    return (
+                      <TableCell key={m.value} className="p-0">
+                        <div className="px-3 py-3 text-right tabular-nums">
+                          {currentValue > 0 ? formatUSD(currentValue) : <span className="text-muted-foreground/30">—</span>}
+                        </div>
+                      </TableCell>
+                    );
+                  })}
+                  <TableCell className="text-right font-bold bg-primary/5 text-primary tabular-nums">
+                    {formatUSD(row.total)}
+                  </TableCell>
+                </TableRow>
+              ))}
 
-                return (
-                  <TableRow key={row.category_id} className="hover:bg-primary/5 transition-colors group">
-                    <TableCell className="sticky left-0 z-10 bg-background/80 backdrop-blur-sm font-medium border-r group-hover:bg-primary/5">
-                      {row.category_name}
-                    </TableCell>
-                    {MONTHS.map((m) => {
-                      const hasPending = pendingChanges[row.category_id]?.[m.value] !== undefined;
-                      const currentValue = hasPending 
-                        ? pendingChanges[row.category_id][m.value] 
-                        : (row.months[m.value]?.amount ?? 0);
-
-                      return (
-                        <TableCell key={m.value} className="p-0">
-                          {isEditing ? (
-                            <input
-                              type="number"
-                              className={cn(
-                                "w-full h-11 px-3 text-right bg-transparent outline-none transition-all focus:bg-primary/10 focus:ring-1 focus:ring-primary/30",
-                                hasPending && "text-emerald-500 font-semibold bg-emerald-500/5"
-                              )}
-                              defaultValue={currentValue === 0 ? "" : currentValue}
-                              onChange={(e) => handleInputChange(row.category_id, m.value, e.target.value)}
-                              placeholder="0.00"
-                            />
-                          ) : (
-                            <div className="px-3 py-3 text-right tabular-nums">
-                              {currentValue > 0 ? formatUSD(currentValue) : <span className="text-muted-foreground/30">—</span>}
-                            </div>
-                          )}
-                        </TableCell>
-                      );
-                    })}
-                    <TableCell className="text-right font-bold bg-primary/5 text-primary tabular-nums">
-                      {formatUSD(totalWithPending)}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-              
               {/* Totals Row */}
               <TableRow className="bg-muted/30 font-bold hover:bg-muted/40 border-t-2">
                 <TableCell className="sticky left-0 z-10 bg-muted/80 backdrop-blur-sm font-bold border-r">
