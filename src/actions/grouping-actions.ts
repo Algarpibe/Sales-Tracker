@@ -4,10 +4,13 @@ import { revalidatePath } from "next/cache";
 import { eq, and, inArray, asc, desc, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
+  categories,
   categoryGroups,
   categoryGroupMappings,
   salesRecords,
 } from "@/db/schema";
+import { hubEnabled } from "@/db/hub";
+import { getHubSalesRows } from "@/db/hub-sales";
 import { requireRole, requireApproved } from "@/lib/auth/guards";
 import type {
   CategoryGroup,
@@ -255,6 +258,50 @@ export async function getGroupingAnalysisData(
   // (Se eliminó la consulta de colores de categoría: catColorMap era código muerto,
   //  el color de cada fila sale del color del grupo.)
   const groupIds = groups.map((g) => g.id);
+
+  type AnalysisRecord = {
+    category_id: string;
+    record_year: number;
+    record_month: number;
+    amount_usd: number;
+  };
+
+  // Los registros vienen del hub en vivo (si HUB_DB_URL está) o de sales_records.
+  const recordsP: Promise<AnalysisRecord[]> = hubEnabled()
+    ? (async () => {
+        const [hubRows, cats] = await Promise.all([
+          getHubSalesRows(),
+          db
+            .select({ id: categories.id, name: categories.name })
+            .from(categories)
+            .where(eq(categories.company_id, companyId)),
+        ]);
+        const byName = new Map(cats.map((c) => [c.name.toLowerCase(), c.id]));
+        return hubRows
+          .filter((r) => r.record_type === recordType)
+          .map((r) => ({
+            category_id: byName.get(r.category_name.toLowerCase()) ?? "",
+            record_year: r.record_year,
+            record_month: r.record_month,
+            amount_usd: r.amount_usd,
+          }))
+          .filter((r) => r.category_id !== "");
+      })()
+    : db
+        .select({
+          category_id: salesRecords.category_id,
+          record_year: salesRecords.record_year,
+          record_month: salesRecords.record_month,
+          amount_usd: salesRecords.amount_usd,
+        })
+        .from(salesRecords)
+        .where(
+          and(
+            eq(salesRecords.company_id, companyId),
+            eq(salesRecords.record_type, recordType)
+          )
+        ) as unknown as Promise<AnalysisRecord[]>;
+
   const [mappings, records] = await Promise.all([
     db
       .select({
@@ -268,20 +315,7 @@ export async function getGroupingAnalysisData(
           inArray(categoryGroupMappings.group_id, groupIds)
         )
       ),
-    db
-      .select({
-        category_id: salesRecords.category_id,
-        record_year: salesRecords.record_year,
-        record_month: salesRecords.record_month,
-        amount_usd: salesRecords.amount_usd,
-      })
-      .from(salesRecords)
-      .where(
-        and(
-          eq(salesRecords.company_id, companyId),
-          eq(salesRecords.record_type, recordType)
-        )
-      ),
+    recordsP,
   ]);
 
   // Build mapping: categoryId → groupId

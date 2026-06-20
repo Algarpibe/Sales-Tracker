@@ -222,6 +222,24 @@ export async function getMonthlyTotals(year?: number): Promise<MonthlyTotal[]> {
   const { profile } = await requireApproved();
   if (!profile) throw new Error("No autenticado");
 
+  if (hubEnabled()) {
+    const hubRows = await getHubSalesRows();
+    const agg = new Map<string, MonthlyTotal>();
+    for (const r of hubRows) {
+      if (r.record_type === "BACKLOG") continue;
+      if (year && r.record_year !== year) continue;
+      const k = `${r.record_type}:${r.record_year}:${r.record_month}`;
+      const e =
+        agg.get(k) ??
+        { company_id: profile.company_id, record_type: r.record_type as RecordType, record_year: r.record_year, record_month: r.record_month, total_usd: 0 };
+      e.total_usd += r.amount_usd;
+      agg.set(k, e);
+    }
+    return Array.from(agg.values()).sort(
+      (a, b) => a.record_year - b.record_year || a.record_month - b.record_month
+    );
+  }
+
   const cid = profile.company_id;
   const { rows } = year
     ? await db.execute(
@@ -249,6 +267,28 @@ export async function getMonthlyTotals(year?: number): Promise<MonthlyTotal[]> {
 export async function getAnnualByCategory(year?: number): Promise<AnnualByCategory[]> {
   const { profile } = await requireApproved();
   if (!profile) throw new Error("No autenticado");
+
+  if (hubEnabled()) {
+    const [hubRows, cats] = await Promise.all([
+      getHubSalesRows(),
+      db.select({ id: categories.id, name: categories.name }).from(categories).where(eq(categories.company_id, profile.company_id)),
+    ]);
+    const byName = new Map(cats.map((c) => [c.name.toLowerCase(), c]));
+    const agg = new Map<string, AnnualByCategory>();
+    for (const r of hubRows) {
+      if (r.record_type === "BACKLOG") continue;
+      if (year && r.record_year !== year) continue;
+      const cat = byName.get(r.category_name.toLowerCase());
+      if (!cat) continue;
+      const k = `${r.record_type}:${r.record_year}:${cat.id}`;
+      const e =
+        agg.get(k) ??
+        { company_id: profile.company_id, record_type: r.record_type as RecordType, record_year: r.record_year, category_id: cat.id, category_name: cat.name, total_usd: 0 };
+      e.total_usd += r.amount_usd;
+      agg.set(k, e);
+    }
+    return Array.from(agg.values()).sort((a, b) => b.total_usd - a.total_usd);
+  }
 
   const cid = profile.company_id;
   const { rows } = year

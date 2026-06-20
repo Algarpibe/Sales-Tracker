@@ -56,13 +56,21 @@ SELECT cat AS category_name, rt AS record_type, mm AS record_month, yy AS record
 FROM lines WHERE cat IS NOT NULL GROUP BY cat, rt, mm, yy
 `;
 
+// Cache en memoria corto: la agregación recorre todas las líneas del hub; con TTL
+// 30s, todas las lecturas de una misma carga de página comparten un único cálculo.
+let _cache: { at: number; rows: HubSalesRow[] } | null = null;
+const CACHE_TTL_MS = 30_000;
+
 export async function getHubSalesRows(): Promise<HubSalesRow[]> {
+  if (_cache && Date.now() - _cache.at < CACHE_TTL_MS) return _cache.rows;
   const { rows } = await getHubPool().query(HUB_SALES_AGG_SQL);
-  return rows.map((r) => ({
+  const mapped: HubSalesRow[] = rows.map((r) => ({
     category_name: String(r.category_name),
     record_type: r.record_type as HubSalesRow["record_type"],
     record_month: Number(r.record_month),
     record_year: Number(r.record_year),
     amount_usd: Number(r.amount_usd),
   }));
+  _cache = { at: Date.now(), rows: mapped };
+  return mapped;
 }
