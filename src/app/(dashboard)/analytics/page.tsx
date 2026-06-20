@@ -12,13 +12,7 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TechServiceAnalysis } from "@/components/charts/tech-service-analysis";
-import { HistoricalSalesCategory } from "@/components/charts/premium/historical-sales-category";
-import { GroupingAnalysisCard } from "@/components/charts/premium/grouping-analysis-card";
-import { GroupEvolutionCard } from "@/components/charts/premium/group-evolution-card";
-import { GroupForecastCard } from "@/components/charts/premium/group-forecast-card";
-import { ForecastSalesCategory } from "@/components/charts/premium/forecast-sales-category";
-import { PredictiveRunRateCard } from "@/components/charts/premium/predictive-run-rate";
+import dynamic from "next/dynamic";
 import { MeshBackground } from "@/components/ui/mesh-background";
 import { calculateSeasonalityFactors, getSeasonalForecast, calculateRunRate } from "@/lib/math-utils";
 import { ComposedChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from "recharts";
@@ -28,6 +22,39 @@ import { Sparkles, BarChart3, TrendingUp, Activity, FileText, Receipt } from "lu
 import { motion } from "framer-motion";
 import type { SalesRecord } from "@/types/database";
 import type { ChartTooltipProps } from "@/lib/chart-types";
+
+// Lazy-load de los charts pesados (recharts/framer) con next/dynamic (F3-02):
+// cada uno es su propio chunk y se carga en cliente bajo demanda, aligerando el
+// bundle inicial de /analytics. Skeleton mientras carga.
+const chartSkeleton = () => <Skeleton className="h-[400px] w-full rounded-xl" />;
+const TechServiceAnalysis = dynamic(
+  () => import("@/components/charts/tech-service-analysis").then((m) => m.TechServiceAnalysis),
+  { ssr: false, loading: chartSkeleton }
+);
+const HistoricalSalesCategory = dynamic(
+  () => import("@/components/charts/premium/historical-sales-category").then((m) => m.HistoricalSalesCategory),
+  { ssr: false, loading: chartSkeleton }
+);
+const GroupingAnalysisCard = dynamic(
+  () => import("@/components/charts/premium/grouping-analysis-card").then((m) => m.GroupingAnalysisCard),
+  { ssr: false, loading: chartSkeleton }
+);
+const GroupEvolutionCard = dynamic(
+  () => import("@/components/charts/premium/group-evolution-card").then((m) => m.GroupEvolutionCard),
+  { ssr: false, loading: chartSkeleton }
+);
+const GroupForecastCard = dynamic(
+  () => import("@/components/charts/premium/group-forecast-card").then((m) => m.GroupForecastCard),
+  { ssr: false, loading: chartSkeleton }
+);
+const ForecastSalesCategory = dynamic(
+  () => import("@/components/charts/premium/forecast-sales-category").then((m) => m.ForecastSalesCategory),
+  { ssr: false, loading: chartSkeleton }
+);
+const PredictiveRunRateCard = dynamic(
+  () => import("@/components/charts/premium/predictive-run-rate").then((m) => m.PredictiveRunRateCard),
+  { ssr: false, loading: chartSkeleton }
+);
 
 // Punto de la serie mensual: month + claves dinámicas `Año X` + acumulados.
 type MonthlyPoint = {
