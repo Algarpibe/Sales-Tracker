@@ -32,6 +32,12 @@ export const auth = betterAuth({
       verify: async ({ hash, password }) => bcrypt.compare(password, hash),
     },
   },
+  // Cookie cache (F3-04): getSession lee la sesión de una cookie firmada de corta
+  // vida en vez de pegarle a la BD en cada request (el middleware corre en cada
+  // navegación). maxAge corto para que revocaciones/cambios se reflejen pronto.
+  session: {
+    cookieCache: { enabled: true, maxAge: 5 * 60 },
+  },
   advanced: {
     // Las columnas id son uuid con DEFAULT gen_random_uuid(): que las genere Postgres,
     // no better-auth (que por defecto generaría un string no-uuid).
