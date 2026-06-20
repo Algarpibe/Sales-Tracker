@@ -108,7 +108,7 @@ export function GroupingAnalysisCard({ categories, recordType: initialRecordType
 
   // Sort rows
   const sortedRows = useMemo(() => {
-    let sortableRows = [...filteredRows];
+    const sortableRows = [...filteredRows];
     if (sortConfig !== null) {
       sortableRows.sort((a, b) => {
         let aValue: string | number = 0;

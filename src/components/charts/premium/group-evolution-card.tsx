@@ -76,7 +76,7 @@ interface GroupEvolutionCardProps {
 
 type ViewMode = "ANNUAL" | "QUARTERLY" | "MONTHLY";
 
-export function GroupEvolutionCard({ savedGroups, recordType: initialRecordType }: GroupEvolutionCardProps) {
+export function GroupEvolutionCard({ recordType: initialRecordType }: GroupEvolutionCardProps) {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<GroupingAnalysisResult | null>(null);
   const [recordType, setRecordType] = useState<RecordType>(initialRecordType);

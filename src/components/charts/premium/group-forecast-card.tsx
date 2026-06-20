@@ -74,7 +74,7 @@ interface GroupForecastCardProps {
   baseYear?: number;
 }
 
-export function GroupForecastCard({ savedGroups, recordType: initialRecordType, baseYear = new Date().getFullYear() }: GroupForecastCardProps) {
+export function GroupForecastCard({ recordType: initialRecordType, baseYear = new Date().getFullYear() }: GroupForecastCardProps) {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<GroupingAnalysisResult | null>(null);
   const [recordType, setRecordType] = useState<RecordType>(initialRecordType);

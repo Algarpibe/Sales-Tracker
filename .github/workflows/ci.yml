@@ -26,9 +26,8 @@ jobs:
       - name: Test (unit; el smoke de integración se salta sin DATABASE_URL)
         run: npm test
 
-      - name: Lint (informativo, no bloquea por deuda de lint preexistente)
+      - name: "Lint (gate duro: rechaza errores nuevos; react-hooks quedan como warning)"
         run: npm run lint
-        continue-on-error: true
 
       - name: Build
         run: npm run build
