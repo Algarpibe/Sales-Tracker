@@ -29,6 +29,34 @@ import { toast } from "sonner";
 const todayISO = () => new Date().toISOString().slice(0, 10);
 const yearStartISO = () => `${new Date().getFullYear()}-01-01`;
 
+// Cabecera ordenable. Definida fuera del componente (no recrearla por render).
+function SortableTh({
+  k,
+  label,
+  right,
+  sortKey,
+  onSort,
+}: {
+  k: ItemSortKey;
+  label: string;
+  right?: boolean;
+  sortKey: ItemSortKey;
+  onSort: (k: ItemSortKey) => void;
+}) {
+  return (
+    <TableHead className={right ? "text-right" : ""}>
+      <button
+        type="button"
+        onClick={() => onSort(k)}
+        className="inline-flex items-center gap-1 hover:text-primary group"
+      >
+        {label}
+        <ArrowUpDown className={`h-3 w-3 ${sortKey === k ? "text-primary" : "opacity-40"}`} />
+      </button>
+    </TableHead>
+  );
+}
+
 export default function ArticulosPage() {
   const [tipo, setTipo] = useState<RecordType>("INVOICE");
   const [desde, setDesde] = useState(yearStartISO());
@@ -42,7 +70,7 @@ export default function ArticulosPage() {
     queryKey: ["item-sales", { tipo, desde, hasta }],
     queryFn: () => getItemSales({ tipo, desde, hasta }),
   });
-  const rows: ItemSalesRow[] = data ?? [];
+  const rows = useMemo<ItemSalesRow[]>(() => data ?? [], [data]);
 
   const categorias = useMemo(
     () => Array.from(new Set(rows.map(categoriaLabel))).sort(),
@@ -69,19 +97,6 @@ export default function ArticulosPage() {
     URL.revokeObjectURL(url);
     toast.success("CSV descargado");
   };
-
-  const Th = ({ k, label, right }: { k: ItemSortKey; label: string; right?: boolean }) => (
-    <TableHead className={right ? "text-right" : ""}>
-      <button
-        type="button"
-        onClick={() => onSort(k)}
-        className="inline-flex items-center gap-1 hover:text-primary group"
-      >
-        {label}
-        <ArrowUpDown className={`h-3 w-3 ${sortKey === k ? "text-primary" : "opacity-40"}`} />
-      </button>
-    </TableHead>
-  );
 
   return (
     <div className="space-y-6">
@@ -143,12 +158,12 @@ export default function ArticulosPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <Th k="sku" label="SKU" />
-                <Th k="nombre" label="Nombre" />
-                <Th k="categoria" label="Categoría" />
-                <Th k="cantidad" label="Cantidad" right />
-                <Th k="importe" label="Importe" right />
-                <Th k="precio" label="Precio promedio" right />
+                <SortableTh k="sku" label="SKU" sortKey={sortKey} onSort={onSort} />
+                <SortableTh k="nombre" label="Nombre" sortKey={sortKey} onSort={onSort} />
+                <SortableTh k="categoria" label="Categoría" sortKey={sortKey} onSort={onSort} />
+                <SortableTh k="cantidad" label="Cantidad" right sortKey={sortKey} onSort={onSort} />
+                <SortableTh k="importe" label="Importe" right sortKey={sortKey} onSort={onSort} />
+                <SortableTh k="precio" label="Precio promedio" right sortKey={sortKey} onSort={onSort} />
               </TableRow>
             </TableHeader>
             <TableBody>
