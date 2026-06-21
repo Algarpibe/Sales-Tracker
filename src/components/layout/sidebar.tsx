@@ -23,6 +23,7 @@ const navItems = [
   { href: "/home", label: "Inicio", icon: Home },
   { href: "/tablas", label: "Tablas", icon: BarChart3 },
   { href: "/articulos", label: "Artículos", icon: Package },
+  { href: "/clientes", label: "Clientes", icon: Users },
   { href: "/analytics", label: "Análisis", icon: TrendingUp },
   { href: "/analytics?tab=forecast", label: "Forecasting", icon: Sparkles },
   { href: "/categories", label: "Categorías", icon: FolderOpen },

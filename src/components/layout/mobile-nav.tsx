@@ -10,12 +10,14 @@ import {
   FolderOpen,
   Settings,
   Package,
+  Users,
 } from "lucide-react";
 
 const navItems = [
   { href: "/home", label: "Inicio", icon: Home },
   { href: "/tablas", label: "Tablas", icon: BarChart3 },
   { href: "/articulos", label: "Artículos", icon: Package },
+  { href: "/clientes", label: "Clientes", icon: Users },
   { href: "/analytics", label: "Análisis", icon: TrendingUp },
   { href: "/categories", label: "Categorías", icon: FolderOpen },
   { href: "/settings", label: "Configuración", icon: Settings },
