@@ -50,12 +50,14 @@ export default function ClientesPage() {
     () => (desdeAnio <= hastaAnio ? range(desdeAnio, hastaAnio) : []),
     [desdeAnio, hastaAnio]
   );
-  const matrix = useMemo(() => buildCustomerMatrix(rows, years), [rows, years]);
+  const matrix = useMemo(() => buildCustomerMatrix(rows), [rows]);
   const visible = useMemo(() => filterCustomers(matrix, search), [matrix, search]);
   const totals = useMemo(() => computeColumnTotals(visible, years), [visible, years]);
+  // % siempre sobre el total GENERAL (toda la matriz, sin filtrar) — no el subconjunto.
+  const grandAll = useMemo(() => computeColumnTotals(matrix, years).grand, [matrix, years]);
 
   const exportCsv = () => {
-    const blob = new Blob([customerMatrixToCsv(visible, years, totals.grand)], {
+    const blob = new Blob([customerMatrixToCsv(visible, years, grandAll)], {
       type: "text/csv;charset=utf-8",
     });
     const url = URL.createObjectURL(blob);
@@ -67,7 +69,7 @@ export default function ClientesPage() {
     toast.success("CSV descargado");
   };
 
-  const pct = (n: number) => (totals.grand > 0 ? `${((n / totals.grand) * 100).toFixed(1)}%` : "—");
+  const pct = (n: number) => (grandAll > 0 ? `${((n / grandAll) * 100).toFixed(1)}%` : "—");
 
   return (
     <div className="space-y-6">
@@ -160,7 +162,7 @@ export default function ClientesPage() {
                       <TableCell key={y} className="text-right tabular-nums">{formatUSD(totals.byYear[y])}</TableCell>
                     ))}
                     <TableCell className="text-right tabular-nums">{formatUSD(totals.grand)}</TableCell>
-                    <TableCell className="text-right tabular-nums">100%</TableCell>
+                    <TableCell className="text-right tabular-nums">{pct(totals.grand)}</TableCell>
                   </TableRow>
                 </>
               )}

@@ -6,7 +6,7 @@ export interface CustomerMatrixRow {
   total: number;
 }
 
-export function buildCustomerMatrix(rows: CustomerYearRow[], _years: number[]): CustomerMatrixRow[] {
+export function buildCustomerMatrix(rows: CustomerYearRow[]): CustomerMatrixRow[] {
   const map = new Map<string, CustomerMatrixRow>();
   for (const r of rows) {
     let m = map.get(r.customer);
@@ -63,7 +63,7 @@ export function customerMatrixToCsv(
     "TOTAL",
     ...years.map((y) => totals.byYear[y].toFixed(2)),
     totals.grand.toFixed(2),
-    "100%",
+    pct(totals.grand),
   ];
   return [header, ...body, totalRow].map((row) => row.map(csvCell).join(";")).join("\n");
 }
