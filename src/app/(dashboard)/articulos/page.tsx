@@ -120,11 +120,11 @@ export default function ArticulosPage() {
         </Select>
         <div className="flex flex-col gap-1">
           <label className="text-xs text-muted-foreground">Desde</label>
-          <Input type="date" value={desde} max={hasta} onChange={(e) => setDesde(e.target.value)} className="w-[160px]" />
+          <Input type="date" value={desde} min="2021-01-01" max={hasta} onChange={(e) => setDesde(e.target.value)} className="w-[160px]" />
         </div>
         <div className="flex flex-col gap-1">
           <label className="text-xs text-muted-foreground">Hasta</label>
-          <Input type="date" value={hasta} min={desde} onChange={(e) => setHasta(e.target.value)} className="w-[160px]" />
+          <Input type="date" value={hasta} min={desde < "2021-01-01" ? "2021-01-01" : desde} onChange={(e) => setHasta(e.target.value)} className="w-[160px]" />
         </div>
       </div>
 

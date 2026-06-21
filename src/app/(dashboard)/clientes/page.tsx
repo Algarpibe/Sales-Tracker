@@ -23,7 +23,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Download, Search } from "lucide-react";
 import { toast } from "sonner";
 
-const FIRST_YEAR = 2015;
+const FIRST_YEAR = 2021;
 
 function range(from: number, to: number): number[] {
   const out: number[] = [];
