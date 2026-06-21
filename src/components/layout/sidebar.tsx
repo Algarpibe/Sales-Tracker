@@ -14,6 +14,7 @@ import {
   ChevronRight,
   Sparkles,
   Users,
+  Package,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/providers/auth-provider";
@@ -21,6 +22,7 @@ import { useAuth } from "@/components/providers/auth-provider";
 const navItems = [
   { href: "/home", label: "Inicio", icon: Home },
   { href: "/tablas", label: "Tablas", icon: BarChart3 },
+  { href: "/articulos", label: "Artículos", icon: Package },
   { href: "/analytics", label: "Análisis", icon: TrendingUp },
   { href: "/analytics?tab=forecast", label: "Forecasting", icon: Sparkles },
   { href: "/categories", label: "Categorías", icon: FolderOpen },
