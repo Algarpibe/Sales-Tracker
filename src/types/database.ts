@@ -193,3 +193,20 @@ export interface GroupingAnalysisResult {
   yearTotals: Record<number, number>;   // year → grand total
 }
 
+// ===== Ventas por artículo =====
+
+export interface ItemSalesFilters {
+  tipo: RecordType;        // "SALES_ORDER" (OV) | "INVOICE" (FAC)
+  desde: string;           // YYYY-MM-DD (inclusive)
+  hasta: string;           // YYYY-MM-DD (inclusive)
+}
+
+export interface ItemSalesRow {
+  item_id: string;
+  sku: string | null;
+  nombre: string;
+  categoria: string | null;
+  cantidad: number;
+  importe: number;         // bruto (bcy_rate*quantity), igual al informe Zoho
+}
+
