@@ -210,3 +210,17 @@ export interface ItemSalesRow {
   importe: number;         // bruto (bcy_rate*quantity), igual al informe Zoho
 }
 
+// ===== Ventas por cliente =====
+
+export interface CustomerSalesFilters {
+  tipo: RecordType;      // "SALES_ORDER" (OV) | "INVOICE" (FAC)
+  desdeAnio: number;
+  hastaAnio: number;
+}
+
+export interface CustomerYearRow {
+  customer: string;
+  year: number;
+  ventas: number;        // neto del descuento de cabecera (igual al informe Zoho)
+}
+
