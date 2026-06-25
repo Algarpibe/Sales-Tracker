@@ -1,12 +1,9 @@
 "use server";
 
-import { z } from "zod";
-import { revalidatePath } from "next/cache";
 import { eq, and, desc, asc, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { salesRecords, categories } from "@/db/schema";
-import { requireApproved, requireRole } from "@/lib/auth/guards";
-import { salesRecordSchema, uuidSchema } from "@/lib/validation";
+import { requireApproved } from "@/lib/auth/guards";
 import { hubEnabled } from "@/db/hub";
 import { getHubSalesRows } from "@/db/hub-sales";
 import { logWarn } from "@/lib/logger";
@@ -25,11 +22,6 @@ function warnIfLargeSalesPayload(count: number, filters: SalesFilters) {
   }
 }
 
-// Con el hub como fuente, las ventas son de SOLO LECTURA (las gobierna Zoho).
-// Defensa en profundidad: aunque la UI oculte los controles, ninguna escritura
-// debe tocar sales_records (que ya no se lee).
-const SALES_READONLY_MSG =
-  "Las ventas son de solo lectura: se sincronizan automáticamente desde Zoho (zoho-hub).";
 import type {
   SalesFilters,
   RecordType,
@@ -111,138 +103,6 @@ export async function getSalesData(filters: SalesFilters): Promise<SalesRecord[]
   })) as SalesRecord[];
   warnIfLargeSalesPayload(result.length, filters);
   return result;
-}
-
-export async function upsertSalesRecord(record: {
-  category_id: string;
-  record_type: RecordType;
-  amount_usd: number;
-  record_month: number;
-  record_year: number;
-  notes?: string;
-}) {
-  if (hubEnabled()) throw new Error(SALES_READONLY_MSG);
-  const { user, profile } = await requireRole("admin", "editor");
-  const data = salesRecordSchema.parse(record);
-
-  await db
-    .insert(salesRecords)
-    .values({
-      category_id: data.category_id,
-      record_type: data.record_type,
-      amount_usd: String(data.amount_usd),
-      record_month: data.record_month,
-      record_year: data.record_year,
-      notes: data.notes,
-      company_id: profile.company_id,
-      created_by: user.id,
-      updated_by: user.id,
-    })
-    .onConflictDoUpdate({
-      target: [
-        salesRecords.company_id,
-        salesRecords.category_id,
-        salesRecords.record_type,
-        salesRecords.record_month,
-        salesRecords.record_year,
-      ],
-      set: {
-        amount_usd: String(data.amount_usd),
-        notes: data.notes,
-        updated_by: user.id,
-        updated_at: sql`now()`,
-      },
-    });
-
-  revalidatePath("/tablas");
-  revalidatePath("/sales");
-  revalidatePath("/home");
-  revalidatePath("/analytics");
-}
-
-// Importación masiva: un único INSERT ... ON CONFLICT DO UPDATE para todas las
-// filas, con una sola verificación de permisos (antes era 1 petición por fila).
-export async function bulkUpsertSalesRecords(
-  records: Array<{
-    category_id: string;
-    record_type: RecordType;
-    amount_usd: number;
-    record_month: number;
-    record_year: number;
-    notes?: string;
-  }>
-): Promise<{ imported: number; invalid: number }> {
-  if (hubEnabled()) throw new Error(SALES_READONLY_MSG);
-  const { user, profile } = await requireRole("admin", "editor");
-
-  if (records.length > 5000) throw new Error("Demasiados registros (máx 5000 por importación)");
-
-  // Validación fila a fila: importa las válidas y cuenta las inválidas
-  // (año/mes/monto fuera de rango) en vez de fallar toda la importación.
-  const parsed: z.infer<typeof salesRecordSchema>[] = [];
-  let invalid = 0;
-  for (const r of records) {
-    const res = salesRecordSchema.safeParse(r);
-    if (res.success) parsed.push(res.data);
-    else invalid++;
-  }
-
-  if (parsed.length === 0) return { imported: 0, invalid };
-
-  await db
-    .insert(salesRecords)
-    .values(
-      parsed.map((r) => ({
-        category_id: r.category_id,
-        record_type: r.record_type,
-        amount_usd: String(r.amount_usd),
-        record_month: r.record_month,
-        record_year: r.record_year,
-        notes: r.notes,
-        company_id: profile.company_id,
-        created_by: user.id,
-        updated_by: user.id,
-      }))
-    )
-    .onConflictDoUpdate({
-      target: [
-        salesRecords.company_id,
-        salesRecords.category_id,
-        salesRecords.record_type,
-        salesRecords.record_month,
-        salesRecords.record_year,
-      ],
-      set: {
-        amount_usd: sql`excluded.amount_usd`,
-        notes: sql`excluded.notes`,
-        updated_by: sql`excluded.updated_by`,
-        updated_at: sql`now()`,
-      },
-    });
-
-  revalidatePath("/tablas");
-  revalidatePath("/sales");
-  revalidatePath("/home");
-  revalidatePath("/analytics");
-  return { imported: parsed.length, invalid };
-}
-
-export async function deleteSalesRecord(id: string) {
-  if (hubEnabled()) throw new Error(SALES_READONLY_MSG);
-  const { profile } = await requireRole("admin", "editor");
-  const recordId = uuidSchema.parse(id);
-
-  await db
-    .delete(salesRecords)
-    .where(
-      and(
-        eq(salesRecords.id, recordId),
-        eq(salesRecords.company_id, profile.company_id)
-      )
-    );
-
-  revalidatePath("/sales");
-  revalidatePath("/home");
 }
 
 export async function getMonthlyTotals(year?: number): Promise<MonthlyTotal[]> {
