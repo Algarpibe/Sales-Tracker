@@ -9,6 +9,21 @@ import { requireApproved, requireRole } from "@/lib/auth/guards";
 import { salesRecordSchema, uuidSchema } from "@/lib/validation";
 import { hubEnabled } from "@/db/hub";
 import { getHubSalesRows } from "@/db/hub-sales";
+import { logWarn } from "@/lib/logger";
+
+// F3-06: vigilar el tamaño del payload de getSalesData (callers como analytics piden
+// todo el histórico). No se capa (los charts multi-año lo necesitan); se registra un
+// aviso si supera el umbral para detectar crecimiento.
+const SALES_PAYLOAD_WARN_THRESHOLD = 5000;
+function warnIfLargeSalesPayload(count: number, filters: SalesFilters) {
+  if (count > SALES_PAYLOAD_WARN_THRESHOLD) {
+    logWarn("getSalesData payload grande", {
+      count,
+      threshold: SALES_PAYLOAD_WARN_THRESHOLD,
+      filters,
+    });
+  }
+}
 
 // Con el hub como fuente, las ventas son de SOLO LECTURA (las gobierna Zoho).
 // Defensa en profundidad: aunque la UI oculte los controles, ninguna escritura
@@ -64,6 +79,7 @@ export async function getSalesData(filters: SalesFilters): Promise<SalesRecord[]
         categories: { name: cat.name, color: cat.color ?? "" },
       } as unknown as SalesRecord);
     }
+    warnIfLargeSalesPayload(out.length, filters);
     return out;
   }
 
@@ -85,7 +101,7 @@ export async function getSalesData(filters: SalesFilters): Promise<SalesRecord[]
     .where(and(...conditions))
     .orderBy(desc(salesRecords.record_year), asc(salesRecords.record_month));
 
-  return rows.map((row) => ({
+  const result = rows.map((row) => ({
     ...row.record,
     amount_usd: Number(row.record.amount_usd),
     categories: {
@@ -93,6 +109,8 @@ export async function getSalesData(filters: SalesFilters): Promise<SalesRecord[]
       color: row.category_color ?? "",
     },
   })) as SalesRecord[];
+  warnIfLargeSalesPayload(result.length, filters);
+  return result;
 }
 
 export async function upsertSalesRecord(record: {

@@ -1,8 +1,8 @@
 # Backlog de seguridad / calidad
 
-Auditoría Staff Engineer + AppSec (5 ejes, 29 hallazgos). **26/29 resueltos o
-atendidos** (Fases 0-3, en producción). Quedan 3 ítems, ninguno es un bug de
-código: son infraestructura, monitorización u opcional.
+Auditoría Staff Engineer + AppSec (5 ejes, 29 hallazgos). **27/29 resueltos o
+atendidos** (Fases 0-3, en producción). Quedan 2 ítems, ninguno es un bug de
+código: infraestructura y opcional.
 
 ## Pendientes
 
@@ -11,11 +11,6 @@ código: son infraestructura, monitorización u opcional.
   `auth.smoke.test.ts` evita tocar prod), pero no hay una BD de pruebas dedicada.
 - **Fix futuro:** Postgres efímero (contenedor / Testcontainers) o transacción con
   rollback por test. Requiere infra de test.
-
-### F3-06 — Tamaño de payload de `getSalesData` (BAJA)
-- **Estado:** monitorización, no bug. Hoy ~1.8k filas/año, manejable.
-- **Fix futuro:** si crece mucho, agregar en SQL (server-side) en vez de traer todo
-  el histórico al cliente.
 
 ### F1-02 — Secreto en historial git (BAJA, opcional)
 - **Estado:** un JWT por defecto de Supabase quedó en el historial
@@ -29,7 +24,8 @@ código: son infraestructura, monitorización u opcional.
   (approved+!rejected+active), bcrypt 12, política de claves, ownership de
   agrupaciones, webhooks n8n ZohoHub desactivados.
 - **Datos/perf:** índices, `cookieCache` (menos golpes a BD), invalidación de caché
-  react-query, reorder con `unnest`, lazy-load de charts.
+  react-query, reorder con `unnest`, lazy-load de charts, monitor de payload de
+  `getSalesData` (F3-06: aviso por logger si supera umbral; ya devuelve agregado).
 - **Arquitectura/calidad:** contrato de errores (`ActionResult` + error boundary),
   logging estructurado, dedup de dashboards, 0 `no-explicit-any`, enums derivados
   de Drizzle.
