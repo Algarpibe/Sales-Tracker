@@ -15,7 +15,6 @@ import {
   type SortDir,
 } from "@/lib/item-sales";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -23,8 +22,12 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Download, Search, ArrowUpDown } from "lucide-react";
+import { ArrowUpDown } from "lucide-react";
 import { toast } from "sonner";
+import { RecordTypeSelect } from "@/components/common/record-type-select";
+import { SearchInput } from "@/components/common/search-input";
+import { CsvButton } from "@/components/common/csv-button";
+import { EmptyState } from "@/components/common/empty-state";
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 const yearStartISO = () => `${new Date().getFullYear()}-01-01`;
@@ -109,15 +112,7 @@ export default function ArticulosPage() {
 
       {/* Controles servidor: tipo + rango de fechas */}
       <div className="flex flex-wrap items-end gap-3">
-        <Select value={tipo} onValueChange={(v) => { if (v) setTipo(v as RecordType); }}>
-          <SelectTrigger className="w-[200px]">
-            <SelectValue>{tipo === "SALES_ORDER" ? "Órdenes de Venta (OV)" : "Facturas (FAC)"}</SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="INVOICE">Facturas (FAC)</SelectItem>
-            <SelectItem value="SALES_ORDER">Órdenes de Venta (OV)</SelectItem>
-          </SelectContent>
-        </Select>
+        <RecordTypeSelect value={tipo as "SALES_ORDER" | "INVOICE"} onValueChange={(v) => setTipo(v)} />
         <div className="flex flex-col gap-1">
           <label className="text-xs text-muted-foreground">Desde</label>
           <Input type="date" value={desde} min="2021-01-01" max={hasta} onChange={(e) => setDesde(e.target.value)} className="w-[160px]" />
@@ -130,15 +125,7 @@ export default function ArticulosPage() {
 
       {/* Controles cliente: búsqueda + categoría + CSV */}
       <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[260px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar por SKU o nombre…"
-            className="pl-10"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
+        <SearchInput value={search} onChange={setSearch} placeholder="Buscar por SKU o nombre…" />
         <Select value={categoria || "all"} onValueChange={(v) => setCategoria(!v || v === "all" ? "" : v)}>
           <SelectTrigger className="w-[220px]"><SelectValue placeholder="Todas las categorías" /></SelectTrigger>
           <SelectContent>
@@ -146,9 +133,7 @@ export default function ArticulosPage() {
             {categorias.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Button variant="outline" size="sm" onClick={exportCsv} disabled={view.length === 0}>
-          <Download className="mr-2 h-4 w-4" /> CSV
-        </Button>
+        <CsvButton onClick={exportCsv} disabled={view.length === 0} />
       </div>
 
       {isLoading ? (
@@ -169,9 +154,7 @@ export default function ArticulosPage() {
             <TableBody>
               {view.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground py-10">
-                    Sin resultados para el rango/criterios seleccionados.
-                  </TableCell>
+                  <TableCell colSpan={6}><EmptyState message="Sin resultados para el rango/criterios seleccionados." /></TableCell>
                 </TableRow>
               ) : (
                 <>
