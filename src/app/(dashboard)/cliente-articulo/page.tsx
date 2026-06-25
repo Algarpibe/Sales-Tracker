@@ -142,7 +142,7 @@ export default function ClienteArticuloPage() {
                       {g.items.map((it, i) => {
                         const b = bucketForCategory(it.categoria);
                         return (
-                          <TableRow key={`${g.customer}-${i}`}>
+                          <TableRow key={`${g.customer}-${it.sku ?? it.nombre}-${i}`}>
                             <TableCell className="font-mono text-xs">{it.sku ?? "—"}</TableCell>
                             <TableCell className="text-muted-foreground">{it.marca ?? "—"}</TableCell>
                             <TableCell>{it.nombre}</TableCell>
