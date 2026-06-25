@@ -12,6 +12,7 @@ import {
   Package,
   Users,
   ClipboardList,
+  CreditCard,
 } from "lucide-react";
 
 const navItems = [
@@ -22,6 +23,7 @@ const navItems = [
   { href: "/cliente-articulo", label: "Cliente × Art.", icon: ClipboardList },
   { href: "/analytics", label: "Análisis", icon: TrendingUp },
   { href: "/categories", label: "Categorías", icon: FolderOpen },
+  { href: "/subscriptions", label: "Suscripciones", icon: CreditCard },
   { href: "/settings", label: "Configuración", icon: Settings },
 ];
 

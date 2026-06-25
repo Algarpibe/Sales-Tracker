@@ -16,6 +16,7 @@ import {
   Users,
   Package,
   ClipboardList,
+  CreditCard,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/providers/auth-provider";
@@ -29,6 +30,7 @@ const navItems = [
   { href: "/analytics", label: "Análisis", icon: TrendingUp },
   { href: "/analytics?tab=forecast", label: "Forecasting", icon: Sparkles },
   { href: "/categories", label: "Categorías", icon: FolderOpen },
+  { href: "/subscriptions", label: "Suscripciones", icon: CreditCard },
   { href: "/settings", label: "Configuración", icon: Settings },
 ];
 
