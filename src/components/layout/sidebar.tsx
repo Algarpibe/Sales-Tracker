@@ -15,6 +15,7 @@ import {
   Sparkles,
   Users,
   Package,
+  ClipboardList,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/providers/auth-provider";
@@ -24,6 +25,7 @@ const navItems = [
   { href: "/tablas", label: "Tablas", icon: BarChart3 },
   { href: "/articulos", label: "Artículos", icon: Package },
   { href: "/clientes", label: "Clientes", icon: Users },
+  { href: "/cliente-articulo", label: "Cliente × Artículo", icon: ClipboardList },
   { href: "/analytics", label: "Análisis", icon: TrendingUp },
   { href: "/analytics?tab=forecast", label: "Forecasting", icon: Sparkles },
   { href: "/categories", label: "Categorías", icon: FolderOpen },
