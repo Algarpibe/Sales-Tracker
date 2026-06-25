@@ -40,7 +40,7 @@ export interface ParetoRow {
 export function buildClientPareto(rows: CustomerYearRow[]): ParetoRow[] {
   const map = new Map<string, number>();
   for (const r of rows) map.set(r.customer, (map.get(r.customer) ?? 0) + r.ventas);
-  const sorted = [...map.entries()].sort((a, b) => b[1] - a[1]);
+  const sorted = [...map.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
   const grand = sorted.reduce((s, [, v]) => s + v, 0);
   let acc = 0;
   return sorted.map(([customer, ventas]) => {
@@ -50,5 +50,5 @@ export function buildClientPareto(rows: CustomerYearRow[]): ParetoRow[] {
 }
 
 export function topItems(rows: ItemSalesRow[], metric: "importe" | "cantidad", n: number): ItemSalesRow[] {
-  return [...rows].sort((a, b) => b[metric] - a[metric]).slice(0, n);
+  return [...rows].sort((a, b) => b[metric] - a[metric] || a.nombre.localeCompare(b.nombre)).slice(0, n);
 }

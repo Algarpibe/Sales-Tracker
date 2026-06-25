@@ -23,7 +23,7 @@ function ItemsTooltip({ active, payload, metric }: ChartTooltipProps<ItemSalesRo
       <div className="text-xs text-muted-foreground mb-1">{p?.sku ?? "—"}</div>
       <div className="flex justify-between gap-4">
         <span>{metric === "importe" ? "Importe" : "Cantidad"}</span>
-        <span className="font-mono">{metric === "importe" ? formatUSD(p?.importe ?? 0) : (p?.cantidad ?? 0)}</span>
+        <span className="font-mono">{metric === "importe" ? formatUSD(p?.importe ?? 0) : (p?.cantidad ?? 0).toLocaleString()}</span>
       </div>
     </div>
   );
