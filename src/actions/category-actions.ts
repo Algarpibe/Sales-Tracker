@@ -43,7 +43,6 @@ export async function createCategory(cat: {
     });
 
     revalidatePath("/categories");
-    revalidatePath("/sales");
   });
 }
 
