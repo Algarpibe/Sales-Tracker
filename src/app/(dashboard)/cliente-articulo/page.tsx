@@ -12,8 +12,6 @@ import {
   computeGrandTotals,
   customerItemToCsv,
 } from "@/lib/customer-item";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -21,8 +19,11 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Download, Search } from "lucide-react";
 import { toast } from "sonner";
+import { RecordTypeSelect } from "@/components/common/record-type-select";
+import { SearchInput } from "@/components/common/search-input";
+import { CsvButton } from "@/components/common/csv-button";
+import { EmptyState } from "@/components/common/empty-state";
 
 const FIRST_YEAR = 2021;
 
@@ -72,15 +73,7 @@ export default function ClienteArticuloPage() {
 
       {/* Controles servidor */}
       <div className="flex flex-wrap items-end gap-3">
-        <Select value={tipo} onValueChange={(v) => { if (v) setTipo(v as RecordType); }}>
-          <SelectTrigger className="w-[200px]">
-            <SelectValue>{tipo === "SALES_ORDER" ? "Órdenes de Venta (OV)" : "Facturas (FAC)"}</SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="INVOICE">Facturas (FAC)</SelectItem>
-            <SelectItem value="SALES_ORDER">Órdenes de Venta (OV)</SelectItem>
-          </SelectContent>
-        </Select>
+        <RecordTypeSelect value={tipo as "SALES_ORDER" | "INVOICE"} onValueChange={(v) => setTipo(v)} />
         <div className="flex flex-col gap-1">
           <label className="text-xs text-muted-foreground">Año</label>
           <Select value={String(anio)} onValueChange={(v) => { if (v) setAnio(Number(v)); }}>
@@ -94,13 +87,8 @@ export default function ClienteArticuloPage() {
 
       {/* Controles cliente */}
       <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[260px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Buscar cliente, artículo o SKU…" className="pl-10" value={search} onChange={(e) => setSearch(e.target.value)} />
-        </div>
-        <Button variant="outline" size="sm" onClick={exportCsv} disabled={groups.length === 0}>
-          <Download className="mr-2 h-4 w-4" /> CSV
-        </Button>
+        <SearchInput value={search} onChange={setSearch} placeholder="Buscar cliente, artículo o SKU…" />
+        <CsvButton onClick={exportCsv} disabled={groups.length === 0} />
       </div>
 
       {isLoading ? (
@@ -124,9 +112,7 @@ export default function ClienteArticuloPage() {
             <TableBody>
               {groups.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center text-muted-foreground py-10">
-                    Sin ventas en el año seleccionado.
-                  </TableCell>
+                  <TableCell colSpan={9}><EmptyState message="Sin ventas en el año seleccionado." /></TableCell>
                 </TableRow>
               ) : (
                 <>
