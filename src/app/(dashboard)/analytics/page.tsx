@@ -55,6 +55,18 @@ const PredictiveRunRateCard = dynamic(
   () => import("@/components/charts/premium/predictive-run-rate").then((m) => m.PredictiveRunRateCard),
   { ssr: false, loading: chartSkeleton }
 );
+const BucketMixCard = dynamic(
+  () => import("@/components/charts/comercial/bucket-mix-card").then((m) => m.BucketMixCard),
+  { ssr: false, loading: chartSkeleton }
+);
+const ClientParetoCard = dynamic(
+  () => import("@/components/charts/comercial/client-pareto-card").then((m) => m.ClientParetoCard),
+  { ssr: false, loading: chartSkeleton }
+);
+const TopItemsCard = dynamic(
+  () => import("@/components/charts/comercial/top-items-card").then((m) => m.TopItemsCard),
+  { ssr: false, loading: chartSkeleton }
+);
 
 // Punto de la serie mensual: month + claves dinámicas `Año X` + acumulados.
 type MonthlyPoint = {
@@ -316,6 +328,9 @@ function AnalyticsContent() {
               </TabsTrigger>
               <TabsTrigger value="forecast" className="rounded-xl px-6 h-9 font-bold data-active:bg-indigo-600 data-active:text-white flex gap-2">
                 <Sparkles className="size-4" /> Forecast
+              </TabsTrigger>
+              <TabsTrigger value="comercial" className="rounded-xl px-6 h-9 font-bold data-active:bg-emerald-600 data-active:text-white flex gap-2">
+                Comercial
               </TabsTrigger>
             </TabsList>
           </div>
@@ -638,6 +653,15 @@ function AnalyticsContent() {
                 </div>
               </div>
             </motion.div>
+          </TabsContent>
+          <TabsContent value="comercial" className="outline-none">
+            <div className="space-y-6">
+              <BucketMixCard recordType={recordType} />
+              <div className="grid gap-6 lg:grid-cols-2">
+                <ClientParetoCard recordType={recordType} year={yearA} />
+                <TopItemsCard recordType={recordType} year={yearA} />
+              </div>
+            </div>
           </TabsContent>
         </Tabs>
       </div>
