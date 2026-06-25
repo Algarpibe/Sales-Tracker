@@ -15,8 +15,6 @@ import {
   type CustomerSortDir,
 } from "@/lib/customer-sales";
 import { cn } from "@/lib/utils";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -24,8 +22,12 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Download, Search, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { toast } from "sonner";
+import { RecordTypeSelect } from "@/components/common/record-type-select";
+import { SearchInput } from "@/components/common/search-input";
+import { CsvButton } from "@/components/common/csv-button";
+import { EmptyState } from "@/components/common/empty-state";
 
 const FIRST_YEAR = 2021;
 
@@ -127,15 +129,7 @@ export default function ClientesPage() {
 
       {/* Controles servidor */}
       <div className="flex flex-wrap items-end gap-3">
-        <Select value={tipo} onValueChange={(v) => { if (v) setTipo(v as RecordType); }}>
-          <SelectTrigger className="w-[200px]">
-            <SelectValue>{tipo === "SALES_ORDER" ? "Órdenes de Venta (OV)" : "Facturas (FAC)"}</SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="INVOICE">Facturas (FAC)</SelectItem>
-            <SelectItem value="SALES_ORDER">Órdenes de Venta (OV)</SelectItem>
-          </SelectContent>
-        </Select>
+        <RecordTypeSelect value={tipo as "SALES_ORDER" | "INVOICE"} onValueChange={(v) => setTipo(v)} />
         <div className="flex flex-col gap-1">
           <label className="text-xs text-muted-foreground">Desde año</label>
           <Select value={String(desdeAnio)} onValueChange={(v) => { if (v) setDesdeAnio(Number(v)); }}>
@@ -158,13 +152,8 @@ export default function ClientesPage() {
 
       {/* Controles cliente */}
       <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[260px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Buscar cliente…" className="pl-10" value={search} onChange={(e) => setSearch(e.target.value)} />
-        </div>
-        <Button variant="outline" size="sm" onClick={exportCsv} disabled={visible.length === 0}>
-          <Download className="mr-2 h-4 w-4" /> CSV
-        </Button>
+        <SearchInput value={search} onChange={setSearch} placeholder="Buscar cliente…" />
+        <CsvButton onClick={exportCsv} disabled={visible.length === 0} />
       </div>
 
       {isLoading ? (
@@ -185,9 +174,7 @@ export default function ClientesPage() {
             <TableBody>
               {visible.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={years.length + 3} className="text-center text-muted-foreground py-10">
-                    Sin ventas en el rango seleccionado.
-                  </TableCell>
+                  <TableCell colSpan={years.length + 3}><EmptyState message="Sin ventas en el rango seleccionado." /></TableCell>
                 </TableRow>
               ) : (
                 <>
