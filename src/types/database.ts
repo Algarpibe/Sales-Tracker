@@ -224,3 +224,20 @@ export interface CustomerYearRow {
   ventas: number;        // neto del descuento de cabecera (igual al informe Zoho)
 }
 
+// ===== Ventas por cliente × artículo =====
+
+export interface CustomerItemFilters {
+  tipo: RecordType;   // "SALES_ORDER" (OV) | "INVOICE" (FAC)
+  anio: number;
+}
+
+export interface CustomerItemRow {
+  customer: string;
+  sku: string | null;
+  marca: string | null;
+  nombre: string;
+  categoria: string | null;
+  cantidad: number;
+  importe: number;    // neto del descuento de cabecera
+}
+
