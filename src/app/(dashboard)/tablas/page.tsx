@@ -4,7 +4,6 @@ import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { MONTHS, RECORD_TYPES, formatUSD, getYearRange } from "@/lib/constants";
 import type { SalesRecord, Category, RecordType } from "@/types/database";
-import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -21,8 +20,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Download } from "lucide-react";
 import { toast } from "sonner";
+import { CsvButton } from "@/components/common/csv-button";
 import { getSalesData } from "@/actions/sales-actions";
 import { getCategories } from "@/actions/category-actions";
 
@@ -140,10 +139,7 @@ export default function TablasPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleExportCSV}>
-            <Download className="mr-2 h-4 w-4" />
-            CSV
-          </Button>
+          <CsvButton onClick={handleExportCSV} />
         </div>
       </div>
 
