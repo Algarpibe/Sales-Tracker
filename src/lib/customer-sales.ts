@@ -34,6 +34,30 @@ export function computeColumnTotals(
   return { byYear, grand };
 }
 
+export type CustomerSortKey = "customer" | "total" | number; // number = año
+export type CustomerSortDir = "asc" | "desc";
+
+// Ordena la matriz por columna (nombre, un año concreto, o total). No muta la entrada.
+export function sortCustomerMatrix(
+  matrix: CustomerMatrixRow[],
+  sortKey: CustomerSortKey,
+  sortDir: CustomerSortDir
+): CustomerMatrixRow[] {
+  const dir = sortDir === "asc" ? 1 : -1;
+  const val = (r: CustomerMatrixRow): string | number => {
+    if (sortKey === "customer") return r.customer.toLowerCase();
+    if (sortKey === "total") return r.total;
+    return r.byYear[sortKey] ?? 0;
+  };
+  return [...matrix].sort((a, b) => {
+    const av = val(a);
+    const bv = val(b);
+    if (av < bv) return -1 * dir;
+    if (av > bv) return 1 * dir;
+    return 0;
+  });
+}
+
 export function filterCustomers(matrix: CustomerMatrixRow[], search: string): CustomerMatrixRow[] {
   const q = search.trim().toLowerCase();
   if (!q) return matrix;

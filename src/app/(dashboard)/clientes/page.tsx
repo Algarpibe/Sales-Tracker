@@ -10,7 +10,11 @@ import {
   computeColumnTotals,
   filterCustomers,
   customerMatrixToCsv,
+  sortCustomerMatrix,
+  type CustomerSortKey,
+  type CustomerSortDir,
 } from "@/lib/customer-sales";
+import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,7 +24,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Download, Search } from "lucide-react";
+import { Download, Search, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { toast } from "sonner";
 
 const FIRST_YEAR = 2021;
@@ -31,6 +35,39 @@ function range(from: number, to: number): number[] {
   return out;
 }
 
+// Cabecera ordenable (declarada fuera del componente por react-hooks/static-components).
+function SortHeader({
+  label, colKey, sortKey, sortDir, onSort, right, sticky,
+}: {
+  label: string;
+  colKey: CustomerSortKey;
+  sortKey: CustomerSortKey;
+  sortDir: CustomerSortDir;
+  onSort: (k: CustomerSortKey) => void;
+  right?: boolean;
+  sticky?: boolean;
+}) {
+  const active = sortKey === colKey;
+  return (
+    <TableHead className={cn(right && "text-right", sticky && "sticky left-0 z-10 bg-background min-w-[240px]")}>
+      <button
+        type="button"
+        onClick={() => onSort(colKey)}
+        className={cn("inline-flex items-center gap-1 hover:text-primary", right && "flex-row-reverse")}
+      >
+        {label}
+        {active ? (
+          sortDir === "desc"
+            ? <ArrowDown className="h-3 w-3 text-primary" />
+            : <ArrowUp className="h-3 w-3 text-primary" />
+        ) : (
+          <ArrowUpDown className="h-3 w-3 opacity-40" />
+        )}
+      </button>
+    </TableHead>
+  );
+}
+
 export default function ClientesPage() {
   const thisYear = new Date().getFullYear();
   const allYears = useMemo(() => range(FIRST_YEAR, thisYear), [thisYear]);
@@ -39,6 +76,13 @@ export default function ClientesPage() {
   const [desdeAnio, setDesdeAnio] = useState(FIRST_YEAR);
   const [hastaAnio, setHastaAnio] = useState(thisYear);
   const [search, setSearch] = useState("");
+  const [sortKey, setSortKey] = useState<CustomerSortKey>("total");
+  const [sortDir, setSortDir] = useState<CustomerSortDir>("desc");
+
+  const onSort = (k: CustomerSortKey) => {
+    if (sortKey === k) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSortKey(k); setSortDir("desc"); }
+  };
 
   const { data, isLoading } = useQuery({
     queryKey: ["customer-sales", { tipo, desdeAnio, hastaAnio }],
@@ -52,6 +96,7 @@ export default function ClientesPage() {
   );
   const matrix = useMemo(() => buildCustomerMatrix(rows), [rows]);
   const visible = useMemo(() => filterCustomers(matrix, search), [matrix, search]);
+  const sorted = useMemo(() => sortCustomerMatrix(visible, sortKey, sortDir), [visible, sortKey, sortDir]);
   const totals = useMemo(() => computeColumnTotals(visible, years), [visible, years]);
   // % siempre sobre el total GENERAL (toda la matriz, sin filtrar) — no el subconjunto.
   const grandAll = useMemo(() => computeColumnTotals(matrix, years).grand, [matrix, years]);
@@ -129,9 +174,11 @@ export default function ClientesPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="sticky left-0 z-10 bg-background min-w-[240px]">Cliente</TableHead>
-                {years.map((y) => <TableHead key={y} className="text-right">{y}</TableHead>)}
-                <TableHead className="text-right font-bold">Total</TableHead>
+                <SortHeader label="Cliente" colKey="customer" sortKey={sortKey} sortDir={sortDir} onSort={onSort} sticky />
+                {years.map((y) => (
+                  <SortHeader key={y} label={String(y)} colKey={y} sortKey={sortKey} sortDir={sortDir} onSort={onSort} right />
+                ))}
+                <SortHeader label="Total" colKey="total" sortKey={sortKey} sortDir={sortDir} onSort={onSort} right />
                 <TableHead className="text-right">%</TableHead>
               </TableRow>
             </TableHeader>
@@ -144,7 +191,7 @@ export default function ClientesPage() {
                 </TableRow>
               ) : (
                 <>
-                  {visible.map((r) => (
+                  {sorted.map((r) => (
                     <TableRow key={r.customer}>
                       <TableCell className="sticky left-0 z-10 bg-background font-medium">{r.customer}</TableCell>
                       {years.map((y) => (

@@ -4,6 +4,7 @@ import {
   computeColumnTotals,
   filterCustomers,
   customerMatrixToCsv,
+  sortCustomerMatrix,
 } from "@/lib/customer-sales";
 import type { CustomerYearRow } from "@/types/database";
 
@@ -36,6 +37,18 @@ describe("filterCustomers", () => {
     const m = buildCustomerMatrix(rows);
     expect(filterCustomers(m, "bet").map((r) => r.customer)).toEqual(["Beta"]);
     expect(filterCustomers(m, "").length).toBe(2);
+  });
+});
+
+describe("sortCustomerMatrix", () => {
+  it("ordena por total, por año y por nombre (asc/desc), sin mutar", () => {
+    const m = buildCustomerMatrix(rows);
+    expect(sortCustomerMatrix(m, "total", "asc").map((r) => r.customer)).toEqual(["Beta", "Alpha"]);
+    expect(sortCustomerMatrix(m, "total", "desc").map((r) => r.customer)).toEqual(["Alpha", "Beta"]);
+    // 2024: Alpha 100, Beta -10
+    expect(sortCustomerMatrix(m, 2024, "asc").map((r) => r.customer)).toEqual(["Beta", "Alpha"]);
+    expect(sortCustomerMatrix(m, "customer", "asc").map((r) => r.customer)).toEqual(["Alpha", "Beta"]);
+    expect(m.map((r) => r.customer)).toEqual(["Alpha", "Beta"]); // entrada intacta
   });
 });
 
