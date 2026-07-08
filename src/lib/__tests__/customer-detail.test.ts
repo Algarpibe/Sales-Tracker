@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   customerYearSeries, customerFirstYear, customerTotalVentas,
   customerBuckets, customerTopItems, customerMonths, customerMarginKpi,
+  customerHref,
 } from "@/lib/customer-detail";
 import type { CustomerYearRow, CustomerItemRow, CustomerMonthRow, MarginCustomerRow } from "@/types/database";
 
@@ -65,5 +66,12 @@ describe("customerMarginKpi", () => {
   });
   it("cliente inexistente → 0", () => {
     expect(customerMarginKpi(marg, "Z")).toEqual({ ventas: 0, costo: 0, margen: 0, margenPct: 0 });
+  });
+});
+
+describe("customerHref", () => {
+  it("codifica espacios y caracteres especiales", () => {
+    expect(customerHref("AGQ S.A.S.")).toBe("/clientes/AGQ%20S.A.S.");
+    expect(customerHref("Endémica & Co")).toBe("/clientes/End%C3%A9mica%20%26%20Co");
   });
 });

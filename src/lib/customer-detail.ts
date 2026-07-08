@@ -58,3 +58,7 @@ export function customerMarginKpi(rows: MarginCustomerRow[], customer: string): 
   const costo = row?.costo ?? 0;
   return { ventas, costo, ...deriveMargin(ventas, costo) };
 }
+
+export function customerHref(name: string): string {
+  return `/clientes/${encodeURIComponent(name)}`;
+}
