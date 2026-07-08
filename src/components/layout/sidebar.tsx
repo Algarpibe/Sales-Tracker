@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
   BarChart3,
@@ -12,11 +12,9 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
-  Sparkles,
   Users,
   Package,
   ClipboardList,
-  CreditCard,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/providers/auth-provider";
@@ -28,15 +26,12 @@ const navItems = [
   { href: "/clientes", label: "Clientes", icon: Users },
   { href: "/cliente-articulo", label: "Cliente × Artículo", icon: ClipboardList },
   { href: "/analytics", label: "Análisis", icon: TrendingUp },
-  { href: "/analytics?tab=forecast", label: "Forecasting", icon: Sparkles },
   { href: "/categories", label: "Categorías", icon: FolderOpen },
-  { href: "/subscriptions", label: "Suscripciones", icon: CreditCard },
   { href: "/settings", label: "Configuración", icon: Settings },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const [collapsed, setCollapsed] = useState(false);
   const { profile } = useAuth();
   const isAdmin = profile?.role === "admin";
@@ -68,15 +63,7 @@ export function Sidebar() {
       {/* Navigation */}
       <nav className="flex-1 space-y-1 p-2">
         {allItems.map((item) => {
-          let isActive = false;
-          
-          if (item.href.includes("?tab=forecast")) {
-            isActive = pathname === "/analytics" && searchParams.get("tab") === "forecast";
-          } else if (item.href === "/analytics") {
-            isActive = pathname === "/analytics" && !searchParams.get("tab");
-          } else {
-            isActive = pathname === item.href || (item.href !== "/home" && pathname.startsWith(item.href + "/"));
-          }
+          const isActive = pathname === item.href || (item.href !== "/home" && pathname.startsWith(item.href + "/"));
 
           return (
             <Link
