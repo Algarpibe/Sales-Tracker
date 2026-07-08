@@ -1,5 +1,5 @@
 import { bucketForCategory } from "@/lib/customer-item";
-import type { CustomerYearRow, ItemSalesRow } from "@/types/database";
+import type { CustomerYearRow, ItemSalesRow, CustomerItemRow } from "@/types/database";
 
 export interface BucketMixYear {
   year: number;
@@ -51,4 +51,60 @@ export function buildClientPareto(rows: CustomerYearRow[]): ParetoRow[] {
 
 export function topItems(rows: ItemSalesRow[], metric: "importe" | "cantidad", n: number): ItemSalesRow[] {
   return [...rows].sort((a, b) => b[metric] - a[metric] || a.nombre.localeCompare(b.nombre)).slice(0, n);
+}
+
+export interface ItemParetoRow {
+  label: string;
+  sku: string | null;
+  importe: number;
+  cumPct: number;
+}
+
+export function buildItemPareto(rows: ItemSalesRow[]): ItemParetoRow[] {
+  const sorted = [...rows].sort((a, b) => b.importe - a.importe || a.nombre.localeCompare(b.nombre));
+  const grand = sorted.reduce((s, r) => s + r.importe, 0);
+  let acc = 0;
+  return sorted.map((r) => {
+    acc += r.importe;
+    return { label: r.nombre, sku: r.sku, importe: r.importe, cumPct: grand > 0 ? (acc / grand) * 100 : 0 };
+  });
+}
+
+export interface BrandMixRow {
+  marca: string;
+  importe: number;
+}
+
+export function buildBrandMix(rows: CustomerItemRow[]): BrandMixRow[] {
+  const map = new Map<string, number>();
+  for (const r of rows) {
+    const marca = r.marca ?? "Sin marca";
+    map.set(marca, (map.get(marca) ?? 0) + r.importe);
+  }
+  return [...map.entries()]
+    .map(([marca, importe]) => ({ marca, importe }))
+    .sort((a, b) => b.importe - a.importe || a.marca.localeCompare(b.marca));
+}
+
+export interface BucketClientRow {
+  customer: string;
+  mano_obra: number;
+  cr: number;
+  equipos: number;
+  operacion: number;
+  total: number;
+}
+
+export function buildBucketByClient(rows: CustomerItemRow[]): BucketClientRow[] {
+  const map = new Map<string, BucketClientRow>();
+  for (const r of rows) {
+    let row = map.get(r.customer);
+    if (!row) {
+      row = { customer: r.customer, mano_obra: 0, cr: 0, equipos: 0, operacion: 0, total: 0 };
+      map.set(r.customer, row);
+    }
+    row[bucketForCategory(r.categoria)] += r.importe;
+    row.total += r.importe;
+  }
+  return [...map.values()].sort((a, b) => b.total - a.total || a.customer.localeCompare(b.customer));
 }
