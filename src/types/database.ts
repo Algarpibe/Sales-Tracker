@@ -254,3 +254,12 @@ export interface CustomerMonthRow {
   importe: number;    // neto del descuento de cabecera (igual al informe Zoho)
 }
 
+// ===== Margen / rentabilidad (solo bienes, costo estándar) =====
+
+export interface MarginByYearFilters { tipo: RecordType }
+export interface MarginFilters { tipo: RecordType; anio: number }
+
+export interface MarginYearRow { year: number; ventas: number; costo: number }
+export interface MarginItemRow { item_id: string; sku: string | null; nombre: string; ventas: number; costo: number }
+export interface MarginCustomerRow { customer: string; ventas: number; costo: number }
+
