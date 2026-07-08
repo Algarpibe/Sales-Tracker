@@ -87,6 +87,22 @@ const MonthHeatmapCard = dynamic(
   () => import("@/components/charts/comercial/month-heatmap-card").then((m) => m.MonthHeatmapCard),
   { ssr: false, loading: chartSkeleton }
 );
+const MarginKpiCard = dynamic(
+  () => import("@/components/charts/margin/margin-kpi-card").then((m) => m.MarginKpiCard),
+  { ssr: false, loading: chartSkeleton }
+);
+const MarginByItemCard = dynamic(
+  () => import("@/components/charts/margin/margin-by-item-card").then((m) => m.MarginByItemCard),
+  { ssr: false, loading: chartSkeleton }
+);
+const MarginScatterCard = dynamic(
+  () => import("@/components/charts/margin/margin-scatter-card").then((m) => m.MarginScatterCard),
+  { ssr: false, loading: chartSkeleton }
+);
+const MarginByCustomerCard = dynamic(
+  () => import("@/components/charts/margin/margin-by-customer-card").then((m) => m.MarginByCustomerCard),
+  { ssr: false, loading: chartSkeleton }
+);
 
 // Punto de la serie mensual: month + claves dinámicas `Año X` + acumulados.
 type MonthlyPoint = {
@@ -351,6 +367,9 @@ function AnalyticsContent() {
               </TabsTrigger>
               <TabsTrigger value="comercial" className="rounded-xl px-6 h-9 font-bold data-active:bg-emerald-600 data-active:text-white flex gap-2">
                 Comercial
+              </TabsTrigger>
+              <TabsTrigger value="margen" className="rounded-xl px-6 h-9 font-bold data-active:bg-amber-600 data-active:text-white flex gap-2">
+                Margen
               </TabsTrigger>
             </TabsList>
           </div>
@@ -688,6 +707,16 @@ function AnalyticsContent() {
               </div>
               <NewVsRecurringCard recordType={recordType} />
               <MonthHeatmapCard recordType={recordType} year={yearA} />
+            </div>
+          </TabsContent>
+          <TabsContent value="margen" className="outline-none">
+            <div className="space-y-6">
+              <MarginKpiCard recordType={recordType} />
+              <div className="grid gap-6 lg:grid-cols-2">
+                <MarginByItemCard recordType={recordType} year={yearA} />
+                <MarginScatterCard recordType={recordType} year={yearA} />
+              </div>
+              <MarginByCustomerCard recordType={recordType} year={yearA} />
             </div>
           </TabsContent>
         </Tabs>
