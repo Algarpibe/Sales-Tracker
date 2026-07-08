@@ -1,9 +1,11 @@
 "use client";
 
 import { useMemo } from "react";
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { getCustomerMonthSales } from "@/actions/customer-month-actions";
 import { buildMonthHeatmap } from "@/lib/analytics-comercial";
+import { customerHref } from "@/lib/customer-detail";
 import { formatUSD, formatCompactUSD } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -48,7 +50,9 @@ export function MonthHeatmapCard({ recordType, year }: { recordType: "SALES_ORDE
               <tbody>
                 {rows.map((r) => (
                   <tr key={r.customer}>
-                    <td className="sticky left-0 z-10 bg-card truncate max-w-[160px] pr-2" title={r.customer}>{r.customer}</td>
+                    <td className="sticky left-0 z-10 bg-card truncate max-w-[160px] pr-2" title={r.customer}>
+                      <Link href={customerHref(r.customer)} className="hover:text-primary hover:underline">{r.customer}</Link>
+                    </td>
                     {r.months.map((v, i) => {
                       const alpha = max > 0 && v > 0 ? 0.08 + 0.92 * (v / max) : 0;
                       return (

@@ -1,8 +1,10 @@
 "use client";
 
 import { Fragment, useState, useMemo } from "react";
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { getCustomerItemSales } from "@/actions/customer-item-actions";
+import { customerHref } from "@/lib/customer-detail";
 import type { CustomerItemRow, RecordType } from "@/types/database";
 import { formatUSD } from "@/lib/constants";
 import {
@@ -119,7 +121,9 @@ export default function ClienteArticuloPage() {
                   {groups.map((g) => (
                     <Fragment key={g.customer}>
                       <TableRow className="bg-muted/50 font-bold">
-                        <TableCell colSpan={5}>{g.customer}</TableCell>
+                        <TableCell colSpan={5}>
+                          <Link href={customerHref(g.customer)} className="hover:text-primary hover:underline">{g.customer}</Link>
+                        </TableCell>
                         <TableCell className="text-right tabular-nums">{formatUSD(g.totals.mano_obra)}</TableCell>
                         <TableCell className="text-right tabular-nums">{formatUSD(g.totals.cr)}</TableCell>
                         <TableCell className="text-right tabular-nums">{formatUSD(g.totals.equipos)}</TableCell>
