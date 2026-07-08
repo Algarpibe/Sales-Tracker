@@ -241,3 +241,16 @@ export interface CustomerItemRow {
   importe: number;    // neto del descuento de cabecera
 }
 
+// ===== Ventas por cliente × mes (heatmap) =====
+
+export interface CustomerMonthFilters {
+  tipo: RecordType;   // "SALES_ORDER" (OV) | "INVOICE" (FAC)
+  anio: number;
+}
+
+export interface CustomerMonthRow {
+  customer: string;
+  mes: number;        // 1..12
+  importe: number;    // neto del descuento de cabecera (igual al informe Zoho)
+}
+
