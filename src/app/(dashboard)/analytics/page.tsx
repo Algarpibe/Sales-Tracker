@@ -79,6 +79,14 @@ const BrandMixCard = dynamic(
   () => import("@/components/charts/comercial/brand-mix-card").then((m) => m.BrandMixCard),
   { ssr: false, loading: chartSkeleton }
 );
+const NewVsRecurringCard = dynamic(
+  () => import("@/components/charts/comercial/new-vs-recurring-card").then((m) => m.NewVsRecurringCard),
+  { ssr: false, loading: chartSkeleton }
+);
+const MonthHeatmapCard = dynamic(
+  () => import("@/components/charts/comercial/month-heatmap-card").then((m) => m.MonthHeatmapCard),
+  { ssr: false, loading: chartSkeleton }
+);
 
 // Punto de la serie mensual: month + claves dinámicas `Año X` + acumulados.
 type MonthlyPoint = {
@@ -678,6 +686,8 @@ function AnalyticsContent() {
                 <BucketByClientCard recordType={recordType} year={yearA} />
                 <BrandMixCard recordType={recordType} year={yearA} />
               </div>
+              <NewVsRecurringCard recordType={recordType} />
+              <MonthHeatmapCard recordType={recordType} year={yearA} />
             </div>
           </TabsContent>
         </Tabs>
