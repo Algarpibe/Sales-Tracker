@@ -6,8 +6,10 @@ import {
   buildItemPareto,
   buildBrandMix,
   buildBucketByClient,
+  buildNewVsRecurring,
+  buildMonthHeatmap,
 } from "@/lib/analytics-comercial";
-import type { CustomerYearRow, ItemSalesRow, CustomerItemRow } from "@/types/database";
+import type { CustomerYearRow, ItemSalesRow, CustomerItemRow, CustomerMonthRow } from "@/types/database";
 
 describe("buildBucketMixByYear", () => {
   it("filtra por tipo y año>=2021, clasifica buckets y agrega por año", () => {
@@ -95,5 +97,49 @@ describe("buildBucketByClient", () => {
     expect(b.map((x) => x.customer)).toEqual(["B", "A"]);
     expect(b[1]).toEqual({ customer: "A", mano_obra: 50, cr: 100, equipos: 0, operacion: 0, total: 150 });
     expect(b[0].equipos).toBe(500);
+  });
+});
+
+describe("buildNewVsRecurring", () => {
+  it("particiona nuevos/recurrentes por firstYear y cuenta altas", () => {
+    const rows: CustomerYearRow[] = [
+      { customer: "A", year: 2021, ventas: 100 },
+      { customer: "A", year: 2022, ventas: 200 },
+      { customer: "B", year: 2022, ventas: 50 },
+      { customer: "C", year: 2023, ventas: 500 },
+      { customer: "A", year: 2023, ventas: 10 },
+    ];
+    const r = buildNewVsRecurring(rows);
+    expect(r.map((x) => x.year)).toEqual([2021, 2022, 2023]);
+    expect(r[0]).toEqual({ year: 2021, nuevos: 100, recurrentes: 0, countNuevos: 1 });
+    expect(r[1]).toEqual({ year: 2022, nuevos: 50, recurrentes: 200, countNuevos: 1 });
+    expect(r[2]).toEqual({ year: 2023, nuevos: 500, recurrentes: 10, countNuevos: 1 });
+  });
+
+  it("cliente con hueco sigue siendo recurrente al volver", () => {
+    const rows: CustomerYearRow[] = [
+      { customer: "A", year: 2021, ventas: 100 },
+      { customer: "A", year: 2023, ventas: 300 },
+    ];
+    const r = buildNewVsRecurring(rows);
+    expect(r.map((x) => x.year)).toEqual([2021, 2023]);
+    expect(r[1]).toEqual({ year: 2023, nuevos: 0, recurrentes: 300, countNuevos: 0 });
+  });
+});
+
+describe("buildMonthHeatmap", () => {
+  it("agrega por mes (índice mes-1), total y orden desc", () => {
+    const rows: CustomerMonthRow[] = [
+      { customer: "A", mes: 1, importe: 100 },
+      { customer: "A", mes: 3, importe: 50 },
+      { customer: "B", mes: 12, importe: 500 },
+    ];
+    const h = buildMonthHeatmap(rows);
+    expect(h.map((x) => x.customer)).toEqual(["B", "A"]);
+    expect(h[1].months).toHaveLength(12);
+    expect(h[1].months[0]).toBe(100);
+    expect(h[1].months[2]).toBe(50);
+    expect(h[1].total).toBe(150);
+    expect(h[0].months[11]).toBe(500);
   });
 });

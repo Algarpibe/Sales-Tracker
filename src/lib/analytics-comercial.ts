@@ -1,5 +1,5 @@
 import { bucketForCategory } from "@/lib/customer-item";
-import type { CustomerYearRow, ItemSalesRow, CustomerItemRow } from "@/types/database";
+import type { CustomerYearRow, ItemSalesRow, CustomerItemRow, CustomerMonthRow } from "@/types/database";
 
 export interface BucketMixYear {
   year: number;
@@ -105,6 +105,62 @@ export function buildBucketByClient(rows: CustomerItemRow[]): BucketClientRow[] 
     }
     row[bucketForCategory(r.categoria)] += r.importe;
     row.total += r.importe;
+  }
+  return [...map.values()].sort((a, b) => b.total - a.total || a.customer.localeCompare(b.customer));
+}
+
+export interface NewVsRecurringRow {
+  year: number;
+  nuevos: number;
+  recurrentes: number;
+  countNuevos: number;
+}
+
+export function buildNewVsRecurring(rows: CustomerYearRow[]): NewVsRecurringRow[] {
+  // firstYear por cliente (mínimo año con ventas > 0)
+  const firstYear = new Map<string, number>();
+  for (const r of rows) {
+    if (r.ventas > 0) {
+      const cur = firstYear.get(r.customer);
+      if (cur === undefined || r.year < cur) firstYear.set(r.customer, r.year);
+    }
+  }
+  const byYear = new Map<number, NewVsRecurringRow>();
+  for (const r of rows) {
+    if (r.ventas <= 0) continue;
+    let acc = byYear.get(r.year);
+    if (!acc) {
+      acc = { year: r.year, nuevos: 0, recurrentes: 0, countNuevos: 0 };
+      byYear.set(r.year, acc);
+    }
+    if (firstYear.get(r.customer) === r.year) {
+      acc.nuevos += r.ventas;
+      acc.countNuevos += 1;
+    } else {
+      acc.recurrentes += r.ventas;
+    }
+  }
+  return [...byYear.values()].sort((a, b) => a.year - b.year);
+}
+
+export interface MonthHeatmapRow {
+  customer: string;
+  months: number[]; // length 12, índice 0 = enero
+  total: number;
+}
+
+export function buildMonthHeatmap(rows: CustomerMonthRow[]): MonthHeatmapRow[] {
+  const map = new Map<string, MonthHeatmapRow>();
+  for (const r of rows) {
+    let row = map.get(r.customer);
+    if (!row) {
+      row = { customer: r.customer, months: new Array(12).fill(0), total: 0 };
+      map.set(r.customer, row);
+    }
+    if (r.mes >= 1 && r.mes <= 12) {
+      row.months[r.mes - 1] += r.importe;
+      row.total += r.importe;
+    }
   }
   return [...map.values()].sort((a, b) => b.total - a.total || a.customer.localeCompare(b.customer));
 }
