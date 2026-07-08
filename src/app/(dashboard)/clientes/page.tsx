@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { getCustomerSales } from "@/actions/customer-sales-actions";
 import type { CustomerYearRow, RecordType } from "@/types/database";
@@ -180,7 +181,9 @@ export default function ClientesPage() {
                 <>
                   {sorted.map((r) => (
                     <TableRow key={r.customer}>
-                      <TableCell className="sticky left-0 z-10 bg-background font-medium">{r.customer}</TableCell>
+                      <TableCell className="sticky left-0 z-10 bg-background font-medium">
+                        <Link href={`/clientes/${encodeURIComponent(r.customer)}`} className="hover:text-primary hover:underline">{r.customer}</Link>
+                      </TableCell>
                       {years.map((y) => (
                         <TableCell key={y} className="text-right tabular-nums">
                           {r.byYear[y] ? formatUSD(r.byYear[y]) : <span className="text-muted-foreground/30">—</span>}
