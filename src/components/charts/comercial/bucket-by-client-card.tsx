@@ -1,9 +1,11 @@
 "use client";
 
 import { useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { getCustomerItemSales } from "@/actions/customer-item-actions";
 import { buildBucketByClient, type BucketClientRow } from "@/lib/analytics-comercial";
+import { customerHref } from "@/lib/customer-detail";
 import { formatUSD, formatCompactUSD } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -40,11 +42,17 @@ export function BucketByClientCard({ recordType, year }: { recordType: "SALES_OR
     queryFn: () => getCustomerItemSales({ tipo: recordType, anio: year }),
   });
   const top = useMemo(() => buildBucketByClient(data ?? []).slice(0, 15), [data]);
+  const router = useRouter();
+  const goCustomer = (d: { customer?: string; payload?: { customer?: string } }) => {
+    const name = d?.payload?.customer ?? d?.customer;
+    if (name) router.push(customerHref(name));
+  };
 
   return (
     <Card className="border-border/40 bg-card/30 backdrop-blur-sm">
       <CardHeader>
         <CardTitle className="text-base font-semibold">Macro-categoría × cliente {year} (top 15)</CardTitle>
+        <p className="text-xs text-muted-foreground">Clic en un cliente para ver su detalle.</p>
       </CardHeader>
       <CardContent>
         {isLoading ? (
@@ -52,7 +60,7 @@ export function BucketByClientCard({ recordType, year }: { recordType: "SALES_OR
         ) : top.length === 0 ? (
           <p className="text-sm text-muted-foreground py-10 text-center">Sin datos.</p>
         ) : (
-          <ResponsiveContainer width="100%" height={440}>
+          <ResponsiveContainer width="100%" height={440} className="cursor-pointer">
             <BarChart data={top} layout="vertical" margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-white/5" horizontal={false} />
               <XAxis type="number" className="text-xs fill-muted-foreground" tickFormatter={formatCompactUSD} tickLine={false} axisLine={false} />
@@ -60,7 +68,7 @@ export function BucketByClientCard({ recordType, year }: { recordType: "SALES_OR
               <Tooltip content={<BClientTooltip />} />
               <Legend />
               {SERIES.map((s) => (
-                <Bar key={s.key} dataKey={s.key} name={s.label} stackId="1" fill={s.color} />
+                <Bar key={s.key} dataKey={s.key} name={s.label} stackId="1" fill={s.color} onClick={(d) => goCustomer(d as { customer?: string; payload?: { customer?: string } })} />
               ))}
             </BarChart>
           </ResponsiveContainer>

@@ -1,9 +1,11 @@
 "use client";
 
 import { useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { getMarginByCustomer } from "@/actions/margin-actions";
 import { buildMarginCustomers } from "@/lib/analytics-margin";
+import { customerHref } from "@/lib/customer-detail";
 import { formatUSD, formatCompactUSD } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -31,12 +33,17 @@ export function MarginByCustomerCard({ recordType, year }: { recordType: "SALES_
     queryFn: () => getMarginByCustomer({ tipo: recordType, anio: year }),
   });
   const top = useMemo(() => buildMarginCustomers(data ?? []).slice(0, 15), [data]);
+  const router = useRouter();
+  const goCustomer = (d: { customer?: string; payload?: { customer?: string } }) => {
+    const name = d?.payload?.customer ?? d?.customer;
+    if (name) router.push(customerHref(name));
+  };
 
   return (
     <Card className="border-border/40 bg-card/30 backdrop-blur-sm">
       <CardHeader>
         <CardTitle className="text-base font-semibold">Margen por cliente {year} (top 15)</CardTitle>
-        <p className="text-xs text-muted-foreground">Margen $ estimado; solo bienes con costo.</p>
+        <p className="text-xs text-muted-foreground">Margen $ estimado; solo bienes con costo. Clic en un cliente para ver su detalle.</p>
       </CardHeader>
       <CardContent>
         {isLoading ? (
@@ -44,13 +51,13 @@ export function MarginByCustomerCard({ recordType, year }: { recordType: "SALES_
         ) : top.length === 0 ? (
           <p className="text-sm text-muted-foreground py-10 text-center">Sin datos.</p>
         ) : (
-          <ResponsiveContainer width="100%" height={440}>
+          <ResponsiveContainer width="100%" height={440} className="cursor-pointer">
             <BarChart data={top} layout="vertical" margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-white/5" horizontal={false} />
               <XAxis type="number" className="text-xs fill-muted-foreground" tickFormatter={formatCompactUSD} tickLine={false} axisLine={false} />
               <YAxis type="category" dataKey="customer" width={160} className="text-[10px] fill-muted-foreground" tickLine={false} axisLine={false} />
               <Tooltip content={<CustTooltip />} />
-              <Bar dataKey="margen" name="Margen" fill="#10b981" radius={[0, 4, 4, 0]} />
+              <Bar dataKey="margen" name="Margen" fill="#10b981" radius={[0, 4, 4, 0]} onClick={(d) => goCustomer(d as { customer?: string; payload?: { customer?: string } })} />
             </BarChart>
           </ResponsiveContainer>
         )}

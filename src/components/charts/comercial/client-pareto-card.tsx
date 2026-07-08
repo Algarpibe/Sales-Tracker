@@ -1,9 +1,11 @@
 "use client";
 
 import { useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { getCustomerSales } from "@/actions/customer-sales-actions";
 import { buildClientPareto } from "@/lib/analytics-comercial";
+import { customerHref } from "@/lib/customer-detail";
 import { formatUSD, formatCompactUSD } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -32,11 +34,17 @@ export function ClientParetoCard({ recordType, year }: { recordType: "SALES_ORDE
     queryFn: () => getCustomerSales({ tipo: recordType, desdeAnio: year, hastaAnio: year }),
   });
   const top = useMemo(() => buildClientPareto(data ?? []).slice(0, 20), [data]);
+  const router = useRouter();
+  const goCustomer = (d: { customer?: string; payload?: { customer?: string } }) => {
+    const name = d?.payload?.customer ?? d?.customer;
+    if (name) router.push(customerHref(name));
+  };
 
   return (
     <Card className="border-border/40 bg-card/30 backdrop-blur-sm">
       <CardHeader>
         <CardTitle className="text-base font-semibold">Pareto de clientes {year} (top 20)</CardTitle>
+        <p className="text-xs text-muted-foreground">Clic en un cliente para ver su detalle.</p>
       </CardHeader>
       <CardContent>
         {isLoading ? (
@@ -44,14 +52,14 @@ export function ClientParetoCard({ recordType, year }: { recordType: "SALES_ORDE
         ) : top.length === 0 ? (
           <p className="text-sm text-muted-foreground py-10 text-center">Sin datos.</p>
         ) : (
-          <ResponsiveContainer width="100%" height={380}>
+          <ResponsiveContainer width="100%" height={380} className="cursor-pointer">
             <ComposedChart data={top} margin={{ top: 10, right: 10, left: 10, bottom: 70 }}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-white/5" vertical={false} />
               <XAxis dataKey="customer" className="text-[10px] fill-muted-foreground" interval={0} angle={-40} textAnchor="end" height={80} tickLine={false} />
               <YAxis yAxisId="left" className="text-xs fill-muted-foreground" tickFormatter={formatCompactUSD} tickLine={false} axisLine={false} />
               <YAxis yAxisId="right" orientation="right" domain={[0, 100]} className="text-xs fill-muted-foreground" tickFormatter={(v) => `${v}%`} tickLine={false} axisLine={false} />
               <Tooltip content={<ParetoTooltip />} />
-              <Bar yAxisId="left" dataKey="ventas" name="Ventas" fill="oklch(0.65 0.2 255)" radius={[4, 4, 0, 0]} />
+              <Bar yAxisId="left" dataKey="ventas" name="Ventas" fill="oklch(0.65 0.2 255)" radius={[4, 4, 0, 0]} onClick={(d) => goCustomer(d as { customer?: string; payload?: { customer?: string } })} />
               <Line yAxisId="right" type="monotone" dataKey="cumPct" name="% acumulado" stroke="#f59e0b" strokeWidth={2} dot={false} />
               <ReferenceLine yAxisId="right" y={80} stroke="#ef4444" strokeDasharray="4 4" />
             </ComposedChart>
