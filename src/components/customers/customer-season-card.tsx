@@ -1,0 +1,57 @@
+"use client";
+
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { getCustomerMonthSales } from "@/actions/customer-month-actions";
+import { customerMonths } from "@/lib/customer-detail";
+import { formatUSD, formatCompactUSD } from "@/lib/constants";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import type { ChartTooltipProps } from "@/lib/chart-types";
+
+const MESES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+
+type MonthPoint = { mes: string; importe: number };
+
+function MonthTooltip({ active, payload, label }: ChartTooltipProps<MonthPoint>) {
+  if (!active || !payload || !payload.length) return null;
+  return (
+    <div className="bg-background/95 border border-white/10 p-3 rounded-lg shadow-xl text-sm">
+      <div className="font-bold mb-1">{label}</div>
+      <div className="flex justify-between gap-4"><span>Importe</span><span className="font-mono">{formatUSD(payload[0]?.value ?? 0)}</span></div>
+    </div>
+  );
+}
+
+export function CustomerSeasonCard({ customer, recordType, year }: { customer: string; recordType: "SALES_ORDER" | "INVOICE"; year: number }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ["customer-month", { tipo: recordType, anio: year }],
+    queryFn: () => getCustomerMonthSales({ tipo: recordType, anio: year }),
+  });
+  const rows = useMemo(() => customerMonths(data ?? [], customer).map((importe, i) => ({ mes: MESES[i], importe })), [data, customer]);
+  const hasData = useMemo(() => rows.some((r) => r.importe > 0), [rows]);
+
+  return (
+    <Card className="border-border/40 bg-card/30 backdrop-blur-sm">
+      <CardHeader><CardTitle className="text-base font-semibold">Estacionalidad {year}</CardTitle></CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <Skeleton className="h-[300px] w-full" />
+        ) : !hasData ? (
+          <p className="text-sm text-muted-foreground py-10 text-center">Sin datos.</p>
+        ) : (
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={rows} margin={{ top: 10, right: 10, left: 10, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-white/5" vertical={false} />
+              <XAxis dataKey="mes" className="text-[10px] fill-muted-foreground" tickLine={false} />
+              <YAxis className="text-xs fill-muted-foreground" tickFormatter={formatCompactUSD} tickLine={false} axisLine={false} />
+              <Tooltip content={<MonthTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
+              <Bar dataKey="importe" name="Importe" fill="#10b981" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
