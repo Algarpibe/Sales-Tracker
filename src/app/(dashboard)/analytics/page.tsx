@@ -67,6 +67,18 @@ const TopItemsCard = dynamic(
   () => import("@/components/charts/comercial/top-items-card").then((m) => m.TopItemsCard),
   { ssr: false, loading: chartSkeleton }
 );
+const SkuParetoCard = dynamic(
+  () => import("@/components/charts/comercial/sku-pareto-card").then((m) => m.SkuParetoCard),
+  { ssr: false, loading: chartSkeleton }
+);
+const BucketByClientCard = dynamic(
+  () => import("@/components/charts/comercial/bucket-by-client-card").then((m) => m.BucketByClientCard),
+  { ssr: false, loading: chartSkeleton }
+);
+const BrandMixCard = dynamic(
+  () => import("@/components/charts/comercial/brand-mix-card").then((m) => m.BrandMixCard),
+  { ssr: false, loading: chartSkeleton }
+);
 
 // Punto de la serie mensual: month + claves dinámicas `Año X` + acumulados.
 type MonthlyPoint = {
@@ -660,6 +672,11 @@ function AnalyticsContent() {
               <div className="grid gap-6 lg:grid-cols-2">
                 <ClientParetoCard recordType={recordType} year={yearA} />
                 <TopItemsCard recordType={recordType} year={yearA} />
+              </div>
+              <SkuParetoCard recordType={recordType} year={yearA} />
+              <div className="grid gap-6 lg:grid-cols-2">
+                <BucketByClientCard recordType={recordType} year={yearA} />
+                <BrandMixCard recordType={recordType} year={yearA} />
               </div>
             </div>
           </TabsContent>
