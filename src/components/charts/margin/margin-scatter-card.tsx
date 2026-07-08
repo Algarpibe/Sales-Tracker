@@ -52,7 +52,7 @@ export function MarginScatterCard({ recordType, year }: { recordType: "SALES_ORD
             <ScatterChart margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-white/5" />
               <XAxis type="number" dataKey="ventas" name="Ventas" className="text-xs fill-muted-foreground" tickFormatter={formatCompactUSD} tickLine={false} />
-              <YAxis type="number" dataKey="margenPct" name="Margen %" domain={[0, 100]} className="text-xs fill-muted-foreground" tickFormatter={(v) => `${v}%`} tickLine={false} axisLine={false} />
+              <YAxis type="number" dataKey="margenPct" name="Margen %" domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} className="text-xs fill-muted-foreground" tickFormatter={(v) => `${Math.round(v)}%`} tickLine={false} axisLine={false} />
               <ZAxis range={[40, 40]} />
               <Tooltip content={<ScatterTooltip />} cursor={{ strokeDasharray: "3 3" }} />
               <ReferenceLine y={overallPct} stroke="#f59e0b" strokeDasharray="4 4" />

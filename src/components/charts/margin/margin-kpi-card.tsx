@@ -64,7 +64,7 @@ export function MarginKpiCard({ recordType }: { recordType: "SALES_ORDER" | "INV
               <LineChart data={series} margin={{ top: 10, right: 10, left: 10, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-white/5" vertical={false} />
                 <XAxis dataKey="year" className="text-xs fill-muted-foreground" tickLine={false} />
-                <YAxis domain={[0, 100]} className="text-xs fill-muted-foreground" tickFormatter={(v) => `${v}%`} tickLine={false} axisLine={false} />
+                <YAxis domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} className="text-xs fill-muted-foreground" tickFormatter={(v) => `${Math.round(v)}%`} tickLine={false} axisLine={false} />
                 <Tooltip content={<PctTooltip />} />
                 <Line type="monotone" dataKey="margenPct" name="Margen %" stroke="#10b981" strokeWidth={2} dot={{ r: 3 }} />
               </LineChart>
