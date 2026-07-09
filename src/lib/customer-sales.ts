@@ -1,4 +1,5 @@
 import type { CustomerYearRow } from "@/types/database";
+import type { ExcelSheet } from "@/lib/excel-types";
 
 export interface CustomerMatrixRow {
   customer: string;
@@ -90,4 +91,22 @@ export function customerMatrixToCsv(
     pct(totals.grand),
   ];
   return [header, ...body, totalRow].map((row) => row.map(csvCell).join(";")).join("\n");
+}
+
+export function customerMatrixToExcel(matrix: CustomerMatrixRow[], years: number[], grand: number): ExcelSheet {
+  const totals = computeColumnTotals(matrix, years);
+  const ratio = (n: number) => (grand > 0 ? n / grand : 0);
+  return {
+    name: "Clientes",
+    columns: [
+      { header: "Cliente", width: 32 },
+      ...years.map((y) => ({ header: String(y), width: 14, numFmt: '"$"#,##0.00' })),
+      { header: "Total", width: 16, numFmt: '"$"#,##0.00' },
+      { header: "%", width: 9, numFmt: "0.0%" },
+    ],
+    rows: [
+      ...matrix.map((r) => ({ cells: [r.customer, ...years.map((y) => r.byYear[y] ?? 0), r.total, ratio(r.total)] })),
+      { cells: ["TOTAL", ...years.map((y) => totals.byYear[y]), totals.grand, ratio(totals.grand)], bold: true },
+    ],
+  };
 }

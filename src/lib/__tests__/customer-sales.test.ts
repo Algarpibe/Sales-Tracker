@@ -5,6 +5,7 @@ import {
   filterCustomers,
   customerMatrixToCsv,
   sortCustomerMatrix,
+  customerMatrixToExcel,
 } from "@/lib/customer-sales";
 import type { CustomerYearRow } from "@/types/database";
 
@@ -61,5 +62,21 @@ describe("customerMatrixToCsv", () => {
     expect(lines[1]).toBe("Alpha;100.00;300.00;400.00;90.9%");
     expect(lines[lines.length - 1]).toBe("TOTAL;90.00;350.00;440.00;100.0%");
     expect(lines).toHaveLength(rows.length / 2 + 2); // 2 clientes + cabecera + total
+  });
+});
+
+describe("customerMatrixToExcel", () => {
+  it("años dinámicos, % como ratio, total en negrita", () => {
+    const matrix = [
+      { customer: "A", byYear: { 2021: 100, 2022: 0 }, total: 100 },
+      { customer: "B", byYear: { 2021: 0, 2022: 300 }, total: 300 },
+    ];
+    const sheet = customerMatrixToExcel(matrix, [2021, 2022], 400);
+    expect(sheet.columns.map((c) => c.header)).toEqual(["Cliente", "2021", "2022", "Total", "%"]);
+    expect(sheet.columns[4].numFmt).toBe("0.0%");
+    expect(sheet.rows[0].cells).toEqual(["A", 100, 0, 100, 0.25]);
+    const total = sheet.rows[sheet.rows.length - 1];
+    expect(total.bold).toBe(true);
+    expect(total.cells).toEqual(["TOTAL", 100, 300, 400, 1]);
   });
 });
