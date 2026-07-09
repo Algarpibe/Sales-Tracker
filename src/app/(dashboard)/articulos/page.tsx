@@ -9,6 +9,7 @@ import {
   filterAndSortItems,
   computeItemTotals,
   itemsToCsv,
+  itemsToExcel,
   precioPromedio,
   categoriaLabel,
   type ItemSortKey,
@@ -26,8 +27,9 @@ import { ArrowUpDown } from "lucide-react";
 import { toast } from "sonner";
 import { RecordTypeSelect } from "@/components/common/record-type-select";
 import { SearchInput } from "@/components/common/search-input";
-import { CsvButton } from "@/components/common/csv-button";
+import { ExportMenu } from "@/components/common/export-menu";
 import { EmptyState } from "@/components/common/empty-state";
+import { downloadXlsx } from "@/lib/excel-client";
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 const yearStartISO = () => `${new Date().getFullYear()}-01-01`;
@@ -101,6 +103,11 @@ export default function ArticulosPage() {
     toast.success("CSV descargado");
   };
 
+  const exportXlsx = () => {
+    downloadXlsx([itemsToExcel(view)], `ventas_articulo_${tipo}_${desde}_${hasta}.xlsx`);
+    toast.success("Excel descargado");
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-1">
@@ -133,7 +140,7 @@ export default function ArticulosPage() {
             {categorias.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
           </SelectContent>
         </Select>
-        <CsvButton onClick={exportCsv} disabled={view.length === 0} />
+        <ExportMenu onCsv={exportCsv} onXlsx={exportXlsx} disabled={view.length === 0} />
       </div>
 
       {isLoading ? (

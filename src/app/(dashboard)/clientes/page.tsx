@@ -11,6 +11,7 @@ import {
   computeColumnTotals,
   filterCustomers,
   customerMatrixToCsv,
+  customerMatrixToExcel,
   sortCustomerMatrix,
   type CustomerSortKey,
   type CustomerSortDir,
@@ -27,8 +28,9 @@ import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { toast } from "sonner";
 import { RecordTypeSelect } from "@/components/common/record-type-select";
 import { SearchInput } from "@/components/common/search-input";
-import { CsvButton } from "@/components/common/csv-button";
+import { ExportMenu } from "@/components/common/export-menu";
 import { EmptyState } from "@/components/common/empty-state";
+import { downloadXlsx } from "@/lib/excel-client";
 
 const FIRST_YEAR = 2021;
 
@@ -117,6 +119,11 @@ export default function ClientesPage() {
     toast.success("CSV descargado");
   };
 
+  const exportXlsx = () => {
+    downloadXlsx([customerMatrixToExcel(visible, years, grandAll)], `ventas_cliente_${tipo}_${desdeAnio}_${hastaAnio}.xlsx`);
+    toast.success("Excel descargado");
+  };
+
   const pct = (n: number) => (grandAll > 0 ? `${((n / grandAll) * 100).toFixed(1)}%` : "—");
 
   return (
@@ -154,7 +161,7 @@ export default function ClientesPage() {
       {/* Controles cliente */}
       <div className="flex flex-wrap items-center gap-3">
         <SearchInput value={search} onChange={setSearch} placeholder="Buscar cliente…" />
-        <CsvButton onClick={exportCsv} disabled={visible.length === 0} />
+        <ExportMenu onCsv={exportCsv} onXlsx={exportXlsx} disabled={visible.length === 0} />
       </div>
 
       {isLoading ? (

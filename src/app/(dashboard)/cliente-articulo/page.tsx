@@ -13,6 +13,7 @@ import {
   groupByCustomer,
   computeGrandTotals,
   customerItemToCsv,
+  customerItemToExcel,
 } from "@/lib/customer-item";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -24,8 +25,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { RecordTypeSelect } from "@/components/common/record-type-select";
 import { SearchInput } from "@/components/common/search-input";
-import { CsvButton } from "@/components/common/csv-button";
+import { ExportMenu } from "@/components/common/export-menu";
 import { EmptyState } from "@/components/common/empty-state";
+import { downloadXlsx } from "@/lib/excel-client";
 
 const FIRST_YEAR = 2021;
 
@@ -61,6 +63,11 @@ export default function ClienteArticuloPage() {
     toast.success("CSV descargado");
   };
 
+  const exportXlsx = () => {
+    downloadXlsx([customerItemToExcel(groups, grand)], `ventas_cliente_articulo_${tipo}_${anio}.xlsx`);
+    toast.success("Excel descargado");
+  };
+
   const amount = (show: boolean, n: number) =>
     show ? <span className="tabular-nums">{formatUSD(n)}</span> : null;
 
@@ -90,7 +97,7 @@ export default function ClienteArticuloPage() {
       {/* Controles cliente */}
       <div className="flex flex-wrap items-center gap-3">
         <SearchInput value={search} onChange={setSearch} placeholder="Buscar cliente, artículo o SKU…" />
-        <CsvButton onClick={exportCsv} disabled={groups.length === 0} />
+        <ExportMenu onCsv={exportCsv} onXlsx={exportXlsx} disabled={groups.length === 0} />
       </div>
 
       {isLoading ? (
