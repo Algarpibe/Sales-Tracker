@@ -87,6 +87,10 @@ const MonthHeatmapCard = dynamic(
   () => import("@/components/charts/comercial/month-heatmap-card").then((m) => m.MonthHeatmapCard),
   { ssr: false, loading: chartSkeleton }
 );
+const SeasonByBucketCard = dynamic(
+  () => import("@/components/charts/comercial/season-by-bucket-card").then((m) => m.SeasonByBucketCard),
+  { ssr: false, loading: chartSkeleton }
+);
 const MarginKpiCard = dynamic(
   () => import("@/components/charts/margin/margin-kpi-card").then((m) => m.MarginKpiCard),
   { ssr: false, loading: chartSkeleton }
@@ -707,6 +711,7 @@ function AnalyticsContent() {
               </div>
               <NewVsRecurringCard recordType={recordType} />
               <MonthHeatmapCard recordType={recordType} year={yearA} />
+              <SeasonByBucketCard recordType={recordType} year={yearA} />
             </div>
           </TabsContent>
           <TabsContent value="margen" className="outline-none">
