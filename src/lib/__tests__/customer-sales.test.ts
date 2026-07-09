@@ -55,13 +55,16 @@ describe("sortCustomerMatrix", () => {
 
 describe("sortCustomerMatrix delta", () => {
   it("ordena por delta A vs B; null (B=0) al final en desc", () => {
+    // entrada desordenada a propósito: un sort roto/no-op no pasaría por casualidad
     const matrix = [
-      { customer: "A", byYear: { 2025: 100, 2024: 50 }, total: 150 },  // +100%
+      { customer: "C", byYear: { 2025: 100, 2024: 0 }, total: 100 },   // null (B=0)
       { customer: "B", byYear: { 2025: 100, 2024: 200 }, total: 300 }, // -50%
-      { customer: "C", byYear: { 2025: 100, 2024: 0 }, total: 100 },   // null
+      { customer: "A", byYear: { 2025: 100, 2024: 50 }, total: 150 },  // +100%
     ];
-    const s = sortCustomerMatrix(matrix, "delta", "desc", { a: 2025, b: 2024 });
-    expect(s.map((r) => r.customer)).toEqual(["A", "B", "C"]);
+    const desc = sortCustomerMatrix(matrix, "delta", "desc", { a: 2025, b: 2024 });
+    expect(desc.map((r) => r.customer)).toEqual(["A", "B", "C"]); // +100, -50, null al final
+    const asc = sortCustomerMatrix(matrix, "delta", "asc", { a: 2025, b: 2024 });
+    expect(asc.map((r) => r.customer)).toEqual(["C", "B", "A"]);
   });
 });
 
