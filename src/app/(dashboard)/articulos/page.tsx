@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState, useMemo, useEffect } from "react";
+import { Suspense, useState, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { getItemSales } from "@/actions/item-sales-actions";
@@ -68,11 +68,15 @@ function ArticulosContent() {
   const [desde, setDesde] = useState(yearStartISO());
   const [hasta, setHasta] = useState(todayISO());
   const searchParams = useSearchParams();
-  const [search, setSearch] = useState(searchParams.get("q") ?? "");
-  useEffect(() => {
-    const q = searchParams.get("q");
-    if (q !== null) setSearch(q);
-  }, [searchParams]);
+  // Deriva la búsqueda del ?q durante el render (patrón React sin efecto): al
+  // cambiar el parámetro (navegación desde cmd-k) resetea; al teclear no interfiere.
+  const qParam = searchParams.get("q") ?? "";
+  const [search, setSearch] = useState(qParam);
+  const [prevQ, setPrevQ] = useState(qParam);
+  if (qParam !== prevQ) {
+    setPrevQ(qParam);
+    setSearch(qParam);
+  }
   const [categoria, setCategoria] = useState("");
   const [sortKey, setSortKey] = useState<ItemSortKey>("importe");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
