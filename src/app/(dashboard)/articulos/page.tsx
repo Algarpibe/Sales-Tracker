@@ -32,6 +32,8 @@ import { SearchInput } from "@/components/common/search-input";
 import { ExportMenu } from "@/components/common/export-menu";
 import { EmptyState } from "@/components/common/empty-state";
 import { downloadXlsx } from "@/lib/excel-client";
+import { Switch } from "@/components/ui/switch";
+import { ItemCompareTable } from "@/components/articulos/item-compare-table";
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 const yearStartISO = () => `${new Date().getFullYear()}-01-01`;
@@ -65,7 +67,7 @@ function SortableTh({
 }
 
 function ArticulosContent() {
-  const { tipo, setTipo } = usePeriod();
+  const { tipo, setTipo, year } = usePeriod();
   const [desde, setDesde] = useState(yearStartISO());
   const [hasta, setHasta] = useState(todayISO());
   const searchParams = useSearchParams();
@@ -82,9 +84,19 @@ function ArticulosContent() {
   const [sortKey, setSortKey] = useState<ItemSortKey>("importe");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
+  const [compareMode, setCompareMode] = useState(false);
+  const [yearA, setYearA] = useState(year);
+  const [yearB, setYearB] = useState(year - 1);
+  const allYears = useMemo(() => {
+    const a: number[] = [];
+    for (let y = 2021; y <= new Date().getFullYear(); y++) a.push(y);
+    return a;
+  }, []);
+
   const { data, isLoading } = useQuery({
     queryKey: ["item-sales", { tipo, desde, hasta }],
     queryFn: () => getItemSales({ tipo, desde, hasta }),
+    enabled: !compareMode,
   });
   const rows = useMemo<ItemSalesRow[]>(() => data ?? [], [data]);
 
@@ -128,75 +140,106 @@ function ArticulosContent() {
         </p>
       </div>
 
-      {/* Controles servidor: tipo + rango de fechas */}
+      {/* Controles servidor */}
       <div className="flex flex-wrap items-end gap-3">
         <RecordTypeSelect value={tipo as "SALES_ORDER" | "INVOICE"} onValueChange={(v) => setTipo(v)} />
-        <div className="flex flex-col gap-1">
-          <label className="text-xs text-muted-foreground">Desde</label>
-          <Input type="date" value={desde} min="2021-01-01" max={hasta} onChange={(e) => setDesde(e.target.value)} className="w-[160px]" />
-        </div>
-        <div className="flex flex-col gap-1">
-          <label className="text-xs text-muted-foreground">Hasta</label>
-          <Input type="date" value={hasta} min={desde < "2021-01-01" ? "2021-01-01" : desde} onChange={(e) => setHasta(e.target.value)} className="w-[160px]" />
-        </div>
+        {!compareMode ? (
+          <>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-muted-foreground">Desde</label>
+              <Input type="date" value={desde} min="2021-01-01" max={hasta} onChange={(e) => setDesde(e.target.value)} className="w-[160px]" />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-muted-foreground">Hasta</label>
+              <Input type="date" value={hasta} min={desde < "2021-01-01" ? "2021-01-01" : desde} onChange={(e) => setHasta(e.target.value)} className="w-[160px]" />
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-muted-foreground">Año A</label>
+              <Select value={String(yearA)} onValueChange={(v) => { if (v) setYearA(Number(v)); }}>
+                <SelectTrigger className="w-[100px]"><SelectValue /></SelectTrigger>
+                <SelectContent>{allYears.map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <span className="self-end pb-2 text-muted-foreground">vs</span>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-muted-foreground">Año B</label>
+              <Select value={String(yearB)} onValueChange={(v) => { if (v) setYearB(Number(v)); }}>
+                <SelectTrigger className="w-[100px]"><SelectValue /></SelectTrigger>
+                <SelectContent>{allYears.map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+          </>
+        )}
+        <label className="flex items-center gap-2 self-center text-sm pb-1">
+          <Switch checked={compareMode} onCheckedChange={setCompareMode} /> Comparar años
+        </label>
       </div>
 
-      {/* Controles cliente: búsqueda + categoría + CSV */}
-      <div className="flex flex-wrap items-center gap-3">
-        <SearchInput value={search} onChange={setSearch} placeholder="Buscar por SKU o nombre…" />
-        <Select value={categoria || "all"} onValueChange={(v) => setCategoria(!v || v === "all" ? "" : v)}>
-          <SelectTrigger className="w-[220px]"><SelectValue placeholder="Todas las categorías" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todas las categorías</SelectItem>
-            {categorias.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <ExportMenu onCsv={exportCsv} onXlsx={exportXlsx} disabled={view.length === 0} />
-      </div>
-
-      {isLoading ? (
-        <Skeleton className="h-[500px] w-full rounded-xl" />
+      {compareMode ? (
+        <ItemCompareTable tipo={tipo as "SALES_ORDER" | "INVOICE"} yearA={yearA} yearB={yearB} />
       ) : (
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <SortableTh k="sku" label="SKU" sortKey={sortKey} onSort={onSort} />
-                <SortableTh k="nombre" label="Nombre" sortKey={sortKey} onSort={onSort} />
-                <SortableTh k="categoria" label="Categoría" sortKey={sortKey} onSort={onSort} />
-                <SortableTh k="cantidad" label="Cantidad" right sortKey={sortKey} onSort={onSort} />
-                <SortableTh k="importe" label="Importe" right sortKey={sortKey} onSort={onSort} />
-                <SortableTh k="precio" label="Precio promedio" right sortKey={sortKey} onSort={onSort} />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {view.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6}><EmptyState message="Sin resultados para el rango/criterios seleccionados." /></TableCell>
-                </TableRow>
-              ) : (
-                <>
-                  {view.map((r) => (
-                    <TableRow key={r.item_id}>
-                      <TableCell className="font-mono text-xs">{r.sku ?? "—"}</TableCell>
-                      <TableCell className="font-medium">{r.nombre}</TableCell>
-                      <TableCell className="text-muted-foreground">{categoriaLabel(r)}</TableCell>
-                      <TableCell className="text-right tabular-nums">{r.cantidad}</TableCell>
-                      <TableCell className="text-right tabular-nums">{formatUSD(r.importe)}</TableCell>
-                      <TableCell className="text-right tabular-nums">{formatUSD(precioPromedio(r))}</TableCell>
-                    </TableRow>
-                  ))}
-                  <TableRow className="bg-muted/40 font-bold border-t-2">
-                    <TableCell colSpan={3}>TOTAL ({view.length} artículos)</TableCell>
-                    <TableCell className="text-right tabular-nums">{totals.cantidad}</TableCell>
-                    <TableCell className="text-right tabular-nums">{formatUSD(totals.importe)}</TableCell>
-                    <TableCell />
+        <>
+          {/* Controles cliente: búsqueda + categoría + CSV */}
+          <div className="flex flex-wrap items-center gap-3">
+            <SearchInput value={search} onChange={setSearch} placeholder="Buscar por SKU o nombre…" />
+            <Select value={categoria || "all"} onValueChange={(v) => setCategoria(!v || v === "all" ? "" : v)}>
+              <SelectTrigger className="w-[220px]"><SelectValue placeholder="Todas las categorías" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas las categorías</SelectItem>
+                {categorias.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <ExportMenu onCsv={exportCsv} onXlsx={exportXlsx} disabled={view.length === 0} />
+          </div>
+
+          {isLoading ? (
+            <Skeleton className="h-[500px] w-full rounded-xl" />
+          ) : (
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <SortableTh k="sku" label="SKU" sortKey={sortKey} onSort={onSort} />
+                    <SortableTh k="nombre" label="Nombre" sortKey={sortKey} onSort={onSort} />
+                    <SortableTh k="categoria" label="Categoría" sortKey={sortKey} onSort={onSort} />
+                    <SortableTh k="cantidad" label="Cantidad" right sortKey={sortKey} onSort={onSort} />
+                    <SortableTh k="importe" label="Importe" right sortKey={sortKey} onSort={onSort} />
+                    <SortableTh k="precio" label="Precio promedio" right sortKey={sortKey} onSort={onSort} />
                   </TableRow>
-                </>
-              )}
-            </TableBody>
-          </Table>
-        </div>
+                </TableHeader>
+                <TableBody>
+                  {view.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6}><EmptyState message="Sin resultados para el rango/criterios seleccionados." /></TableCell>
+                    </TableRow>
+                  ) : (
+                    <>
+                      {view.map((r) => (
+                        <TableRow key={r.item_id}>
+                          <TableCell className="font-mono text-xs">{r.sku ?? "—"}</TableCell>
+                          <TableCell className="font-medium">{r.nombre}</TableCell>
+                          <TableCell className="text-muted-foreground">{categoriaLabel(r)}</TableCell>
+                          <TableCell className="text-right tabular-nums">{r.cantidad}</TableCell>
+                          <TableCell className="text-right tabular-nums">{formatUSD(r.importe)}</TableCell>
+                          <TableCell className="text-right tabular-nums">{formatUSD(precioPromedio(r))}</TableCell>
+                        </TableRow>
+                      ))}
+                      <TableRow className="bg-muted/40 font-bold border-t-2">
+                        <TableCell colSpan={3}>TOTAL ({view.length} artículos)</TableCell>
+                        <TableCell className="text-right tabular-nums">{totals.cantidad}</TableCell>
+                        <TableCell className="text-right tabular-nums">{formatUSD(totals.importe)}</TableCell>
+                        <TableCell />
+                      </TableRow>
+                    </>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
