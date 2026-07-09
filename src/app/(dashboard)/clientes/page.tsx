@@ -18,6 +18,7 @@ import {
   type CustomerSortDir,
 } from "@/lib/customer-sales";
 import { cn } from "@/lib/utils";
+import { computeDelta, formatDeltaPct } from "@/lib/compare";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -74,6 +75,13 @@ function SortHeader({
   );
 }
 
+// Celda de variación coloreada (módulo-level por react-hooks/static-components).
+function DeltaCell({ a, b }: { a: number; b: number }) {
+  const p = computeDelta(a, b).deltaPct;
+  const cls = p === null || p === 0 ? "text-muted-foreground" : p > 0 ? "text-emerald-500" : "text-rose-500";
+  return <span className={cls}>{formatDeltaPct(p)}</span>;
+}
+
 export default function ClientesPage() {
   const thisYear = new Date().getFullYear();
   const allYears = useMemo(() => range(FIRST_YEAR, thisYear), [thisYear]);
@@ -84,6 +92,8 @@ export default function ClientesPage() {
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<CustomerSortKey>("total");
   const [sortDir, setSortDir] = useState<CustomerSortDir>("desc");
+  const [compareA, setCompareA] = useState(thisYear);
+  const [compareB, setCompareB] = useState(thisYear - 1);
 
   const onSort = (k: CustomerSortKey) => {
     if (sortKey === k) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -102,7 +112,10 @@ export default function ClientesPage() {
   );
   const matrix = useMemo(() => buildCustomerMatrix(rows), [rows]);
   const visible = useMemo(() => filterCustomers(matrix, search), [matrix, search]);
-  const sorted = useMemo(() => sortCustomerMatrix(visible, sortKey, sortDir), [visible, sortKey, sortDir]);
+  const sorted = useMemo(
+    () => sortCustomerMatrix(visible, sortKey, sortDir, { a: compareA, b: compareB }),
+    [visible, sortKey, sortDir, compareA, compareB]
+  );
   const totals = useMemo(() => computeColumnTotals(visible, years), [visible, years]);
   // % siempre sobre el total GENERAL (toda la matriz, sin filtrar) — no el subconjunto.
   const grandAll = useMemo(() => computeColumnTotals(matrix, years).grand, [matrix, years]);
@@ -163,6 +176,18 @@ export default function ClientesPage() {
       <div className="flex flex-wrap items-center gap-3">
         <SearchInput value={search} onChange={setSearch} placeholder="Buscar cliente…" />
         <ExportMenu onCsv={exportCsv} onXlsx={exportXlsx} disabled={visible.length === 0} />
+        <div className="flex items-end gap-2 ml-auto">
+          <span className="text-xs text-muted-foreground self-center">Comparar</span>
+          <Select value={String(compareA)} onValueChange={(v) => { if (v) setCompareA(Number(v)); }}>
+            <SelectTrigger className="w-[90px]"><SelectValue /></SelectTrigger>
+            <SelectContent>{years.map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
+          </Select>
+          <span className="text-xs text-muted-foreground self-center">vs</span>
+          <Select value={String(compareB)} onValueChange={(v) => { if (v) setCompareB(Number(v)); }}>
+            <SelectTrigger className="w-[90px]"><SelectValue /></SelectTrigger>
+            <SelectContent>{years.map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
       </div>
 
       {isLoading ? (
@@ -178,12 +203,13 @@ export default function ClientesPage() {
                 ))}
                 <SortHeader label="Total" colKey="total" sortKey={sortKey} sortDir={sortDir} onSort={onSort} right />
                 <TableHead className="text-right">%</TableHead>
+                <SortHeader label={`Δ ${compareA}/${compareB}`} colKey="delta" sortKey={sortKey} sortDir={sortDir} onSort={onSort} right />
               </TableRow>
             </TableHeader>
             <TableBody>
               {visible.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={years.length + 3}><EmptyState message="Sin ventas en el rango seleccionado." /></TableCell>
+                  <TableCell colSpan={years.length + 4}><EmptyState message="Sin ventas en el rango seleccionado." /></TableCell>
                 </TableRow>
               ) : (
                 <>
@@ -199,6 +225,7 @@ export default function ClientesPage() {
                       ))}
                       <TableCell className="text-right tabular-nums font-bold">{formatUSD(r.total)}</TableCell>
                       <TableCell className="text-right tabular-nums text-muted-foreground">{pct(r.total)}</TableCell>
+                      <TableCell className="text-right tabular-nums"><DeltaCell a={r.byYear[compareA] ?? 0} b={r.byYear[compareB] ?? 0} /></TableCell>
                     </TableRow>
                   ))}
                   <TableRow className="bg-muted/40 font-bold border-t-2">
@@ -208,6 +235,7 @@ export default function ClientesPage() {
                     ))}
                     <TableCell className="text-right tabular-nums">{formatUSD(totals.grand)}</TableCell>
                     <TableCell className="text-right tabular-nums">{pct(totals.grand)}</TableCell>
+                    <TableCell className="text-right tabular-nums"><DeltaCell a={totals.byYear[compareA] ?? 0} b={totals.byYear[compareB] ?? 0} /></TableCell>
                   </TableRow>
                 </>
               )}
