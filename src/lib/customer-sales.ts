@@ -1,5 +1,6 @@
 import type { CustomerYearRow } from "@/types/database";
 import type { ExcelSheet } from "@/lib/excel-types";
+import { computeDelta } from "@/lib/compare";
 
 export interface CustomerMatrixRow {
   customer: string;
@@ -35,19 +36,25 @@ export function computeColumnTotals(
   return { byYear, grand };
 }
 
-export type CustomerSortKey = "customer" | "total" | number; // number = año
+export type CustomerSortKey = "customer" | "total" | "delta" | number; // number = año
 export type CustomerSortDir = "asc" | "desc";
 
-// Ordena la matriz por columna (nombre, un año concreto, o total). No muta la entrada.
+// Ordena la matriz por columna (nombre, un año concreto, total o delta A/B). No muta la entrada.
 export function sortCustomerMatrix(
   matrix: CustomerMatrixRow[],
   sortKey: CustomerSortKey,
-  sortDir: CustomerSortDir
+  sortDir: CustomerSortDir,
+  compare?: { a: number; b: number }
 ): CustomerMatrixRow[] {
   const dir = sortDir === "asc" ? 1 : -1;
   const val = (r: CustomerMatrixRow): string | number => {
     if (sortKey === "customer") return r.customer.toLowerCase();
     if (sortKey === "total") return r.total;
+    if (sortKey === "delta") {
+      if (!compare) return 0;
+      const p = computeDelta(r.byYear[compare.a] ?? 0, r.byYear[compare.b] ?? 0).deltaPct;
+      return p ?? -Infinity; // null (B=0) al fondo en desc
+    }
     return r.byYear[sortKey] ?? 0;
   };
   return [...matrix].sort((a, b) => {
