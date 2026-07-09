@@ -14,13 +14,15 @@ import {
   DropdownMenuGroup,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Moon, Sun, LogOut, User, Menu } from "lucide-react";
+import { Moon, Sun, LogOut, User, Menu, Search } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { MobileNav } from "./mobile-nav";
+import { useCommand } from "@/components/common/command-palette";
 
 export function Header() {
   const { theme, setTheme } = useTheme();
   const { profile, signOut } = useAuth();
+  const { setOpen } = useCommand();
 
   const initials = profile?.full_name
     ? profile.full_name
@@ -44,6 +46,17 @@ export function Header() {
           <MobileNav />
         </SheetContent>
       </Sheet>
+
+      {/* Búsqueda global */}
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => setOpen(true)}
+        className="hidden md:inline-flex items-center gap-2 text-muted-foreground"
+      >
+        <Search className="h-4 w-4" /> Buscar…
+        <kbd className="ml-1 rounded bg-muted px-1.5 py-0.5 text-[10px] font-mono">⌘K</kbd>
+      </Button>
 
       {/* Spacer */}
       <div className="flex-1" />
