@@ -8,8 +8,9 @@ import {
   buildBucketByClient,
   buildNewVsRecurring,
   buildMonthHeatmap,
+  buildBucketSeason,
 } from "@/lib/analytics-comercial";
-import type { CustomerYearRow, ItemSalesRow, CustomerItemRow, CustomerMonthRow } from "@/types/database";
+import type { CustomerYearRow, ItemSalesRow, CustomerItemRow, CustomerMonthRow, CategoryMonthRow } from "@/types/database";
 
 describe("buildBucketMixByYear", () => {
   it("filtra por tipo y año>=2021, clasifica buckets y agrega por año", () => {
@@ -141,5 +142,20 @@ describe("buildMonthHeatmap", () => {
     expect(h[1].months[2]).toBe(50);
     expect(h[1].total).toBe(150);
     expect(h[0].months[11]).toBe(500);
+  });
+});
+
+describe("buildBucketSeason", () => {
+  it("agrega a bucket por mes, 12 filas, meses vacíos en 0", () => {
+    const rows: CategoryMonthRow[] = [
+      { mes: 1, categoria: "CAL PM", importe: 100 },     // mano_obra
+      { mes: 1, categoria: "C&R EDM 180", importe: 50 }, // cr
+      { mes: 3, categoria: "EDM180", importe: 200 },     // equipos (default)
+    ];
+    const s = buildBucketSeason(rows);
+    expect(s).toHaveLength(12);
+    expect(s[0]).toEqual({ mes: 1, mano_obra: 100, cr: 50, equipos: 0, operacion: 0 });
+    expect(s[1]).toEqual({ mes: 2, mano_obra: 0, cr: 0, equipos: 0, operacion: 0 });
+    expect(s[2]).toEqual({ mes: 3, mano_obra: 0, cr: 0, equipos: 200, operacion: 0 });
   });
 });

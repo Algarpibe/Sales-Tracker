@@ -1,5 +1,5 @@
 import { bucketForCategory } from "@/lib/customer-item";
-import type { CustomerYearRow, ItemSalesRow, CustomerItemRow, CustomerMonthRow } from "@/types/database";
+import type { CustomerYearRow, ItemSalesRow, CustomerItemRow, CustomerMonthRow, CategoryMonthRow } from "@/types/database";
 
 export interface BucketMixYear {
   year: number;
@@ -163,4 +163,16 @@ export function buildMonthHeatmap(rows: CustomerMonthRow[]): MonthHeatmapRow[] {
     }
   }
   return [...map.values()].sort((a, b) => b.total - a.total || a.customer.localeCompare(b.customer));
+}
+
+export interface BucketSeasonRow { mes: number; mano_obra: number; cr: number; equipos: number; operacion: number }
+
+export function buildBucketSeason(rows: CategoryMonthRow[]): BucketSeasonRow[] {
+  const months: BucketSeasonRow[] = Array.from({ length: 12 }, (_, i) => ({
+    mes: i + 1, mano_obra: 0, cr: 0, equipos: 0, operacion: 0,
+  }));
+  for (const r of rows) {
+    if (r.mes >= 1 && r.mes <= 12) months[r.mes - 1][bucketForCategory(r.categoria)] += r.importe;
+  }
+  return months;
 }
