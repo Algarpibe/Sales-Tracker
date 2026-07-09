@@ -9,7 +9,7 @@ import { dedupeCustomers, articleHref } from "@/lib/global-search";
 import { customerHref } from "@/lib/customer-detail";
 import { useAuth } from "@/components/providers/auth-provider";
 import {
-  CommandDialog, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem,
+  Command, CommandDialog, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem,
 } from "@/components/ui/command";
 import { Home, BarChart3, Package, Users, ClipboardList, TrendingUp, FolderOpen, Settings } from "lucide-react";
 
@@ -76,6 +76,7 @@ export function CommandProvider({ children }: { children: React.ReactNode }) {
     <CommandContext.Provider value={{ setOpen }}>
       {children}
       <CommandDialog open={open} onOpenChange={setOpen} title="Buscar" description="Clientes, artículos y páginas">
+        <Command>
         <CommandInput placeholder="Buscar clientes, artículos, páginas…" />
         <CommandList>
           <CommandEmpty>Sin resultados.</CommandEmpty>
@@ -107,6 +108,7 @@ export function CommandProvider({ children }: { children: React.ReactNode }) {
             </CommandGroup>
           )}
         </CommandList>
+        </Command>
       </CommandDialog>
     </CommandContext.Provider>
   );
