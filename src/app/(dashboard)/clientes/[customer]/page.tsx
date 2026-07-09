@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { RecordTypeSelect } from "@/components/common/record-type-select";
+import { usePeriod } from "@/components/providers/period-provider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CustomerKpiRow } from "@/components/customers/customer-kpi-row";
 import { CustomerEvolutionCard } from "@/components/customers/customer-evolution-card";
@@ -25,8 +26,7 @@ export default function ClienteDetallePage() {
     return a;
   }, [thisYear]);
 
-  const [tipo, setTipo] = useState<"SALES_ORDER" | "INVOICE">("INVOICE");
-  const [anio, setAnio] = useState(thisYear);
+  const { tipo, setTipo, year: anio, setYear: setAnio } = usePeriod();
 
   return (
     <div className="space-y-6">

@@ -4,7 +4,8 @@ import { Suspense, useState, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { getItemSales } from "@/actions/item-sales-actions";
-import type { ItemSalesRow, RecordType } from "@/types/database";
+import type { ItemSalesRow } from "@/types/database";
+import { usePeriod } from "@/components/providers/period-provider";
 import { formatUSD } from "@/lib/constants";
 import {
   filterAndSortItems,
@@ -64,7 +65,7 @@ function SortableTh({
 }
 
 function ArticulosContent() {
-  const [tipo, setTipo] = useState<RecordType>("INVOICE");
+  const { tipo, setTipo } = usePeriod();
   const [desde, setDesde] = useState(yearStartISO());
   const [hasta, setHasta] = useState(todayISO());
   const searchParams = useSearchParams();

@@ -4,7 +4,8 @@ import { useState, useMemo } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { getCustomerSales } from "@/actions/customer-sales-actions";
-import type { CustomerYearRow, RecordType } from "@/types/database";
+import type { CustomerYearRow } from "@/types/database";
+import { usePeriod } from "@/components/providers/period-provider";
 import { formatUSD } from "@/lib/constants";
 import {
   buildCustomerMatrix,
@@ -77,7 +78,7 @@ export default function ClientesPage() {
   const thisYear = new Date().getFullYear();
   const allYears = useMemo(() => range(FIRST_YEAR, thisYear), [thisYear]);
 
-  const [tipo, setTipo] = useState<RecordType>("INVOICE");
+  const { tipo, setTipo } = usePeriod();
   const [desdeAnio, setDesdeAnio] = useState(FIRST_YEAR);
   const [hastaAnio, setHastaAnio] = useState(thisYear);
   const [search, setSearch] = useState("");

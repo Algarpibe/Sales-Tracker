@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { getCustomerItemSales } from "@/actions/customer-item-actions";
 import { customerHref } from "@/lib/customer-detail";
-import type { CustomerItemRow, RecordType } from "@/types/database";
+import type { CustomerItemRow } from "@/types/database";
+import { usePeriod } from "@/components/providers/period-provider";
 import { formatUSD } from "@/lib/constants";
 import {
   bucketForCategory,
@@ -39,8 +40,7 @@ export default function ClienteArticuloPage() {
     return a;
   }, [thisYear]);
 
-  const [tipo, setTipo] = useState<RecordType>("INVOICE");
-  const [anio, setAnio] = useState(thisYear);
+  const { tipo, setTipo, year: anio, setYear: setAnio } = usePeriod();
   const [search, setSearch] = useState("");
 
   const { data, isLoading } = useQuery({

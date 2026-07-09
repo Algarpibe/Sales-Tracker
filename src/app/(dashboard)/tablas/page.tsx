@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { MONTHS, RECORD_TYPES, formatUSD, getYearRange } from "@/lib/constants";
-import type { SalesRecord, Category, RecordType } from "@/types/database";
+import type { SalesRecord, Category } from "@/types/database";
+import { usePeriod } from "@/components/providers/period-provider";
 import {
   Select,
   SelectContent,
@@ -35,8 +36,7 @@ interface PivotRow {
 }
 
 export default function TablasPage() {
-  const [year, setYear] = useState(new Date().getFullYear());
-  const [typeFilter, setTypeFilter] = useState<RecordType>("SALES_ORDER");
+  const { tipo: typeFilter, setTipo: setTypeFilter, year, setYear } = usePeriod();
 
   const { data: salesData, isLoading: salesLoading } = useQuery({
     queryKey: ["sales", { year, record_type: typeFilter }],
@@ -179,7 +179,7 @@ export default function TablasPage() {
 
         <Select
           value={typeFilter}
-          onValueChange={(v) => setTypeFilter(v as RecordType)}
+          onValueChange={(v) => setTypeFilter(v as "SALES_ORDER" | "INVOICE")}
         >
           <SelectTrigger className="w-[190px]">
             <SelectValue placeholder="Tipo de Dato">

@@ -22,6 +22,7 @@ import { Sparkles, BarChart3, TrendingUp, Activity, FileText, Receipt } from "lu
 import { motion } from "framer-motion";
 import type { SalesRecord } from "@/types/database";
 import type { ChartTooltipProps } from "@/lib/chart-types";
+import { usePeriod } from "@/components/providers/period-provider";
 
 // Lazy-load de los charts pesados (recharts/framer) con next/dynamic (F3-02):
 // cada uno es su propio chunk y se carga en cliente bajo demanda, aligerando el
@@ -131,9 +132,8 @@ const CR_CATEGORIES = [
 
 function AnalyticsContent() {
   const [activeTab, setActiveTab] = useState("exploration");
-  const [yearA, setYearA] = useState(new Date().getFullYear());
+  const { tipo: recordType, setTipo: setRecordType, year: yearA, setYear: setYearA } = usePeriod();
   const [yearB, setYearB] = useState(new Date().getFullYear() - 1);
-  const [recordType, setRecordType] = useState<"SALES_ORDER" | "INVOICE">("SALES_ORDER");
   const [techServiceViewMode, setTechServiceViewMode] = useState<"MONTHLY" | "QUARTERLY" | "ANNUAL">("QUARTERLY");
 
   const searchParams = useSearchParams();
@@ -147,7 +147,7 @@ function AnalyticsContent() {
     } else {
       setActiveTab("exploration");
     }
-  }, [searchParams]);
+  }, [searchParams, setYearA]);
 
   // react-query: 3 fuentes cacheadas. ["sales", {}] = todas las ventas (histórico).
   const { data: recordsData, isLoading: l1 } = useQuery({
