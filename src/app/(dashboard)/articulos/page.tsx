@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { Suspense, useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { getItemSales } from "@/actions/item-sales-actions";
 import type { ItemSalesRow, RecordType } from "@/types/database";
@@ -62,11 +63,16 @@ function SortableTh({
   );
 }
 
-export default function ArticulosPage() {
+function ArticulosContent() {
   const [tipo, setTipo] = useState<RecordType>("INVOICE");
   const [desde, setDesde] = useState(yearStartISO());
   const [hasta, setHasta] = useState(todayISO());
-  const [search, setSearch] = useState("");
+  const searchParams = useSearchParams();
+  const [search, setSearch] = useState(searchParams.get("q") ?? "");
+  useEffect(() => {
+    const q = searchParams.get("q");
+    if (q !== null) setSearch(q);
+  }, [searchParams]);
   const [categoria, setCategoria] = useState("");
   const [sortKey, setSortKey] = useState<ItemSortKey>("importe");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
@@ -188,5 +194,13 @@ export default function ArticulosPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function ArticulosPage() {
+  return (
+    <Suspense fallback={<Skeleton className="h-[500px] w-full rounded-xl" />}>
+      <ArticulosContent />
+    </Suspense>
   );
 }
