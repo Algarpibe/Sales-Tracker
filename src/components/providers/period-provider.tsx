@@ -26,10 +26,15 @@ export function PeriodProvider({ children }: { children: React.ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
+    // Carga hidratación-segura desde localStorage: leerlo en el initializer causaría
+    // mismatch de hidratación (el server no tiene localStorage), así que se hace en
+    // este efecto de montaje. El setState aquí es intencional (patrón estándar).
     const p = parseStoredPeriod(localStorage.getItem(KEY), { tipo: "INVOICE", year: new Date().getFullYear() });
+    /* eslint-disable react-hooks/set-state-in-effect */
     setTipo(p.tipo);
     setYear(p.year);
     setHydrated(true);
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, []);
 
   useEffect(() => {
