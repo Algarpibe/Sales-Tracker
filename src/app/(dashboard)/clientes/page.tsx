@@ -18,7 +18,7 @@ import {
   type CustomerSortDir,
 } from "@/lib/customer-sales";
 import { cn } from "@/lib/utils";
-import { computeDelta, formatDeltaPct } from "@/lib/compare";
+import { DeltaCell } from "@/components/common/delta-cell";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -73,13 +73,6 @@ function SortHeader({
       </button>
     </TableHead>
   );
-}
-
-// Celda de variación coloreada (módulo-level por react-hooks/static-components).
-function DeltaCell({ a, b }: { a: number; b: number }) {
-  const p = computeDelta(a, b).deltaPct;
-  const cls = p === null || p === 0 ? "text-muted-foreground" : p > 0 ? "text-emerald-500" : "text-rose-500";
-  return <span className={cls}>{formatDeltaPct(p)}</span>;
 }
 
 export default function ClientesPage() {
