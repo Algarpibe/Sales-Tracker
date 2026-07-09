@@ -41,7 +41,6 @@ Aprovecha la card lazy + helpers puros ya establecidos.
 | **Comparador de periodos** en las vistas nuevas | Medio | M | como ya hace Análisis |
 | **Búsqueda global (cmd-k)** | Medio | M | `cmdk` ya es dependencia |
 | **Export Excel (.xlsx)** + copiar tabla | Medio | S/M | valorar reintroducir lib (xlsx se quitó por CVE → usar exceljs) |
-| **Moneda COP** (toggle USD/COP con TRM) | Medio | M | negocio colombiano; reportes hoy solo USD |
 | Vistas guardadas / favoritos | Bajo | M | |
 
 ## Fase 4 — Capacidades nuevas (frentes grandes)
