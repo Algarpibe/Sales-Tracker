@@ -263,3 +263,8 @@ export interface MarginYearRow { year: number; ventas: number; costo: number }
 export interface MarginItemRow { item_id: string; sku: string | null; nombre: string; ventas: number; costo: number }
 export interface MarginCustomerRow { customer: string; ventas: number; costo: number }
 
+// ===== Estacionalidad por categoría (mes × categoría) =====
+
+export interface CategoryMonthFilters { tipo: RecordType; anio: number }
+export interface CategoryMonthRow { mes: number; categoria: string | null; importe: number } // mes 1..12
+
