@@ -5,6 +5,7 @@ import {
   filterAndSortItems,
   computeItemTotals,
   itemsToCsv,
+  itemsToExcel,
 } from "@/lib/item-sales";
 import type { ItemSalesRow } from "@/types/database";
 
@@ -63,5 +64,23 @@ describe("itemsToCsv", () => {
     expect(lines[0]).toBe("SKU;Nombre;Categoría;Cantidad;Importe;Precio promedio");
     expect(lines[lines.length - 1]).toBe("TOTAL;;;5;320.00;");
     expect(lines).toHaveLength(rows.length + 2);
+  });
+});
+
+describe("itemsToExcel", () => {
+  it("columnas, filas y total en negrita", () => {
+    const rows: ItemSalesRow[] = [
+      { item_id: "1", sku: "A", nombre: "uno", categoria: "Cat", cantidad: 2, importe: 100 },
+    ];
+    const sheet = itemsToExcel(rows);
+    expect(sheet.name).toBe("Artículos");
+    expect(sheet.columns.map((c) => c.header)).toEqual(["SKU", "Nombre", "Categoría", "Cantidad", "Importe", "Precio promedio"]);
+    expect(sheet.columns[4].numFmt).toBe('"$"#,##0.00');
+    expect(sheet.rows[0].cells).toEqual(["A", "uno", "Cat", 2, 100, 50]); // importe/cantidad numéricos
+    const total = sheet.rows[sheet.rows.length - 1];
+    expect(total.bold).toBe(true);
+    expect(total.cells[0]).toBe("TOTAL");
+    expect(total.cells[3]).toBe(2);
+    expect(total.cells[4]).toBe(100);
   });
 });

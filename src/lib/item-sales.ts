@@ -1,4 +1,5 @@
 import type { ItemSalesRow } from "@/types/database";
+import type { ExcelSheet } from "@/lib/excel-types";
 
 export type ItemSortKey = "sku" | "nombre" | "categoria" | "cantidad" | "importe" | "precio";
 export type SortDir = "asc" | "desc";
@@ -69,4 +70,23 @@ export function itemsToCsv(rows: ItemSalesRow[]): string {
   const t = computeItemTotals(rows);
   const total = ["TOTAL", "", "", t.cantidad, t.importe.toFixed(2), ""];
   return [header, ...body, total].map((row) => row.map(csvCell).join(";")).join("\n");
+}
+
+export function itemsToExcel(rows: ItemSalesRow[]): ExcelSheet {
+  const t = computeItemTotals(rows);
+  return {
+    name: "Artículos",
+    columns: [
+      { header: "SKU", width: 16 },
+      { header: "Nombre", width: 40 },
+      { header: "Categoría", width: 22 },
+      { header: "Cantidad", width: 12, numFmt: "#,##0" },
+      { header: "Importe", width: 16, numFmt: '"$"#,##0.00' },
+      { header: "Precio promedio", width: 16, numFmt: '"$"#,##0.00' },
+    ],
+    rows: [
+      ...rows.map((r) => ({ cells: [r.sku ?? "", r.nombre, categoriaLabel(r), r.cantidad, r.importe, precioPromedio(r)] })),
+      { cells: ["TOTAL", "", "", t.cantidad, t.importe, null], bold: true },
+    ],
+  };
 }
