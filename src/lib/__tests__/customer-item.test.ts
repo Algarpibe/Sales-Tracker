@@ -5,6 +5,7 @@ import {
   groupByCustomer,
   computeGrandTotals,
   customerItemToCsv,
+  customerItemToExcel,
 } from "@/lib/customer-item";
 import type { CustomerItemRow } from "@/types/database";
 
@@ -64,5 +65,32 @@ describe("customerItemToCsv", () => {
     expect(lines[1]).toBe("Alpha;;;;;0.00;0.00;500.00;50.00");
     expect(lines[2]).toBe("C;Grimm;EDM 180C;EDM180 Series;1;;;500.00;");
     expect(lines[lines.length - 1]).toBe("TOTAL;;;;;300.00;100.00;500.00;50.00");
+  });
+});
+
+describe("customerItemToExcel", () => {
+  it("cabecera de grupo bold, buckets por columna y total bold", () => {
+    const groups = [
+      {
+        customer: "AGQ",
+        items: [
+          { customer: "AGQ", sku: "1", marca: "M", nombre: "uno", categoria: "C&R EDM 180", cantidad: 1, importe: 100 },
+          { customer: "AGQ", sku: "2", marca: null, nombre: "dos", categoria: "CAL PM", cantidad: 3, importe: 40 },
+        ],
+        totals: { mano_obra: 40, cr: 100, equipos: 0, operacion: 0 },
+      },
+    ];
+    const grand = { mano_obra: 40, cr: 100, equipos: 0, operacion: 0 };
+    const sheet = customerItemToExcel(groups, grand);
+    expect(sheet.columns.map((c) => c.header)).toEqual([
+      "SKU", "Marca", "Nombre", "Categoría", "Cantidad", "Mano de Obra/Cal", "C&R", "Equipos", "Operación",
+    ]);
+    expect(sheet.rows[0].bold).toBe(true);
+    expect(sheet.rows[0].cells).toEqual(["AGQ", "", "", "", "", 40, 100, 0, 0]);
+    expect(sheet.rows[1].cells).toEqual(["1", "M", "uno", "C&R EDM 180", 1, null, 100, null, null]);
+    expect(sheet.rows[2].cells).toEqual(["2", "", "dos", "CAL PM", 3, 40, null, null, null]);
+    const total = sheet.rows[sheet.rows.length - 1];
+    expect(total.bold).toBe(true);
+    expect(total.cells).toEqual(["TOTAL", "", "", "", "", 40, 100, 0, 0]);
   });
 });

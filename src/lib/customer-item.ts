@@ -1,4 +1,5 @@
 import type { CustomerItemRow } from "@/types/database";
+import type { ExcelSheet, ExcelRow } from "@/lib/excel-types";
 
 export type Bucket = "mano_obra" | "cr" | "equipos" | "operacion";
 
@@ -97,4 +98,39 @@ export function customerItemToCsv(groups: CustomerGroup[], grand: Record<Bucket,
   }
   lines.push(["TOTAL", "", "", "", "", grand.mano_obra.toFixed(2), grand.cr.toFixed(2), grand.equipos.toFixed(2), grand.operacion.toFixed(2)]);
   return lines.map((row) => row.map(csvCell).join(";")).join("\n");
+}
+
+export function customerItemToExcel(groups: CustomerGroup[], grand: Record<Bucket, number>): ExcelSheet {
+  const rows: ExcelRow[] = [];
+  for (const g of groups) {
+    rows.push({ cells: [g.customer, "", "", "", "", g.totals.mano_obra, g.totals.cr, g.totals.equipos, g.totals.operacion], bold: true });
+    for (const it of g.items) {
+      const b = bucketForCategory(it.categoria);
+      rows.push({
+        cells: [
+          it.sku ?? "", it.marca ?? "", it.nombre, it.categoria ?? "Sin categoría", it.cantidad,
+          b === "mano_obra" ? it.importe : null,
+          b === "cr" ? it.importe : null,
+          b === "equipos" ? it.importe : null,
+          b === "operacion" ? it.importe : null,
+        ],
+      });
+    }
+  }
+  rows.push({ cells: ["TOTAL", "", "", "", "", grand.mano_obra, grand.cr, grand.equipos, grand.operacion], bold: true });
+  return {
+    name: "Cliente×Artículo",
+    columns: [
+      { header: "SKU", width: 16 },
+      { header: "Marca", width: 18 },
+      { header: "Nombre", width: 40 },
+      { header: "Categoría", width: 20 },
+      { header: "Cantidad", width: 12, numFmt: "#,##0" },
+      { header: "Mano de Obra/Cal", width: 16, numFmt: '"$"#,##0.00' },
+      { header: "C&R", width: 16, numFmt: '"$"#,##0.00' },
+      { header: "Equipos", width: 16, numFmt: '"$"#,##0.00' },
+      { header: "Operación", width: 16, numFmt: '"$"#,##0.00' },
+    ],
+    rows,
+  };
 }
