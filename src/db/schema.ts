@@ -8,6 +8,7 @@ import {
   numeric,
   date,
   timestamp,
+  jsonb,
   customType,
   check,
   unique,
@@ -194,3 +195,12 @@ export const favorites = pgTable("favorites", {
   customer_name: text("customer_name").notNull(),
   created_at: timestamp("created_at", tsString).notNull().defaultNow(),
 }, (t) => [unique("favorites_user_customer_unique").on(t.user_id, t.customer_name)]);
+
+export const savedViews = pgTable("saved_views", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  user_id: uuid("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  view_key: text("view_key").notNull(),
+  name: text("name").notNull(),
+  state: jsonb("state").notNull(),
+  created_at: timestamp("created_at", tsString).notNull().defaultNow(),
+}, (t) => [unique("saved_views_user_key_name_unique").on(t.user_id, t.view_key, t.name)]);
