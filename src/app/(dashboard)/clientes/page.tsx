@@ -32,7 +32,7 @@ import { RecordTypeSelect } from "@/components/common/record-type-select";
 import { SearchInput } from "@/components/common/search-input";
 import { ExportMenu } from "@/components/common/export-menu";
 import { EmptyState } from "@/components/common/empty-state";
-import { downloadXlsx } from "@/lib/excel-client";
+import { downloadXlsx, copySheetToClipboard } from "@/lib/excel-client";
 
 const FIRST_YEAR = 2021;
 
@@ -131,6 +131,11 @@ export default function ClientesPage() {
     toast.success("Excel descargado");
   };
 
+  const onCopy = async () => {
+    try { await copySheetToClipboard(customerMatrixToExcel(visible, years, grandAll)); toast.success("Tabla copiada"); }
+    catch { toast.error("No se pudo copiar"); }
+  };
+
   const pct = (n: number) => (grandAll > 0 ? `${((n / grandAll) * 100).toFixed(1)}%` : "—");
 
   return (
@@ -168,7 +173,7 @@ export default function ClientesPage() {
       {/* Controles cliente */}
       <div className="flex flex-wrap items-center gap-3">
         <SearchInput value={search} onChange={setSearch} placeholder="Buscar cliente…" />
-        <ExportMenu onCsv={exportCsv} onXlsx={exportXlsx} disabled={visible.length === 0} />
+        <ExportMenu onCopy={onCopy} onCsv={exportCsv} onXlsx={exportXlsx} disabled={visible.length === 0} />
         <div className="flex items-end gap-2 ml-auto">
           <span className="text-xs text-muted-foreground self-center">Comparar</span>
           <Select value={String(compareA)} onValueChange={(v) => { if (v) setCompareA(Number(v)); }}>

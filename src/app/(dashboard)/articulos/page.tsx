@@ -31,7 +31,7 @@ import { RecordTypeSelect } from "@/components/common/record-type-select";
 import { SearchInput } from "@/components/common/search-input";
 import { ExportMenu } from "@/components/common/export-menu";
 import { EmptyState } from "@/components/common/empty-state";
-import { downloadXlsx } from "@/lib/excel-client";
+import { downloadXlsx, copySheetToClipboard } from "@/lib/excel-client";
 import { Switch } from "@/components/ui/switch";
 import { ItemCompareTable } from "@/components/articulos/item-compare-table";
 
@@ -131,6 +131,11 @@ function ArticulosContent() {
     toast.success("Excel descargado");
   };
 
+  const onCopy = async () => {
+    try { await copySheetToClipboard(itemsToExcel(view)); toast.success("Tabla copiada"); }
+    catch { toast.error("No se pudo copiar"); }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-1">
@@ -192,7 +197,7 @@ function ArticulosContent() {
                 {categorias.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
               </SelectContent>
             </Select>
-            <ExportMenu onCsv={exportCsv} onXlsx={exportXlsx} disabled={view.length === 0} />
+            <ExportMenu onCopy={onCopy} onCsv={exportCsv} onXlsx={exportXlsx} disabled={view.length === 0} />
           </div>
 
           {isLoading ? (

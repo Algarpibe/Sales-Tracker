@@ -23,7 +23,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { ExportMenu } from "@/components/common/export-menu";
-import { downloadXlsx } from "@/lib/excel-client";
+import { downloadXlsx, copySheetToClipboard } from "@/lib/excel-client";
 import type { ExcelSheet } from "@/lib/excel-types";
 import { getSalesData } from "@/actions/sales-actions";
 import { getCategories } from "@/actions/category-actions";
@@ -121,21 +121,25 @@ export default function TablasPage() {
     toast.success("CSV descargado");
   };
 
+  const makeSheet = (): ExcelSheet => ({
+    name: "Tabla",
+    columns: [
+      { header: "Categoría", width: 24 },
+      ...MONTHS.map((m) => ({ header: m.label, width: 12, numFmt: '"$"#,##0.00' })),
+      { header: "Total", width: 16, numFmt: '"$"#,##0.00' },
+    ],
+    rows: [
+      ...pivotRows.map((row) => ({ cells: [row.category_name, ...MONTHS.map((m) => row.months[m.value]?.amount ?? 0), row.total] })),
+      { cells: ["TOTAL", ...MONTHS.map((m) => monthlyTotals[m.value]), grandTotal], bold: true },
+    ],
+  });
   const handleExportXlsx = () => {
-    const sheet: ExcelSheet = {
-      name: "Tabla",
-      columns: [
-        { header: "Categoría", width: 24 },
-        ...MONTHS.map((m) => ({ header: m.label, width: 12, numFmt: '"$"#,##0.00' })),
-        { header: "Total", width: 16, numFmt: '"$"#,##0.00' },
-      ],
-      rows: [
-        ...pivotRows.map((row) => ({ cells: [row.category_name, ...MONTHS.map((m) => row.months[m.value]?.amount ?? 0), row.total] })),
-        { cells: ["TOTAL", ...MONTHS.map((m) => monthlyTotals[m.value]), grandTotal], bold: true },
-      ],
-    };
-    downloadXlsx([sheet], `tabla_${typeFilter}_${year}.xlsx`);
+    downloadXlsx([makeSheet()], `tabla_${typeFilter}_${year}.xlsx`);
     toast.success("Excel descargado");
+  };
+  const onCopy = async () => {
+    try { await copySheetToClipboard(makeSheet()); toast.success("Tabla copiada"); }
+    catch { toast.error("No se pudo copiar"); }
   };
 
   if (loading && records.length === 0) {
@@ -158,7 +162,7 @@ export default function TablasPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <ExportMenu onCsv={handleExportCSV} onXlsx={handleExportXlsx} />
+          <ExportMenu onCopy={onCopy} onCsv={handleExportCSV} onXlsx={handleExportXlsx} />
         </div>
       </div>
 

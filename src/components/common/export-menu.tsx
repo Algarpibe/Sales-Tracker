@@ -10,10 +10,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export function ExportMenu({
+  onCopy,
   onCsv,
   onXlsx,
   disabled,
 }: {
+  onCopy: () => void;
   onCsv: () => void;
   onXlsx: () => void;
   disabled?: boolean;
@@ -28,6 +30,7 @@ export function ExportMenu({
         )}
       />
       <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={onCopy}>Copiar tabla</DropdownMenuItem>
         <DropdownMenuItem onClick={onCsv}>CSV</DropdownMenuItem>
         <DropdownMenuItem onClick={onXlsx}>Excel (.xlsx)</DropdownMenuItem>
       </DropdownMenuContent>

@@ -2,6 +2,7 @@
 
 import { generateXlsx } from "@/actions/export-actions";
 import type { ExcelSheet } from "@/lib/excel-types";
+import { sheetToTsv } from "@/lib/table-tsv";
 
 export async function downloadXlsx(sheets: ExcelSheet[], filename: string): Promise<void> {
   const b64 = await generateXlsx(sheets);
@@ -15,4 +16,8 @@ export async function downloadXlsx(sheets: ExcelSheet[], filename: string): Prom
   a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+export async function copySheetToClipboard(sheet: ExcelSheet): Promise<void> {
+  await navigator.clipboard.writeText(sheetToTsv(sheet));
 }

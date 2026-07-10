@@ -29,7 +29,7 @@ import { RecordTypeSelect } from "@/components/common/record-type-select";
 import { SearchInput } from "@/components/common/search-input";
 import { ExportMenu } from "@/components/common/export-menu";
 import { EmptyState } from "@/components/common/empty-state";
-import { downloadXlsx } from "@/lib/excel-client";
+import { downloadXlsx, copySheetToClipboard } from "@/lib/excel-client";
 import { CustomerItemCompareTable } from "@/components/cliente-articulo/customer-item-compare-table";
 
 const FIRST_YEAR = 2021;
@@ -72,6 +72,11 @@ export default function ClienteArticuloPage() {
   const exportXlsx = () => {
     downloadXlsx([customerItemToExcel(groups, grand)], `ventas_cliente_articulo_${tipo}_${anio}.xlsx`);
     toast.success("Excel descargado");
+  };
+
+  const onCopy = async () => {
+    try { await copySheetToClipboard(customerItemToExcel(groups, grand)); toast.success("Tabla copiada"); }
+    catch { toast.error("No se pudo copiar"); }
   };
 
   const amount = (show: boolean, n: number) =>
@@ -130,7 +135,7 @@ export default function ClienteArticuloPage() {
           {/* Controles cliente */}
           <div className="flex flex-wrap items-center gap-3">
             <SearchInput value={search} onChange={setSearch} placeholder="Buscar cliente, artículo o SKU…" />
-            <ExportMenu onCsv={exportCsv} onXlsx={exportXlsx} disabled={groups.length === 0} />
+            <ExportMenu onCopy={onCopy} onCsv={exportCsv} onXlsx={exportXlsx} disabled={groups.length === 0} />
           </div>
 
           {isLoading ? (
