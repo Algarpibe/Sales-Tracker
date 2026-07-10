@@ -187,3 +187,10 @@ export const subscriptions = pgTable("subscriptions", {
   created_at: timestamp("created_at", tsString).notNull().defaultNow(),
   updated_at: timestamp("updated_at", tsString).notNull().defaultNow(),
 }, (t) => [index("idx_subscriptions_company_created").on(t.company_id, t.created_at)]);
+
+export const favorites = pgTable("favorites", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  user_id: uuid("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  customer_name: text("customer_name").notNull(),
+  created_at: timestamp("created_at", tsString).notNull().defaultNow(),
+}, (t) => [unique("favorites_user_customer_unique").on(t.user_id, t.customer_name)]);
