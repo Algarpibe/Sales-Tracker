@@ -36,6 +36,8 @@ import { SearchInput } from "@/components/common/search-input";
 import { ExportMenu } from "@/components/common/export-menu";
 import { EmptyState } from "@/components/common/empty-state";
 import { downloadXlsx, copySheetToClipboard } from "@/lib/excel-client";
+import { SavedViewsMenu } from "@/components/clientes/saved-views-menu";
+import type { ClientesViewState } from "@/lib/clientes-view-state";
 
 const FIRST_YEAR = 2021;
 
@@ -99,6 +101,22 @@ export default function ClientesPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["favorites"] }),
     onError: () => toast.error("No se pudo guardar el favorito"),
   });
+
+  const currentView: ClientesViewState = useMemo(
+    () => ({ tipo: tipo as "SALES_ORDER" | "INVOICE", desdeAnio, hastaAnio, search, sortKey, sortDir, compareA, compareB, onlyFav }),
+    [tipo, desdeAnio, hastaAnio, search, sortKey, sortDir, compareA, compareB, onlyFav]
+  );
+  const applyView = (s: ClientesViewState) => {
+    setTipo(s.tipo);
+    setDesdeAnio(s.desdeAnio);
+    setHastaAnio(s.hastaAnio);
+    setSearch(s.search);
+    setSortKey(s.sortKey);
+    setSortDir(s.sortDir);
+    setCompareA(s.compareA);
+    setCompareB(s.compareB);
+    setOnlyFav(s.onlyFav);
+  };
 
   const onSort = (k: CustomerSortKey) => {
     if (sortKey === k) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -192,6 +210,7 @@ export default function ClientesPage() {
         <label className="flex items-center gap-2 self-center text-sm">
           <Switch checked={onlyFav} onCheckedChange={setOnlyFav} /> Solo favoritos
         </label>
+        <SavedViewsMenu current={currentView} onApply={applyView} />
         <div className="flex items-end gap-2 ml-auto">
           <span className="text-xs text-muted-foreground self-center">Comparar</span>
           <Select value={String(compareA)} onValueChange={(v) => { if (v) setCompareA(Number(v)); }}>
