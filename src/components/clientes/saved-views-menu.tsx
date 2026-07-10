@@ -62,7 +62,9 @@ export function SavedViewsMenu({ current, onApply }: { current: ClientesViewStat
                   role="button"
                   tabIndex={0}
                   aria-label="Borrar vista"
+                  onMouseDown={(e) => e.stopPropagation()}
                   onClick={(e) => { e.stopPropagation(); delMut.mutate(v.id); }}
+                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); delMut.mutate(v.id); } }}
                   className="text-muted-foreground hover:text-rose-500"
                 >
                   <X className="h-3.5 w-3.5" />
