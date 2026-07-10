@@ -23,12 +23,14 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { RecordTypeSelect } from "@/components/common/record-type-select";
 import { SearchInput } from "@/components/common/search-input";
 import { ExportMenu } from "@/components/common/export-menu";
 import { EmptyState } from "@/components/common/empty-state";
 import { downloadXlsx } from "@/lib/excel-client";
+import { CustomerItemCompareTable } from "@/components/cliente-articulo/customer-item-compare-table";
 
 const FIRST_YEAR = 2021;
 
@@ -42,10 +44,14 @@ export default function ClienteArticuloPage() {
 
   const { tipo, setTipo, year: anio, setYear: setAnio } = usePeriod();
   const [search, setSearch] = useState("");
+  const [compareMode, setCompareMode] = useState(false);
+  const [yearA, setYearA] = useState(anio);
+  const [yearB, setYearB] = useState(anio - 1);
 
   const { data, isLoading } = useQuery({
     queryKey: ["customer-item", { tipo, anio }],
     queryFn: () => getCustomerItemSales({ tipo, anio }),
+    enabled: !compareMode,
   });
 
   const rows = useMemo<CustomerItemRow[]>(() => data ?? [], [data]);
@@ -83,89 +89,118 @@ export default function ClienteArticuloPage() {
       {/* Controles servidor */}
       <div className="flex flex-wrap items-end gap-3">
         <RecordTypeSelect value={tipo as "SALES_ORDER" | "INVOICE"} onValueChange={(v) => setTipo(v)} />
-        <div className="flex flex-col gap-1">
-          <label className="text-xs text-muted-foreground">Año</label>
-          <Select value={String(anio)} onValueChange={(v) => { if (v) setAnio(Number(v)); }}>
-            <SelectTrigger className="w-[110px]"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {allYears.map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
+        {!compareMode ? (
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-muted-foreground">Año</label>
+            <Select value={String(anio)} onValueChange={(v) => { if (v) setAnio(Number(v)); }}>
+              <SelectTrigger className="w-[110px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {allYears.map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        ) : (
+          <>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-muted-foreground">Año A</label>
+              <Select value={String(yearA)} onValueChange={(v) => { if (v) setYearA(Number(v)); }}>
+                <SelectTrigger className="w-[100px]"><SelectValue /></SelectTrigger>
+                <SelectContent>{allYears.map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <span className="self-end pb-2 text-muted-foreground">vs</span>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-muted-foreground">Año B</label>
+              <Select value={String(yearB)} onValueChange={(v) => { if (v) setYearB(Number(v)); }}>
+                <SelectTrigger className="w-[100px]"><SelectValue /></SelectTrigger>
+                <SelectContent>{allYears.map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+          </>
+        )}
+        <label className="flex items-center gap-2 self-center text-sm pb-1">
+          <Switch checked={compareMode} onCheckedChange={setCompareMode} /> Comparar años
+        </label>
       </div>
 
-      {/* Controles cliente */}
-      <div className="flex flex-wrap items-center gap-3">
-        <SearchInput value={search} onChange={setSearch} placeholder="Buscar cliente, artículo o SKU…" />
-        <ExportMenu onCsv={exportCsv} onXlsx={exportXlsx} disabled={groups.length === 0} />
-      </div>
-
-      {isLoading ? (
-        <Skeleton className="h-[500px] w-full rounded-xl" />
+      {compareMode ? (
+        <CustomerItemCompareTable tipo={tipo as "SALES_ORDER" | "INVOICE"} yearA={yearA} yearB={yearB} />
       ) : (
-        <div className="rounded-md border overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="min-w-[120px]">SKU</TableHead>
-                <TableHead className="min-w-[140px]">Marca</TableHead>
-                <TableHead className="min-w-[220px]">Nombre</TableHead>
-                <TableHead className="min-w-[140px]">Categoría</TableHead>
-                <TableHead className="text-right">Cantidad</TableHead>
-                <TableHead className="text-right">Mano de Obra / Cal</TableHead>
-                <TableHead className="text-right">C&amp;R</TableHead>
-                <TableHead className="text-right">Equipos</TableHead>
-                <TableHead className="text-right">Operación</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {groups.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={9}><EmptyState message="Sin ventas en el año seleccionado." /></TableCell>
-                </TableRow>
-              ) : (
-                <>
-                  {groups.map((g) => (
-                    <Fragment key={g.customer}>
-                      <TableRow className="bg-muted/50 font-bold">
-                        <TableCell colSpan={5}>
-                          <Link href={customerHref(g.customer)} className="hover:text-primary hover:underline">{g.customer}</Link>
-                        </TableCell>
-                        <TableCell className="text-right tabular-nums">{formatUSD(g.totals.mano_obra)}</TableCell>
-                        <TableCell className="text-right tabular-nums">{formatUSD(g.totals.cr)}</TableCell>
-                        <TableCell className="text-right tabular-nums">{formatUSD(g.totals.equipos)}</TableCell>
-                        <TableCell className="text-right tabular-nums">{formatUSD(g.totals.operacion)}</TableCell>
-                      </TableRow>
-                      {g.items.map((it, i) => {
-                        const b = bucketForCategory(it.categoria);
-                        return (
-                          <TableRow key={`${g.customer}-${it.sku ?? it.nombre}-${i}`}>
-                            <TableCell className="font-mono text-xs">{it.sku ?? "—"}</TableCell>
-                            <TableCell className="text-muted-foreground">{it.marca ?? "—"}</TableCell>
-                            <TableCell>{it.nombre}</TableCell>
-                            <TableCell className="text-muted-foreground">{it.categoria ?? "Sin categoría"}</TableCell>
-                            <TableCell className="text-right tabular-nums">{it.cantidad}</TableCell>
-                            <TableCell className="text-right">{amount(b === "mano_obra", it.importe)}</TableCell>
-                            <TableCell className="text-right">{amount(b === "cr", it.importe)}</TableCell>
-                            <TableCell className="text-right">{amount(b === "equipos", it.importe)}</TableCell>
-                            <TableCell className="text-right">{amount(b === "operacion", it.importe)}</TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </Fragment>
-                  ))}
-                  <TableRow className="bg-muted/40 font-bold border-t-2">
-                    <TableCell colSpan={5}>TOTAL ({groups.length} clientes)</TableCell>
-                    <TableCell className="text-right tabular-nums">{formatUSD(grand.mano_obra)}</TableCell>
-                    <TableCell className="text-right tabular-nums">{formatUSD(grand.cr)}</TableCell>
-                    <TableCell className="text-right tabular-nums">{formatUSD(grand.equipos)}</TableCell>
-                    <TableCell className="text-right tabular-nums">{formatUSD(grand.operacion)}</TableCell>
+        <>
+          {/* Controles cliente */}
+          <div className="flex flex-wrap items-center gap-3">
+            <SearchInput value={search} onChange={setSearch} placeholder="Buscar cliente, artículo o SKU…" />
+            <ExportMenu onCsv={exportCsv} onXlsx={exportXlsx} disabled={groups.length === 0} />
+          </div>
+
+          {isLoading ? (
+            <Skeleton className="h-[500px] w-full rounded-xl" />
+          ) : (
+            <div className="rounded-md border overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="min-w-[120px]">SKU</TableHead>
+                    <TableHead className="min-w-[140px]">Marca</TableHead>
+                    <TableHead className="min-w-[220px]">Nombre</TableHead>
+                    <TableHead className="min-w-[140px]">Categoría</TableHead>
+                    <TableHead className="text-right">Cantidad</TableHead>
+                    <TableHead className="text-right">Mano de Obra / Cal</TableHead>
+                    <TableHead className="text-right">C&amp;R</TableHead>
+                    <TableHead className="text-right">Equipos</TableHead>
+                    <TableHead className="text-right">Operación</TableHead>
                   </TableRow>
-                </>
-              )}
-            </TableBody>
-          </Table>
-        </div>
+                </TableHeader>
+                <TableBody>
+                  {groups.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={9}><EmptyState message="Sin ventas en el año seleccionado." /></TableCell>
+                    </TableRow>
+                  ) : (
+                    <>
+                      {groups.map((g) => (
+                        <Fragment key={g.customer}>
+                          <TableRow className="bg-muted/50 font-bold">
+                            <TableCell colSpan={5}>
+                              <Link href={customerHref(g.customer)} className="hover:text-primary hover:underline">{g.customer}</Link>
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums">{formatUSD(g.totals.mano_obra)}</TableCell>
+                            <TableCell className="text-right tabular-nums">{formatUSD(g.totals.cr)}</TableCell>
+                            <TableCell className="text-right tabular-nums">{formatUSD(g.totals.equipos)}</TableCell>
+                            <TableCell className="text-right tabular-nums">{formatUSD(g.totals.operacion)}</TableCell>
+                          </TableRow>
+                          {g.items.map((it, i) => {
+                            const b = bucketForCategory(it.categoria);
+                            return (
+                              <TableRow key={`${g.customer}-${it.sku ?? it.nombre}-${i}`}>
+                                <TableCell className="font-mono text-xs">{it.sku ?? "—"}</TableCell>
+                                <TableCell className="text-muted-foreground">{it.marca ?? "—"}</TableCell>
+                                <TableCell>{it.nombre}</TableCell>
+                                <TableCell className="text-muted-foreground">{it.categoria ?? "Sin categoría"}</TableCell>
+                                <TableCell className="text-right tabular-nums">{it.cantidad}</TableCell>
+                                <TableCell className="text-right">{amount(b === "mano_obra", it.importe)}</TableCell>
+                                <TableCell className="text-right">{amount(b === "cr", it.importe)}</TableCell>
+                                <TableCell className="text-right">{amount(b === "equipos", it.importe)}</TableCell>
+                                <TableCell className="text-right">{amount(b === "operacion", it.importe)}</TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </Fragment>
+                      ))}
+                      <TableRow className="bg-muted/40 font-bold border-t-2">
+                        <TableCell colSpan={5}>TOTAL ({groups.length} clientes)</TableCell>
+                        <TableCell className="text-right tabular-nums">{formatUSD(grand.mano_obra)}</TableCell>
+                        <TableCell className="text-right tabular-nums">{formatUSD(grand.cr)}</TableCell>
+                        <TableCell className="text-right tabular-nums">{formatUSD(grand.equipos)}</TableCell>
+                        <TableCell className="text-right tabular-nums">{formatUSD(grand.operacion)}</TableCell>
+                      </TableRow>
+                    </>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
