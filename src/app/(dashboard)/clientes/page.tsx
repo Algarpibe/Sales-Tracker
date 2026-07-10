@@ -2,8 +2,11 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getCustomerSales } from "@/actions/customer-sales-actions";
+import { getFavorites, toggleFavorite } from "@/actions/favorites-actions";
+import { FavoriteStar } from "@/components/common/favorite-star";
+import { Switch } from "@/components/ui/switch";
 import type { CustomerYearRow } from "@/types/database";
 import { usePeriod } from "@/components/providers/period-provider";
 import { formatUSD } from "@/lib/constants";
@@ -87,6 +90,15 @@ export default function ClientesPage() {
   const [sortDir, setSortDir] = useState<CustomerSortDir>("desc");
   const [compareA, setCompareA] = useState(thisYear);
   const [compareB, setCompareB] = useState(thisYear - 1);
+  const [onlyFav, setOnlyFav] = useState(false);
+  const qc = useQueryClient();
+  const favQ = useQuery({ queryKey: ["favorites"], queryFn: getFavorites });
+  const favSet = useMemo(() => new Set(favQ.data ?? []), [favQ.data]);
+  const favMut = useMutation({
+    mutationFn: toggleFavorite,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["favorites"] }),
+    onError: () => toast.error("No se pudo guardar el favorito"),
+  });
 
   const onSort = (k: CustomerSortKey) => {
     if (sortKey === k) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -104,7 +116,10 @@ export default function ClientesPage() {
     [desdeAnio, hastaAnio]
   );
   const matrix = useMemo(() => buildCustomerMatrix(rows), [rows]);
-  const visible = useMemo(() => filterCustomers(matrix, search), [matrix, search]);
+  const visible = useMemo(() => {
+    const base = filterCustomers(matrix, search);
+    return onlyFav ? base.filter((r) => favSet.has(r.customer)) : base;
+  }, [matrix, search, onlyFav, favSet]);
   const sorted = useMemo(
     () => sortCustomerMatrix(visible, sortKey, sortDir, { a: compareA, b: compareB }),
     [visible, sortKey, sortDir, compareA, compareB]
@@ -174,6 +189,9 @@ export default function ClientesPage() {
       <div className="flex flex-wrap items-center gap-3">
         <SearchInput value={search} onChange={setSearch} placeholder="Buscar cliente…" />
         <ExportMenu onCopy={onCopy} onCsv={exportCsv} onXlsx={exportXlsx} disabled={visible.length === 0} />
+        <label className="flex items-center gap-2 self-center text-sm">
+          <Switch checked={onlyFav} onCheckedChange={setOnlyFav} /> Solo favoritos
+        </label>
         <div className="flex items-end gap-2 ml-auto">
           <span className="text-xs text-muted-foreground self-center">Comparar</span>
           <Select value={String(compareA)} onValueChange={(v) => { if (v) setCompareA(Number(v)); }}>
@@ -214,7 +232,10 @@ export default function ClientesPage() {
                   {sorted.map((r) => (
                     <TableRow key={r.customer}>
                       <TableCell className="sticky left-0 z-10 bg-background font-medium">
-                        <Link href={`/clientes/${encodeURIComponent(r.customer)}`} className="hover:text-primary hover:underline">{r.customer}</Link>
+                        <span className="inline-flex items-center gap-2">
+                          <FavoriteStar active={favSet.has(r.customer)} onToggle={() => favMut.mutate(r.customer)} />
+                          <Link href={`/clientes/${encodeURIComponent(r.customer)}`} className="hover:text-primary hover:underline">{r.customer}</Link>
+                        </span>
                       </TableCell>
                       {years.map((y) => (
                         <TableCell key={y} className="text-right tabular-nums">
