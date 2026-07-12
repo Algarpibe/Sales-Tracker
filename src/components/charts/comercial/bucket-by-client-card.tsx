@@ -9,6 +9,8 @@ import { customerHref } from "@/lib/customer-detail";
 import { formatUSD, formatCompactUSD } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { InfoTooltip } from "@/components/common/info-tooltip";
+import { CHART_HELP } from "@/lib/chart-help";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
@@ -51,7 +53,10 @@ export function BucketByClientCard({ recordType, year }: { recordType: "SALES_OR
   return (
     <Card className="border-border/40 bg-card/30 backdrop-blur-sm">
       <CardHeader>
-        <CardTitle className="text-base font-semibold">Macro-categoría × cliente {year} (top 15)</CardTitle>
+        <span className="inline-flex items-center gap-1.5">
+          <CardTitle className="text-base font-semibold">Macro-categoría × cliente {year} (top 15)</CardTitle>
+          <InfoTooltip text={CHART_HELP.bucketByClient} />
+        </span>
         <p className="text-xs text-muted-foreground">Clic en un cliente para ver su detalle.</p>
       </CardHeader>
       <CardContent>

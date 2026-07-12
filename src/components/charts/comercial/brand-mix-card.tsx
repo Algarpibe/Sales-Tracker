@@ -7,6 +7,8 @@ import { buildBrandMix, type BrandMixRow } from "@/lib/analytics-comercial";
 import { formatUSD } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { InfoTooltip } from "@/components/common/info-tooltip";
+import { CHART_HELP } from "@/lib/chart-help";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import type { ChartTooltipProps } from "@/lib/chart-types";
 
@@ -44,7 +46,10 @@ export function BrandMixCard({ recordType, year }: { recordType: "SALES_ORDER" |
   return (
     <Card className="border-border/40 bg-card/30 backdrop-blur-sm">
       <CardHeader>
-        <CardTitle className="text-base font-semibold">Mix por marca {year}</CardTitle>
+        <span className="inline-flex items-center gap-1.5">
+          <CardTitle className="text-base font-semibold">Mix por marca {year}</CardTitle>
+          <InfoTooltip text={CHART_HELP.brandMix} />
+        </span>
       </CardHeader>
       <CardContent>
         {isLoading ? (

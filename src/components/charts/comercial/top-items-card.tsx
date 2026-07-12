@@ -7,6 +7,8 @@ import { topItems } from "@/lib/analytics-comercial";
 import { formatUSD, formatCompactUSD } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { InfoTooltip } from "@/components/common/info-tooltip";
+import { CHART_HELP } from "@/lib/chart-help";
 import { Button } from "@/components/ui/button";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -40,7 +42,10 @@ export function TopItemsCard({ recordType, year }: { recordType: "SALES_ORDER" |
   return (
     <Card className="border-border/40 bg-card/30 backdrop-blur-sm">
       <CardHeader className="flex flex-row items-center justify-between gap-2">
-        <CardTitle className="text-base font-semibold">Top 15 artículos {year}</CardTitle>
+        <span className="inline-flex items-center gap-1.5">
+          <CardTitle className="text-base font-semibold">Top 15 artículos {year}</CardTitle>
+          <InfoTooltip text={CHART_HELP.topItems} />
+        </span>
         <div className="flex gap-1">
           <Button size="sm" variant={metric === "importe" ? "default" : "outline"} onClick={() => setMetric("importe")}>$</Button>
           <Button size="sm" variant={metric === "cantidad" ? "default" : "outline"} onClick={() => setMetric("cantidad")}>Uds</Button>

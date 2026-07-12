@@ -7,6 +7,8 @@ import { buildItemPareto } from "@/lib/analytics-comercial";
 import { formatUSD, formatCompactUSD } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { InfoTooltip } from "@/components/common/info-tooltip";
+import { CHART_HELP } from "@/lib/chart-help";
 import {
   ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine,
 } from "recharts";
@@ -36,7 +38,10 @@ export function SkuParetoCard({ recordType, year }: { recordType: "SALES_ORDER" 
   return (
     <Card className="border-border/40 bg-card/30 backdrop-blur-sm">
       <CardHeader>
-        <CardTitle className="text-base font-semibold">Pareto de SKUs {year} (top 30)</CardTitle>
+        <span className="inline-flex items-center gap-1.5">
+          <CardTitle className="text-base font-semibold">Pareto de SKUs {year} (top 30)</CardTitle>
+          <InfoTooltip text={CHART_HELP.skuPareto} />
+        </span>
       </CardHeader>
       <CardContent>
         {isLoading ? (
