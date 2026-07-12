@@ -39,6 +39,8 @@ import {
   ArrowDown
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { InfoTooltip } from "@/components/common/info-tooltip";
+import { CHART_HELP } from "@/lib/chart-help";
 import { GroupingManager } from "./grouping-manager";
 import { getGroupingAnalysisData } from "@/actions/grouping-actions";
 import type { Category, GroupingAnalysisResult, RecordType } from "@/types/database";
@@ -256,6 +258,7 @@ export function GroupingAnalysisCard({ categories, recordType: initialRecordType
           <div className="space-y-1">
             <CardTitle className="text-2xl font-bold flex items-center gap-2">
               <Layers className="h-6 w-6 text-primary" /> Análisis por Agrupaciones Personalizadas
+              <InfoTooltip text={CHART_HELP.groupingAnalysis} />
             </CardTitle>
             <CardDescription className="text-base">
               Agrupa tus categorías para obtener una visión financiera segmentada y comparativa.
@@ -285,6 +288,7 @@ export function GroupingAnalysisCard({ categories, recordType: initialRecordType
         <div className="space-y-1">
           <CardTitle className="text-2xl font-bold flex items-center gap-2">
             <Layers className="h-6 w-6 text-primary" /> Análisis por Agrupaciones Personalizadas
+            <InfoTooltip text={CHART_HELP.groupingAnalysis} />
           </CardTitle>
           <CardDescription className="text-base">
             Distribución estratégica y evolución histórica por grupos de negocio.

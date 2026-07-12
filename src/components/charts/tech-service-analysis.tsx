@@ -14,6 +14,8 @@ import {
   Legend
 } from "recharts";
 import type { ChartTooltipProps } from "@/lib/chart-types";
+import { InfoTooltip } from "@/components/common/info-tooltip";
+import { CHART_HELP } from "@/lib/chart-help";
 
 export interface TechServiceDataPoint {
   label: string; // T1, Ene, 2024, etc.
@@ -150,7 +152,10 @@ export function TechServiceAnalysis({ data, yearA, yearB, viewMode, onViewModeCh
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-1">
             <h3 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-              Análisis Financiero
+              <span className="inline-flex items-center gap-1.5">
+                Análisis Financiero
+                <InfoTooltip text={CHART_HELP.techService} />
+              </span>
             </h3>
             <p className="text-sm font-medium text-slate-500 dark:text-slate-400 uppercase tracking-widest">
               Business Intelligence • ST & Consumibles

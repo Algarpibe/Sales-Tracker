@@ -7,6 +7,8 @@ import { buildMarginItems, deriveMargin } from "@/lib/analytics-margin";
 import { formatUSD, formatCompactUSD } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { InfoTooltip } from "@/components/common/info-tooltip";
+import { CHART_HELP } from "@/lib/chart-help";
 import { ScatterChart, Scatter, XAxis, YAxis, ZAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import type { ChartTooltipProps } from "@/lib/chart-types";
 import type { MarginItemPoint } from "@/lib/analytics-margin";
@@ -43,7 +45,7 @@ export function MarginScatterCard({ recordType, year }: { recordType: "SALES_ORD
   return (
     <Card className="border-border/40 bg-card/30 backdrop-blur-sm">
       <CardHeader>
-        <CardTitle className="text-base font-semibold">Importe vs margen % {year}</CardTitle>
+        <CardTitle className="text-base font-semibold"><span className="inline-flex items-center gap-1.5">Importe vs margen % {year}<InfoTooltip text={CHART_HELP.margenScatter} /></span></CardTitle>
         <p className="text-xs text-muted-foreground">Cada punto es un artículo (bienes). Ámbar = margen % global; gris = equilibrio (0%). Márgenes bajo −50% se recortan al borde.</p>
       </CardHeader>
       <CardContent>

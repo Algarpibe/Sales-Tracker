@@ -20,6 +20,8 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Check, ChevronsUpDown, X, LayoutTemplate, Activity, FileText, Receipt } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { InfoTooltip } from "@/components/common/info-tooltip";
+import { CHART_HELP } from "@/lib/chart-help";
 import { getSalesData } from "@/actions/sales-actions";
 import { getCategories } from "@/actions/category-actions";
 import type { ChartTooltipEntry, ChartTooltipProps } from "@/lib/chart-types";
@@ -345,6 +347,7 @@ export function HistoricalSalesCategory() {
           <div className="space-y-1">
             <CardTitle className="text-2xl font-bold flex items-center gap-2">
               <Activity className="h-5 w-5 text-primary" /> Histórico {viewMode === "MONTHLY" ? "Mensual" : viewMode === "QUARTERLY" ? "Trimestral" : "Anual"}
+              <InfoTooltip text={CHART_HELP.historicoCategoria} />
             </CardTitle>
               {viewMode === "ANNUAL" 
                 ? `Evolución de ventas anuales segmentadas (${availableYears[0]}–${availableYears[availableYears.length - 1]}).`

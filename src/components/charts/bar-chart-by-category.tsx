@@ -10,6 +10,8 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { InfoTooltip } from "@/components/common/info-tooltip";
+import { CHART_HELP } from "@/lib/chart-help";
 import { formatCompactUSD } from "@/lib/constants";
 
 interface BarChartByCategoryProps {
@@ -28,7 +30,7 @@ export function BarChartByCategory({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base font-semibold">{title}</CardTitle>
+        <CardTitle className="text-base font-semibold"><span className="inline-flex items-center gap-1.5">{title}<InfoTooltip text={CHART_HELP.barCategoria} /></span></CardTitle>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={350}>

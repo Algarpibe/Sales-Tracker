@@ -38,6 +38,8 @@ import {
   Layers,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { InfoTooltip } from "@/components/common/info-tooltip";
+import { CHART_HELP } from "@/lib/chart-help";
 import { getGroupingAnalysisData } from "@/actions/grouping-actions";
 import type { CategoryGroup, GroupingAnalysisResult, RecordType } from "@/types/database";
 import type { ChartTooltipEntry, ChartTooltipProps } from "@/lib/chart-types";
@@ -251,6 +253,7 @@ export function GroupEvolutionCard({ recordType: initialRecordType }: GroupEvolu
               <BarChart3 className="h-6 w-6 text-primary" />
             </div>
             Evolución Histórica por Grupo
+            <InfoTooltip text={CHART_HELP.grupoEvolucion} />
           </CardTitle>
           <CardDescription className="text-base">
             Tendencia {viewMode === "MONTHLY" ? "mensual" : viewMode === "QUARTERLY" ? "trimestral" : "anual"} y desglose porcentual de tus agrupaciones estratégicas.
