@@ -2,6 +2,7 @@ import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { InfoTooltip } from "@/components/common/info-tooltip";
 
 interface KPICardProps {
   title: string;
@@ -9,10 +10,11 @@ interface KPICardProps {
   change?: number; // Percentage change
   icon: LucideIcon;
   description?: string;
+  info?: string;
   variant?: "standard" | "premium";
 }
 
-export function KPICard({ title, value, change, icon: Icon, description, variant = "standard" }: KPICardProps) {
+export function KPICard({ title, value, change, icon: Icon, description, info, variant = "standard" }: KPICardProps) {
   const isPositive = change && change > 0;
   const isNegative = change && change < 0;
   const isNeutral = !change || change === 0;
@@ -32,7 +34,10 @@ export function KPICard({ title, value, change, icon: Icon, description, variant
       <CardContent className="p-6">
         <div className="flex items-start justify-between">
           <div className="space-y-2">
-            <p className="text-sm font-medium text-muted-foreground">{title}</p>
+            <div className="flex items-center gap-1.5">
+              <p className="text-sm font-medium text-muted-foreground">{title}</p>
+              {info && <InfoTooltip text={info} />}
+            </div>
             <p className="text-2xl font-bold tracking-tight">{value}</p>
             {change !== undefined && (
               <div className="flex items-center gap-1">
