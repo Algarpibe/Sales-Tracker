@@ -11,6 +11,8 @@ import { getCustomerSales } from "@/actions/customer-sales-actions";
 import { topCustomers } from "@/lib/dashboard-insights";
 import { formatCompactUSD, formatUSD } from "@/lib/constants";
 import { RecordTypeSelect } from "@/components/common/record-type-select";
+import { InfoTooltip } from "@/components/common/info-tooltip";
+import { CHART_HELP } from "@/lib/chart-help";
 import type { ChartTooltipProps } from "@/lib/chart-types";
 
 type ParetoPoint = { customer: string; amount: number; cumPct: number };
@@ -41,7 +43,12 @@ export function TopCustomersPareto({ year }: { year: number }) {
   return (
     <Card className="border-border/40 bg-card/30 backdrop-blur-sm h-full">
       <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0">
-        <CardTitle className="text-base font-semibold">Top 10 clientes · Pareto</CardTitle>
+        <CardTitle className="text-base font-semibold">
+          <span className="inline-flex items-center gap-1.5">
+            Top 10 clientes · Pareto
+            <InfoTooltip text={CHART_HELP.topClientesPareto} />
+          </span>
+        </CardTitle>
         <RecordTypeSelect value={tipo} onValueChange={setTipo} className="w-[190px]" />
       </CardHeader>
       <CardContent>

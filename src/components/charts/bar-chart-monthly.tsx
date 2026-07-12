@@ -12,6 +12,8 @@ import {
   Legend,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { InfoTooltip } from "@/components/common/info-tooltip";
+import { CHART_HELP } from "@/lib/chart-help";
 import { formatCompactUSD, formatUSD } from "@/lib/constants";
 import type { ChartTooltipProps } from "@/lib/chart-types";
 
@@ -89,7 +91,12 @@ export function BarChartMonthly({ data, title = "Ventas Mensuales" }: BarChartMo
   return (
     <Card className="border-border/40 bg-card/30 backdrop-blur-sm shadow-xl">
       <CardHeader>
-        <CardTitle className="text-base font-semibold">{title}</CardTitle>
+        <CardTitle className="text-base font-semibold">
+          <span className="inline-flex items-center gap-1.5">
+            {title}
+            <InfoTooltip text={CHART_HELP.barMensual} />
+          </span>
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={350}>

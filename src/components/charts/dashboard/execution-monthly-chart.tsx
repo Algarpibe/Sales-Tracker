@@ -5,6 +5,8 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { InfoTooltip } from "@/components/common/info-tooltip";
+import { CHART_HELP } from "@/lib/chart-help";
 import { executionByMonth } from "@/lib/dashboard-insights";
 import type { ChartTooltipProps } from "@/lib/chart-types";
 
@@ -29,7 +31,12 @@ export function ExecutionMonthlyChart({
   return (
     <Card className="border-border/40 bg-card/30 backdrop-blur-sm h-full">
       <CardHeader>
-        <CardTitle className="text-base font-semibold">% Ejecución mensual (OV→FAC)</CardTitle>
+        <CardTitle className="text-base font-semibold">
+          <span className="inline-flex items-center gap-1.5">
+            % Ejecución mensual (OV→FAC)
+            <InfoTooltip text={CHART_HELP.executionMensual} />
+          </span>
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={320}>

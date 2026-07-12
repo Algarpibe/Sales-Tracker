@@ -7,6 +7,8 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MONTHS, formatCompactUSD, formatUSD } from "@/lib/constants";
 import { RecordTypeSelect } from "@/components/common/record-type-select";
+import { InfoTooltip } from "@/components/common/info-tooltip";
+import { CHART_HELP } from "@/lib/chart-help";
 import { cumulativeSeries, type InsightRecord } from "@/lib/dashboard-insights";
 import type { ChartTooltipProps } from "@/lib/chart-types";
 
@@ -45,7 +47,12 @@ export function CumulativeYoYChart({
   return (
     <Card className="border-border/40 bg-card/30 backdrop-blur-sm h-full">
       <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0">
-        <CardTitle className="text-base font-semibold">Acumulado {yearActual} vs {yearPrev}</CardTitle>
+        <CardTitle className="text-base font-semibold">
+          <span className="inline-flex items-center gap-1.5">
+            Acumulado {yearActual} vs {yearPrev}
+            <InfoTooltip text={CHART_HELP.cumulativeYoY} />
+          </span>
+        </CardTitle>
         <RecordTypeSelect value={tipo} onValueChange={setTipo} className="w-[190px]" />
       </CardHeader>
       <CardContent>

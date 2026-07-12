@@ -8,6 +8,7 @@ import { KPICard } from "@/components/cards/kpi-card";
 import { getSalesData } from "@/actions/sales-actions";
 import { getCategories } from "@/actions/category-actions";
 import { getYearRange, formatUSD } from "@/lib/constants";
+import { CHART_HELP } from "@/lib/chart-help";
 import { computeDashboardMetrics } from "@/lib/dashboard-metrics";
 import { yoyChange, type InsightRecord } from "@/lib/dashboard-insights";
 import { CumulativeYoYChart } from "@/components/charts/dashboard/cumulative-yoy-chart";
@@ -101,10 +102,10 @@ export default function HomePage() {
 
       {/* Sección 1: KPIs con Δ interanual */}
       <section className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
-        <KPICard title="Ventas Comprometidas (OV)" value={formatUSD(metrics.sales_orders)} change={yoyChange(metrics.sales_orders, metricsPrev.sales_orders) ?? undefined} icon={ShoppingCart} variant="premium" />
-        <KPICard title="Total Facturado" value={formatUSD(metrics.invoices)} change={yoyChange(metrics.invoices, metricsPrev.invoices) ?? undefined} icon={FileText} variant="premium" />
-        <KPICard title="Ticket Medio (OV)" value={formatUSD(metrics.avg_ticket)} change={yoyChange(metrics.avg_ticket, metricsPrev.avg_ticket) ?? undefined} icon={Receipt} variant="premium" />
-        <KPICard title="% Ejecución (FAC/OV)" value={`${metrics.execution_rate.toFixed(1)}%`} change={metricsPrev.execution_rate > 0 ? metrics.execution_rate - metricsPrev.execution_rate : undefined} icon={Activity} variant="premium" />
+        <KPICard title="Ventas Comprometidas (OV)" value={formatUSD(metrics.sales_orders)} change={yoyChange(metrics.sales_orders, metricsPrev.sales_orders) ?? undefined} icon={ShoppingCart} variant="premium" info={CHART_HELP.kpiVentasOV} />
+        <KPICard title="Total Facturado" value={formatUSD(metrics.invoices)} change={yoyChange(metrics.invoices, metricsPrev.invoices) ?? undefined} icon={FileText} variant="premium" info={CHART_HELP.kpiFacturado} />
+        <KPICard title="Ticket Medio (OV)" value={formatUSD(metrics.avg_ticket)} change={yoyChange(metrics.avg_ticket, metricsPrev.avg_ticket) ?? undefined} icon={Receipt} variant="premium" info={CHART_HELP.kpiTicket} />
+        <KPICard title="% Ejecución (FAC/OV)" value={`${metrics.execution_rate.toFixed(1)}%`} change={metricsPrev.execution_rate > 0 ? metrics.execution_rate - metricsPrev.execution_rate : undefined} icon={Activity} variant="premium" info={CHART_HELP.kpiEjecucion} />
       </section>
 
       <Separator className="opacity-50" />

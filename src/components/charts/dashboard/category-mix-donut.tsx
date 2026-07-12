@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { bucketMix, type InsightRecord } from "@/lib/dashboard-insights";
 import { formatUSD } from "@/lib/constants";
 import { RecordTypeSelect } from "@/components/common/record-type-select";
+import { InfoTooltip } from "@/components/common/info-tooltip";
+import { CHART_HELP } from "@/lib/chart-help";
 import type { ChartTooltipProps } from "@/lib/chart-types";
 
 const COLORS: Record<string, string> = {
@@ -41,7 +43,12 @@ export function CategoryMixDonut({
   return (
     <Card className="border-border/40 bg-card/30 backdrop-blur-sm h-full">
       <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0">
-        <CardTitle className="text-base font-semibold">Mix por macro-categoría</CardTitle>
+        <CardTitle className="text-base font-semibold">
+          <span className="inline-flex items-center gap-1.5">
+            Mix por macro-categoría
+            <InfoTooltip text={CHART_HELP.mixCategoria} />
+          </span>
+        </CardTitle>
         <RecordTypeSelect value={tipo} onValueChange={setTipo} className="w-[190px]" />
       </CardHeader>
       <CardContent>
