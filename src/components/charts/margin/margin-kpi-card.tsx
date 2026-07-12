@@ -1,13 +1,14 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getMarginByYear } from "@/actions/margin-actions";
 import { buildMarginByYear } from "@/lib/analytics-margin";
-import { formatUSD } from "@/lib/constants";
+import { formatUSD, formatCompactUSD } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { InfoTooltip } from "@/components/common/info-tooltip";
+import { AmountModeToggle, type AmountMode } from "@/components/common/amount-mode-toggle";
 import { CHART_HELP } from "@/lib/chart-help";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import type { ChartTooltipProps } from "@/lib/chart-types";
@@ -41,13 +42,17 @@ export function MarginKpiCard({ recordType }: { recordType: "SALES_ORDER" | "INV
     queryKey: ["margin-year", { tipo: recordType }],
     queryFn: () => getMarginByYear({ tipo: recordType }),
   });
+  const [mode, setMode] = useState<AmountMode>("pct");
   const { series, totals } = useMemo(() => buildMarginByYear(data ?? []), [data]);
 
   return (
     <Card className="border-border/40 bg-card/30 backdrop-blur-sm">
-      <CardHeader>
-        <CardTitle className="text-base font-semibold"><span className="inline-flex items-center gap-1.5">Margen bruto estimado (solo bienes)<InfoTooltip text={CHART_HELP.margenKpi} /></span></CardTitle>
-        <p className="text-xs text-muted-foreground">Costo estándar del maestro; excluye servicios sin costo.</p>
+      <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
+        <div className="space-y-1">
+          <CardTitle className="text-base font-semibold"><span className="inline-flex items-center gap-1.5">Margen bruto estimado (solo bienes)<InfoTooltip text={CHART_HELP.margenKpi} /></span></CardTitle>
+          <p className="text-xs text-muted-foreground">Costo estándar del maestro; excluye servicios sin costo. {mode === "pct" ? "La línea muestra el margen %" : "La línea muestra el margen $"} por año.</p>
+        </div>
+        <AmountModeToggle value={mode} onChange={setMode} />
       </CardHeader>
       <CardContent>
         {isLoading ? (
@@ -66,9 +71,16 @@ export function MarginKpiCard({ recordType }: { recordType: "SALES_ORDER" | "INV
               <LineChart data={series} margin={{ top: 10, right: 10, left: 10, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-white/5" vertical={false} />
                 <XAxis dataKey="year" className="text-xs fill-muted-foreground" tickLine={false} />
-                <YAxis domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} className="text-xs fill-muted-foreground" tickFormatter={(v) => `${Math.round(v)}%`} tickLine={false} axisLine={false} />
+                <YAxis
+                  domain={mode === "pct" ? [0, 100] : ["auto", "auto"]}
+                  ticks={mode === "pct" ? [0, 25, 50, 75, 100] : undefined}
+                  className="text-xs fill-muted-foreground"
+                  tickFormatter={mode === "pct" ? (v) => `${Math.round(v)}%` : formatCompactUSD}
+                  tickLine={false}
+                  axisLine={false}
+                />
                 <Tooltip content={<PctTooltip />} />
-                <Line type="monotone" dataKey="margenPct" name="Margen %" stroke="#10b981" strokeWidth={2} dot={{ r: 3 }} />
+                <Line type="monotone" dataKey={mode === "pct" ? "margenPct" : "margen"} name={mode === "pct" ? "Margen %" : "Margen"} stroke="#10b981" strokeWidth={2} dot={{ r: 3 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
