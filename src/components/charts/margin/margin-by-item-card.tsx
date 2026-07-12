@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getMarginByItem } from "@/actions/margin-actions";
 import { buildMarginItems } from "@/lib/analytics-margin";
@@ -8,6 +8,7 @@ import { formatUSD, formatCompactUSD } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { InfoTooltip } from "@/components/common/info-tooltip";
+import { AmountModeToggle, type AmountMode } from "@/components/common/amount-mode-toggle";
 import { CHART_HELP } from "@/lib/chart-help";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import type { ChartTooltipProps } from "@/lib/chart-types";
@@ -29,17 +30,27 @@ function ItemTooltip({ active, payload, label }: ChartTooltipProps<MarginItemPoi
 }
 
 export function MarginByItemCard({ recordType, year }: { recordType: "SALES_ORDER" | "INVOICE"; year: number }) {
+  const [mode, setMode] = useState<AmountMode>("money");
   const { data, isLoading } = useQuery({
     queryKey: ["margin-item", { tipo: recordType, anio: year }],
     queryFn: () => getMarginByItem({ tipo: recordType, anio: year }),
   });
-  const top = useMemo(() => buildMarginItems(data ?? []).slice(0, 15), [data]);
+  const top = useMemo(() => {
+    const items = buildMarginItems(data ?? []);
+    const sorted = mode === "pct"
+      ? [...items].sort((a, b) => b.margenPct - a.margenPct || a.label.localeCompare(b.label))
+      : items;
+    return sorted.slice(0, 15);
+  }, [data, mode]);
 
   return (
     <Card className="border-border/40 bg-card/30 backdrop-blur-sm">
-      <CardHeader>
-        <CardTitle className="text-base font-semibold"><span className="inline-flex items-center gap-1.5">Margen por artículo {year} (top 15)<InfoTooltip text={CHART_HELP.margenPorArticulo} /></span></CardTitle>
-        <p className="text-xs text-muted-foreground">Margen $ estimado; solo bienes con costo.</p>
+      <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
+        <div className="space-y-1">
+          <CardTitle className="text-base font-semibold"><span className="inline-flex items-center gap-1.5">Margen por artículo {year} (top 15)<InfoTooltip text={CHART_HELP.margenPorArticulo} /></span></CardTitle>
+          <p className="text-xs text-muted-foreground">{mode === "pct" ? "Margen % estimado; solo bienes con costo." : "Margen $ estimado; solo bienes con costo."}</p>
+        </div>
+        <AmountModeToggle value={mode} onChange={setMode} />
       </CardHeader>
       <CardContent>
         {isLoading ? (
@@ -50,10 +61,10 @@ export function MarginByItemCard({ recordType, year }: { recordType: "SALES_ORDE
           <ResponsiveContainer width="100%" height={440}>
             <BarChart data={top} layout="vertical" margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-white/5" horizontal={false} />
-              <XAxis type="number" className="text-xs fill-muted-foreground" tickFormatter={formatCompactUSD} tickLine={false} axisLine={false} />
+              <XAxis type="number" className="text-xs fill-muted-foreground" tickFormatter={mode === "pct" ? (v) => `${Math.round(v)}%` : formatCompactUSD} tickLine={false} axisLine={false} />
               <YAxis type="category" dataKey="label" width={160} className="text-[10px] fill-muted-foreground" tickLine={false} axisLine={false} />
               <Tooltip content={<ItemTooltip />} />
-              <Bar dataKey="margen" name="Margen" fill="#10b981" radius={[0, 4, 4, 0]} />
+              <Bar dataKey={mode === "pct" ? "margenPct" : "margen"} name="Margen" fill="#10b981" radius={[0, 4, 4, 0]} />
             </BarChart>
           </ResponsiveContainer>
         )}

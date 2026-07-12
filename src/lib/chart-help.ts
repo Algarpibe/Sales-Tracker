@@ -27,8 +27,8 @@ export const CHART_HELP = {
   // --- Análisis: Margen ---
   margenKpi: "Margen bruto estimado = Ventas − Costo estándar, solo de bienes con costo>0 (excluye servicios). Usa el costo del maestro (aproximación, no COGS real).",
   margenPorCliente: "Margen estimado por cliente (Ventas − Costo estándar). Solo bienes con costo.",
-  margenPorArticulo: "Margen estimado por artículo (Ventas − Costo estándar). Solo bienes con costo.",
-  margenScatter: "Cada punto es un artículo: importe (eje X) frente a % de margen (eje Y). La línea en 0% es el punto de equilibrio.",
+  margenPorArticulo: "Margen estimado por artículo (Ventas − Costo estándar). Solo bienes con costo. Usa el selector $/% para ver importe o porcentaje.",
+  margenScatter: "Cada punto es un artículo: importe (eje X) frente al margen (eje Y). La línea en 0 es el punto de equilibrio. Usa el selector $/% para ver el margen en importe o en porcentaje.",
 
   // --- Análisis: Exploración / premium ---
   explorationGlobalMensual: "Ventas por mes comparando dos años (A vs B). Cambia entre Órdenes (OV) y Facturas (FAC) y elige los años con los selectores de arriba.",
