@@ -42,6 +42,8 @@ import { getGroupingAnalysisData } from "@/actions/grouping-actions";
 import { calculateSeasonalityFactors, getSeasonalForecast, calculateRunRate } from "@/lib/math-utils";
 import type { CategoryGroup, GroupingAnalysisResult, RecordType } from "@/types/database";
 import type { ChartTooltipEntry, ChartTooltipProps } from "@/lib/chart-types";
+import { InfoTooltip } from "@/components/common/info-tooltip";
+import { CHART_HELP } from "@/lib/chart-help";
 
 // Punto del gráfico: clave de eje (month) + claves dinámicas por grupo y forecast.
 type ForecastChartPoint = Record<string, string | number>;
@@ -268,6 +270,7 @@ export function GroupForecastCard({ recordType: initialRecordType, baseYear = ne
               <TrendingUp className="h-6 w-6 text-indigo-400" />
             </div>
             Forecast Estacional por Grupo
+            <InfoTooltip text={CHART_HELP.grupoForecast} />
           </CardTitle>
           <CardDescription className="text-base text-muted-foreground">
             Proyección mensual de las agrupaciones estratégicas (Año {baseYear}).

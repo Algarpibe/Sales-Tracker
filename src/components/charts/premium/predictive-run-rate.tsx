@@ -7,6 +7,7 @@ import { TrendingUp } from "lucide-react";
 import { formatUSD } from "@/lib/constants";
 import { calculateRunRate } from "@/lib/math-utils";
 import { cn } from "@/lib/utils";
+import { InfoTooltip } from "@/components/common/info-tooltip";
 
 interface PredictiveRunRateCardProps {
   currentTotal: number;
@@ -20,6 +21,7 @@ interface PredictiveRunRateCardProps {
   currentLabel?: string;
   targetLabel?: string;
   className?: string;
+  info?: string;
 }
 
 const money0 = (n: number) =>
@@ -37,6 +39,7 @@ export function PredictiveRunRateCard({
   currentLabel = "Ventas Actuales",
   targetLabel = "Objetivo (Año Prev.)",
   className,
+  info,
 }: PredictiveRunRateCardProps) {
   const now = new Date();
   const currentDay = now.getDate();
@@ -61,7 +64,10 @@ export function PredictiveRunRateCard({
         <CardContent className="p-6 relative z-10">
           <div className="flex justify-between items-start mb-6">
             <div className="space-y-1">
-              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-widest">{title}</h3>
+              <span className="inline-flex items-center gap-1.5">
+                <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-widest">{title}</h3>
+                {info && <InfoTooltip text={info} />}
+              </span>
               <div className="flex items-baseline gap-2">
                 <span className="text-3xl font-bold tracking-tight tabular-nums text-foreground">
                   {money0(projectedTotal)}

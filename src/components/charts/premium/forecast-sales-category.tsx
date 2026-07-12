@@ -43,6 +43,8 @@ import { getSalesData } from "@/actions/sales-actions";
 import { getCategories } from "@/actions/category-actions";
 import { calculateSeasonalityFactors, getSeasonalForecast, calculateRunRate } from "@/lib/math-utils";
 import type { ChartTooltipProps } from "@/lib/chart-types";
+import { InfoTooltip } from "@/components/common/info-tooltip";
+import { CHART_HELP } from "@/lib/chart-help";
 
 type RecordType = "SALES_ORDER" | "INVOICE";
 // Punto del gráfico: clave de eje (month) + claves dinámicas por categoría y forecast.
@@ -308,6 +310,7 @@ export function ForecastSalesCategory({ baseYear = new Date().getFullYear() }: F
               <PencilRuler className="h-6 w-6 text-emerald-400" />
             </div>
             Forecast Estacional por Categoría
+            <InfoTooltip text={CHART_HELP.forecastCategoria} />
           </CardTitle>
           <CardDescription className="text-base text-muted-foreground">
             Proyección mensual de categorías específicas (Año {baseYear}).

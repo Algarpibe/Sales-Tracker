@@ -18,11 +18,13 @@ import { computeForecast } from "@/lib/forecast";
 import { ComposedChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from "recharts";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import type { Category, CategoryGroup } from "@/types/database";
-import { Sparkles, BarChart3, TrendingUp, Activity, FileText, Receipt } from "lucide-react";
+import { Sparkles, BarChart3, TrendingUp, FileText, Receipt } from "lucide-react";
 import { motion } from "framer-motion";
 import type { SalesRecord } from "@/types/database";
 import type { ChartTooltipProps } from "@/lib/chart-types";
 import { usePeriod } from "@/components/providers/period-provider";
+import { InfoTooltip } from "@/components/common/info-tooltip";
+import { CHART_HELP } from "@/lib/chart-help";
 
 // Lazy-load de los charts pesados (recharts/framer) con next/dynamic (F3-02):
 // cada uno es su propio chunk y se carga en cliente bajo demanda, aligerando el
@@ -531,6 +533,7 @@ function AnalyticsContent() {
                     high={forecast.month.high}
                     deltaPct={forecast.month.deltaPct}
                     deltaLabel="mismo mes año anterior"
+                    info={CHART_HELP.forecastMes}
                   />
 
                   <PredictiveRunRateCard
@@ -544,6 +547,7 @@ function AnalyticsContent() {
                     high={forecast.year.high}
                     deltaPct={forecast.year.deltaPct}
                     deltaLabel="mismo periodo año anterior"
+                    info={CHART_HELP.forecastAnio}
                   />
                 </div>
 
@@ -554,6 +558,7 @@ function AnalyticsContent() {
                     <div>
                       <CardTitle className="text-xl font-bold flex items-center gap-3">
                         <TrendingUp className="h-5 w-5 text-indigo-400" /> Histórico con Proyección Estacional ({recordType === "SALES_ORDER" ? "Órdenes" : "Facturas"})
+                        <InfoTooltip text={CHART_HELP.forecastEstacional} />
                       </CardTitle>
                       <p className="text-sm text-muted-foreground mt-1">
                         Datos reales {yearA} + proyección: estacionalidad ponderada por recencia y ritmo interanual.
@@ -647,49 +652,6 @@ function AnalyticsContent() {
               {/* Task 3: Group Forecast Card */}
               <GroupForecastCard savedGroups={savedGroups} recordType={recordType} baseYear={yearA} />
               <ForecastSalesCategory baseYear={yearA} />
-
-              {/* Additional info section */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-12">
-                <div className="p-8 rounded-3xl bg-white/5 border border-white/10 backdrop-blur-md">
-                    <h4 className="text-lg font-bold mb-4 flex items-center gap-2 text-primary">
-                      <Activity className="size-5" /> ¿Cómo calculamos el Forecast?
-                    </h4>
-                    <div className="text-muted-foreground leading-relaxed space-y-4 text-sm">
-                      <p>
-                        Nuestro sistema utiliza un algoritmo de <strong>Análisis de Estacionalidad</strong> que preserva los patrones históricos de tu negocio:
-                      </p>
-                      <ul className="pl-4 border-l-2 border-primary/30 space-y-3 py-1 list-none">
-                        <li>
-                          <p className="text-zinc-950 font-bold flex items-center gap-2">1. Estacionalidad ponderada:</p>
-                          <p className="text-xs opacity-80">El peso de cada mes se calcula del histórico dando más importancia a los años recientes (2025 pesa más que 2023).</p>
-                        </li>
-                        <li>
-                          <p className="text-zinc-950 font-bold flex items-center gap-2">2. Mes en curso (mezcla):</p>
-                          <p className="text-xs opacity-80">Combina el run-rate diario con lo esperado según el año anterior y el ritmo del año; al principio del mes pesa lo esperado, al final lo real.</p>
-                        </li>
-                        <li>
-                          <p className="text-zinc-950 font-bold flex items-center gap-2">3. Cierre de año (por ritmo):</p>
-                          <p className="text-xs opacity-80">Mezcla la extrapolación estacional con el ritmo interanual (YTD vs año anterior), evitando amplificar el error a principios de año.</p>
-                        </li>
-                        <li>
-                          <p className="text-zinc-950 font-bold flex items-center gap-2">4. Banda de incertidumbre:</p>
-                          <p className="text-xs opacity-80">Mostramos un rango basado en la dispersión de las formas históricas, no un único número con falsa precisión.</p>
-                        </li>
-                      </ul>
-                      <p className="text-[10px] italic bg-white/5 p-3 rounded-lg border border-white/5 leading-snug">
-                        Este método es superior a una regresión lineal simple, ya que detecta picos estacionales (como cierres de trimestre o temporada alta) y los proyecta con precisión.
-                      </p>
-                    </div>
-                </div>
-                <div className="p-8 rounded-3xl bg-white/5 border border-white/10 backdrop-blur-md">
-                    <h4 className="text-lg font-bold mb-4 flex items-center gap-2 text-emerald-400">
-                      <TrendingUp className="size-5" /> Seguimiento y ritmo (On Track)
-                    </h4>
-                    <p className="text-muted-foreground leading-relaxed text-sm">
-                      Comparamos el acumulado con el mismo punto del año anterior: si vas por delante, <strong>&quot;En Trayectoria&quot; (On Track)</strong>; si por detrás, <strong>&quot;En Riesgo&quot; (At Risk)</strong>. El porcentaje muestra el ritmo real frente al año pasado.
-                    </p>
-                </div>
-              </div>
             </motion.div>
           </TabsContent>
           <TabsContent value="comercial" className="outline-none">
