@@ -433,8 +433,9 @@ function AnalyticsContent() {
                 <CardHeader className="relative z-10 border-b border-white/5 py-4">
                   <CardTitle className="text-lg font-bold flex items-center gap-2">
                     <div className="w-1 h-4 bg-indigo-500 rounded-full" />
-                    {recordType === "SALES_ORDER" ? "Órdenes de Venta (Reserva)" : "Facturación (Ventas)"} 
+                    {recordType === "SALES_ORDER" ? "Órdenes de Venta (Reserva)" : "Facturación (Ventas)"}
                     <span className="text-muted-foreground font-normal text-sm ml-2">Global Mensual</span>
+                    <InfoTooltip text={CHART_HELP.explorationGlobalMensual} />
                   </CardTitle>
                 </CardHeader>
                 <CardContent>

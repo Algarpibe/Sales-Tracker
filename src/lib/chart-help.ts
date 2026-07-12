@@ -31,6 +31,7 @@ export const CHART_HELP = {
   margenScatter: "Cada punto es un artículo: importe (eje X) frente a % de margen (eje Y). La línea en 0% es el punto de equilibrio.",
 
   // --- Análisis: Exploración / premium ---
+  explorationGlobalMensual: "Ventas por mes comparando dos años (A vs B). Cambia entre Órdenes (OV) y Facturas (FAC) y elige los años con los selectores de arriba.",
   barCategoria: "Ventas por categoría (barras).",
   techService: "Comparativa financiera entre las líneas ST y C&R por periodo (mensual, trimestral o anual).",
   grupoEvolucion: "Evolución del importe de tus agrupaciones personalizadas a lo largo del tiempo.",
