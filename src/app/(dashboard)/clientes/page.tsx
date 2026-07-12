@@ -90,6 +90,7 @@ export default function ClientesPage() {
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<CustomerSortKey>("total");
   const [sortDir, setSortDir] = useState<CustomerSortDir>("desc");
+  const [compareMode, setCompareMode] = useState(false);
   const [compareA, setCompareA] = useState(thisYear);
   const [compareB, setCompareB] = useState(thisYear - 1);
   const [onlyFav, setOnlyFav] = useState(false);
@@ -103,8 +104,8 @@ export default function ClientesPage() {
   });
 
   const currentView: ClientesViewState = useMemo(
-    () => ({ tipo: tipo as "SALES_ORDER" | "INVOICE", desdeAnio, hastaAnio, search, sortKey, sortDir, compareA, compareB, onlyFav }),
-    [tipo, desdeAnio, hastaAnio, search, sortKey, sortDir, compareA, compareB, onlyFav]
+    () => ({ tipo: tipo as "SALES_ORDER" | "INVOICE", desdeAnio, hastaAnio, search, sortKey, sortDir, compareMode, compareA, compareB, onlyFav }),
+    [tipo, desdeAnio, hastaAnio, search, sortKey, sortDir, compareMode, compareA, compareB, onlyFav]
   );
   const applyView = (s: ClientesViewState) => {
     setTipo(s.tipo);
@@ -113,9 +114,16 @@ export default function ClientesPage() {
     setSearch(s.search);
     setSortKey(s.sortKey);
     setSortDir(s.sortDir);
+    setCompareMode(s.compareMode);
     setCompareA(s.compareA);
     setCompareB(s.compareB);
     setOnlyFav(s.onlyFav);
+  };
+
+  // Al desactivar la comparación, la columna Δ desaparece: si se estaba ordenando por ella, vuelve a Total.
+  const onToggleCompare = (v: boolean) => {
+    setCompareMode(v);
+    if (!v && sortKey === "delta") { setSortKey("total"); setSortDir("desc"); }
   };
 
   const onSort = (k: CustomerSortKey) => {
@@ -212,16 +220,22 @@ export default function ClientesPage() {
         </label>
         <SavedViewsMenu current={currentView} onApply={applyView} />
         <div className="flex items-end gap-2 ml-auto">
-          <span className="text-xs text-muted-foreground self-center">Comparar</span>
-          <Select value={String(compareA)} onValueChange={(v) => { if (v) setCompareA(Number(v)); }}>
-            <SelectTrigger className="w-[90px]"><SelectValue /></SelectTrigger>
-            <SelectContent>{years.map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
-          </Select>
-          <span className="text-xs text-muted-foreground self-center">vs</span>
-          <Select value={String(compareB)} onValueChange={(v) => { if (v) setCompareB(Number(v)); }}>
-            <SelectTrigger className="w-[90px]"><SelectValue /></SelectTrigger>
-            <SelectContent>{years.map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
-          </Select>
+          <label className="flex items-center gap-2 self-center text-sm">
+            <Switch checked={compareMode} onCheckedChange={onToggleCompare} /> Comparar años
+          </label>
+          {compareMode && (
+            <>
+              <Select value={String(compareA)} onValueChange={(v) => { if (v) setCompareA(Number(v)); }}>
+                <SelectTrigger className="w-[90px]"><SelectValue /></SelectTrigger>
+                <SelectContent>{years.map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
+              </Select>
+              <span className="text-xs text-muted-foreground self-center">vs</span>
+              <Select value={String(compareB)} onValueChange={(v) => { if (v) setCompareB(Number(v)); }}>
+                <SelectTrigger className="w-[90px]"><SelectValue /></SelectTrigger>
+                <SelectContent>{years.map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
+              </Select>
+            </>
+          )}
         </div>
       </div>
 
@@ -238,13 +252,15 @@ export default function ClientesPage() {
                 ))}
                 <SortHeader label="Total" colKey="total" sortKey={sortKey} sortDir={sortDir} onSort={onSort} right />
                 <TableHead className="text-right">%</TableHead>
-                <SortHeader label={`Δ ${compareA}/${compareB}`} colKey="delta" sortKey={sortKey} sortDir={sortDir} onSort={onSort} right />
+                {compareMode && (
+                  <SortHeader label={`Δ ${compareA}/${compareB}`} colKey="delta" sortKey={sortKey} sortDir={sortDir} onSort={onSort} right />
+                )}
               </TableRow>
             </TableHeader>
             <TableBody>
               {visible.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={years.length + 4}><EmptyState message="Sin ventas en el rango seleccionado." /></TableCell>
+                  <TableCell colSpan={years.length + (compareMode ? 4 : 3)}><EmptyState message="Sin ventas en el rango seleccionado." /></TableCell>
                 </TableRow>
               ) : (
                 <>
@@ -263,7 +279,9 @@ export default function ClientesPage() {
                       ))}
                       <TableCell className="text-right tabular-nums font-bold">{formatUSD(r.total)}</TableCell>
                       <TableCell className="text-right tabular-nums text-muted-foreground">{pct(r.total)}</TableCell>
-                      <TableCell className="text-right tabular-nums"><DeltaCell a={r.byYear[compareA] ?? 0} b={r.byYear[compareB] ?? 0} /></TableCell>
+                      {compareMode && (
+                        <TableCell className="text-right tabular-nums"><DeltaCell a={r.byYear[compareA] ?? 0} b={r.byYear[compareB] ?? 0} /></TableCell>
+                      )}
                     </TableRow>
                   ))}
                   <TableRow className="bg-muted/40 font-bold border-t-2">
@@ -273,7 +291,9 @@ export default function ClientesPage() {
                     ))}
                     <TableCell className="text-right tabular-nums">{formatUSD(totals.grand)}</TableCell>
                     <TableCell className="text-right tabular-nums">{pct(totals.grand)}</TableCell>
-                    <TableCell className="text-right tabular-nums"><DeltaCell a={totals.byYear[compareA] ?? 0} b={totals.byYear[compareB] ?? 0} /></TableCell>
+                    {compareMode && (
+                      <TableCell className="text-right tabular-nums"><DeltaCell a={totals.byYear[compareA] ?? 0} b={totals.byYear[compareB] ?? 0} /></TableCell>
+                    )}
                   </TableRow>
                 </>
               )}

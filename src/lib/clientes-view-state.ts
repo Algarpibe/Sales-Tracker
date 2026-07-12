@@ -7,6 +7,7 @@ export interface ClientesViewState {
   search: string;
   sortKey: CustomerSortKey;
   sortDir: CustomerSortDir;
+  compareMode: boolean;
   compareA: number;
   compareB: number;
   onlyFav: boolean;
@@ -35,6 +36,8 @@ export function parseClientesState(raw: unknown): ClientesViewState | null {
     search: s.search as string,
     sortKey: s.sortKey as CustomerSortKey,
     sortDir: s.sortDir as CustomerSortDir,
+    // Campo añadido después: presets antiguos sin él se cargan con la comparación apagada.
+    compareMode: typeof s.compareMode === "boolean" ? s.compareMode : false,
     compareA: s.compareA as number,
     compareB: s.compareB as number,
     onlyFav: s.onlyFav as boolean,
