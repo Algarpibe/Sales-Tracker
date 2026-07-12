@@ -17,6 +17,22 @@ function baseInput(over: Partial<ForecastInput>): ForecastInput {
   };
 }
 
+describe("computeForecast — año (C): de-amplificación temprana", () => {
+  it("un arranque de año fuerte NO se extrapola linealmente (blend hacia el ritmo)", () => {
+    // Enero enorme (1200) con estacionalidad plana: la extrapolación estacional ingenua
+    // daría ~1200×12 = 14400. El blend por ritmo (wy≈0.083 en enero) lo tempera muy por debajo.
+    const cur = arr({ 0: 1200 });
+    const prev = Array.from({ length: 12 }, () => 100); // año anterior uniforme (total 1200)
+    const r = computeForecast(baseInput({
+      currentYearMonthly: cur,
+      lastYearMonthly: prev,
+      now: { monthIdx: 0, day: 30, daysInMonth: 30 }, // fin de enero → w=1
+    }));
+    expect(r.year.value).toBeLessThan(6000);   // muy por debajo de la extrapolación ingenua (14400)
+    expect(r.year.value).toBeGreaterThan(1200); // pero refleja el arranque fuerte
+  });
+});
+
 describe("computeForecast — mes (A)", () => {
   it("a mitad de mes mezcla runRate y esperado 50/50", () => {
     // Ene MTD=50 en día 15/30 → runRate=100. Sin meses cerrados → pace=1 → esperado=Ene año prev=200.
