@@ -14,7 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import dynamic from "next/dynamic";
 import { MeshBackground } from "@/components/ui/mesh-background";
-import { calculateSeasonalityFactors, getSeasonalForecast, calculateRunRate } from "@/lib/math-utils";
+import { computeForecast } from "@/lib/forecast";
 import { ComposedChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from "recharts";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import type { Category, CategoryGroup } from "@/types/database";
@@ -172,7 +172,7 @@ function AnalyticsContent() {
   );
 
   // 1. Comparativa mensual + Forecast estacional (cálculo idéntico, memorizado).
-  const { monthlyData, forecastMonthlyData } = useMemo(() => {
+  const { monthlyData, forecastMonthlyData, forecast } = useMemo(() => {
     const dataA = allRecords.filter((r: SalesRecord) => r.record_year === yearA);
     const dataB = allRecords.filter((r: SalesRecord) => r.record_year === yearB);
 
@@ -207,34 +207,29 @@ function AnalyticsContent() {
       );
     });
 
-    const seasonalityFactors = calculateSeasonalityFactors(historicalMatrix);
-
-    // --- Calcular Forecast Proyectado ---
     const now = new Date();
-    const currentMonthIdx = now.getMonth();
-    const isCurrentActualYear = yearA === now.getFullYear();
-    const lastElapsedMonth = isCurrentActualYear ? currentMonthIdx + 1 : 12;
+    const currentYearMonthly = parsedMonthlyData.map((d) => d.rawA);
+    const lastYearMonthly = parsedMonthlyData.map((d) => Number(d[`Año ${yearB}`] || 0));
 
-    const currentYearElapsedData = parsedMonthlyData.slice(0, lastElapsedMonth).map((d) => d.rawA);
-
-    // Proyectar el cierre del mes actual para mayor precisión (Run-Rate)
-    if (isCurrentActualYear && currentYearElapsedData.length > currentMonthIdx) {
-      const currentMonthReal = currentYearElapsedData[currentMonthIdx] || 0;
-      const currentDay = now.getDate();
-      const totalDays = new Date(now.getFullYear(), currentMonthIdx + 1, 0).getDate();
-      const currentMonthRunRateValue = calculateRunRate(currentMonthReal, currentDay, totalDays);
-
-      currentYearElapsedData[currentMonthIdx] = currentMonthRunRateValue;
-    }
-
-    const projectedForecast = getSeasonalForecast(currentYearElapsedData, seasonalityFactors);
+    const forecast = computeForecast({
+      currentYearMonthly,
+      lastYearMonthly,
+      historicalMatrix,
+      weights: [3, 2, 1], // 2025 / 2024 / 2023
+      now: {
+        monthIdx: now.getMonth(),
+        day: now.getDate(),
+        daysInMonth: new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate(),
+      },
+      isCurrentActualYear: yearA === now.getFullYear(),
+    });
 
     const forecastWithTrend = parsedMonthlyData.map((d, i) => ({
       ...d,
-      tendencia: Math.round(projectedForecast[i] * 100) / 100
+      tendencia: Math.round(forecast.monthlyForecast[i] * 100) / 100,
     }));
 
-    return { monthlyData: parsedMonthlyData, forecastMonthlyData: forecastWithTrend };
+    return { monthlyData: parsedMonthlyData, forecastMonthlyData: forecastWithTrend, forecast };
   }, [allRecords, yearA, yearB, recordType]);
 
   // 2. Análisis Financiero ST vs C&R (dinamizado por viewMode), memorizado.
@@ -528,19 +523,27 @@ function AnalyticsContent() {
               <div className="space-y-8">
                 {/* Task 1 & 1.5: Projection Cards in a full-width 2-column grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full">
-                  <PredictiveRunRateCard 
-                    currentTotal={Number(monthlyData[new Date().getMonth()]?.[`Año ${yearA}`] || 0)}
-                    lastYearMonthTotal={Number(monthlyData[new Date().getMonth()]?.[`Año ${yearB}`] || 0)}
-                    projectedTotal={forecastMonthlyData[new Date().getMonth()]?.tendencia}
+                  <PredictiveRunRateCard
+                    currentTotal={forecast.month.actual}
+                    lastYearMonthTotal={forecast.month.reference}
+                    projectedTotal={forecast.month.value}
+                    low={forecast.month.low}
+                    high={forecast.month.high}
+                    deltaPct={forecast.month.deltaPct}
+                    deltaLabel="mismo mes año anterior"
                   />
 
-                  <PredictiveRunRateCard 
+                  <PredictiveRunRateCard
                     title={`Proyección de Cierre Año ${yearA}`}
                     currentLabel="Ventas Acum. (YTD)"
                     targetLabel={`Total Año ${yearB}`}
-                    currentTotal={monthlyData.slice(0, new Date().getMonth() + 1).reduce((acc: number, m) => acc + Number(m[`Año ${yearA}`] || 0), 0)}
-                    lastYearMonthTotal={monthlyData.reduce((acc: number, m) => acc + Number(m[`Año ${yearB}`] || 0), 0)}
-                    projectedTotal={forecastMonthlyData.reduce((acc: number, m) => acc + (m.tendencia || 0), 0)}
+                    currentTotal={forecast.year.actual}
+                    lastYearMonthTotal={forecast.year.reference}
+                    projectedTotal={forecast.year.value}
+                    low={forecast.year.low}
+                    high={forecast.year.high}
+                    deltaPct={forecast.year.deltaPct}
+                    deltaLabel="mismo periodo año anterior"
                   />
                 </div>
 
@@ -553,7 +556,7 @@ function AnalyticsContent() {
                         <TrendingUp className="h-5 w-5 text-indigo-400" /> Histórico con Proyección Estacional ({recordType === "SALES_ORDER" ? "Órdenes" : "Facturas"})
                       </CardTitle>
                       <p className="text-sm text-muted-foreground mt-1">
-                        Visualización de datos reales {yearA} proyectados mediante análisis de estacionalidad (2023-2025).
+                        Datos reales {yearA} + proyección: estacionalidad ponderada por recencia y ritmo interanual.
                       </p>
                     </div>
                     
@@ -657,28 +660,20 @@ function AnalyticsContent() {
                       </p>
                       <ul className="pl-4 border-l-2 border-primary/30 space-y-3 py-1 list-none">
                         <li>
-                          <p className="text-zinc-950 font-bold flex items-center gap-2">
-                             1. Factores de Estacionalidad (Sᵢ):
-                          </p>
-                          <p className="text-xs opacity-80">Calculamos el peso promedio de cada mes en el total anual basado en el histórico 2023-2025.</p>
+                          <p className="text-zinc-950 font-bold flex items-center gap-2">1. Estacionalidad ponderada:</p>
+                          <p className="text-xs opacity-80">El peso de cada mes se calcula del histórico dando más importancia a los años recientes (2025 pesa más que 2023).</p>
                         </li>
                         <li>
-                          <p className="text-zinc-950 font-bold flex items-center gap-2">
-                             2. Proyección de Cierre (Tₑₛₜ):
-                          </p>
-                          <p className="text-xs opacity-80">Escalamos las ventas acumuladas (YTD) dividiéndolas por la suma de los factores de los meses transcurridos.</p>
+                          <p className="text-zinc-950 font-bold flex items-center gap-2">2. Mes en curso (mezcla):</p>
+                          <p className="text-xs opacity-80">Combina el run-rate diario con lo esperado según el año anterior y el ritmo del año; al principio del mes pesa lo esperado, al final lo real.</p>
                         </li>
                         <li>
-                          <p className="text-zinc-950 font-bold flex items-center gap-2">
-                             3. Normalización:
-                          </p>
-                          <p className="text-xs opacity-80">Ajustamos los factores para que la suma final de los 12 meses sea exactamente 1, evitando errores por redondeo.</p>
+                          <p className="text-zinc-950 font-bold flex items-center gap-2">3. Cierre de año (por ritmo):</p>
+                          <p className="text-xs opacity-80">Mezcla la extrapolación estacional con el ritmo interanual (YTD vs año anterior), evitando amplificar el error a principios de año.</p>
                         </li>
                         <li>
-                          <p className="text-zinc-950 font-bold flex items-center gap-2">
-                             4. Proyección Mensual (Pᵢ):
-                          </p>
-                          <p className="text-xs opacity-80">Multiplicamos el total anual estimado por el factor normalizado de cada mes futuro.</p>
+                          <p className="text-zinc-950 font-bold flex items-center gap-2">4. Banda de incertidumbre:</p>
+                          <p className="text-xs opacity-80">Mostramos un rango basado en la dispersión de las formas históricas, no un único número con falsa precisión.</p>
                         </li>
                       </ul>
                       <p className="text-[10px] italic bg-white/5 p-3 rounded-lg border border-white/5 leading-snug">
@@ -688,10 +683,10 @@ function AnalyticsContent() {
                 </div>
                 <div className="p-8 rounded-3xl bg-white/5 border border-white/10 backdrop-blur-md">
                     <h4 className="text-lg font-bold mb-4 flex items-center gap-2 text-emerald-400">
-                      <TrendingUp className="size-5" /> Estimación de Seguimiento (Run-Rate)
+                      <TrendingUp className="size-5" /> Seguimiento y ritmo (On Track)
                     </h4>
                     <p className="text-muted-foreground leading-relaxed text-sm">
-                      El Run-Rate mensual calcula el promedio de ventas diarias del mes actual y lo proyecta linealmente. Al compararlo con el Forecast Estacional, el sistema determina automáticamente si el mes está <strong>&quot;En Trayectoria&quot; (On Track)</strong> o <strong>&quot;En Riesgo&quot; (At Risk)</strong>, permitiendo tomar acciones correctivas antes del cierre.
+                      Comparamos el acumulado con el mismo punto del año anterior: si vas por delante, <strong>&quot;En Trayectoria&quot; (On Track)</strong>; si por detrás, <strong>&quot;En Riesgo&quot; (At Risk)</strong>. El porcentaje muestra el ritmo real frente al año pasado.
                     </p>
                 </div>
               </div>
