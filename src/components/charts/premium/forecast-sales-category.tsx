@@ -166,7 +166,7 @@ export function ForecastSalesCategory({ baseYear = new Date().getFullYear() }: F
         const historicalMatrix = historicalYears.map(y => {
             return MONTHS.map((_, mIdx) => catMonths[y]?.[mIdx + 1] || 0);
         });
-        const seasonalityFactors = calculateSeasonalityFactors(historicalMatrix);
+        const seasonalityFactors = calculateSeasonalityFactors(historicalMatrix, [3, 2, 1]);
 
         const currentYearRawData = MONTHS.map((_, mIdx) => catMonths[currentYear]?.[mIdx + 1] || 0);
         const currentYearElapsedData = currentYearRawData.slice(0, lastElapsedMonth);

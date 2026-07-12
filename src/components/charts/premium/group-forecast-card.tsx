@@ -126,7 +126,7 @@ export function GroupForecastCard({ recordType: initialRecordType, baseYear = ne
           const historicalMatrix = historicalYears.map(y => {
               return MONTHS.map((_, mIdx) => row.months?.[y]?.[mIdx + 1] || 0);
           });
-          const seasonalityFactors = calculateSeasonalityFactors(historicalMatrix);
+          const seasonalityFactors = calculateSeasonalityFactors(historicalMatrix, [3, 2, 1]);
 
           const currentYearRawData = MONTHS.map((_, mIdx) => row.months?.[currentYear]?.[mIdx + 1] || 0);
           const currentYearElapsedData = currentYearRawData.slice(0, lastElapsedMonth);
