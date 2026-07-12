@@ -53,31 +53,29 @@ export function calculateRunRate(currentTotal: number, currentDay: number, total
  * @param historicalData Array of arrays, where each sub-array is 12 months of sales for a year.
  * @returns Array of 12 numbers (0-1) summing to 1.
  */
-export function calculateSeasonalityFactors(historicalData: number[][]): number[] {
+export function calculateSeasonalityFactors(historicalData: number[][], weights?: number[]): number[] {
   const n = historicalData.length;
-  if (n === 0) return Array(12).fill(1/12);
+  if (n === 0) return Array(12).fill(1 / 12);
 
   const monthlySums = Array(12).fill(0);
-  let validYears = 0;
+  let weightSum = 0;
 
-  historicalData.forEach(yearData => {
+  historicalData.forEach((yearData, idx) => {
     const yearTotal = yearData.reduce((a, b) => a + b, 0);
     if (yearTotal === 0) return;
-    
-    validYears++;
+    const wgt = weights?.[idx] ?? 1;
+    weightSum += wgt;
     yearData.forEach((amount, monthIndex) => {
-      // Weight each month by its percentage of that year
-      monthlySums[monthIndex] += amount / yearTotal;
+      // Peso de cada mes = su cuota del año, ponderada por recencia del año.
+      monthlySums[monthIndex] += (amount / yearTotal) * wgt;
     });
   });
 
-  if (validYears === 0) return Array(12).fill(1/12);
+  if (weightSum === 0) return Array(12).fill(1 / 12);
 
-  const factors = monthlySums.map(sum => sum / validYears);
+  const factors = monthlySums.map((sum) => sum / weightSum);
   const factorsSum = factors.reduce((a, b) => a + b, 0);
-  
-  // Normalización para asegurar que la suma de los 12 meses sea exactamente 1
-  return factors.map(f => f / (factorsSum || 1));
+  return factors.map((f) => f / (factorsSum || 1));
 }
 
 /**
