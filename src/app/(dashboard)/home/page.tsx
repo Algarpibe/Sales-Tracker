@@ -2,56 +2,65 @@
 
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { ShoppingCart, FileText, Receipt, Activity } from "lucide-react";
 import { BarChartMonthly } from "@/components/charts/bar-chart-monthly";
+import { KPICard } from "@/components/cards/kpi-card";
 import { getSalesData } from "@/actions/sales-actions";
 import { getCategories } from "@/actions/category-actions";
-import { getYearRange } from "@/lib/constants";
+import { getYearRange, formatUSD } from "@/lib/constants";
 import { computeDashboardMetrics } from "@/lib/dashboard-metrics";
+import { yoyChange, type InsightRecord } from "@/lib/dashboard-insights";
+import { CumulativeYoYChart } from "@/components/charts/dashboard/cumulative-yoy-chart";
+import { ExecutionMonthlyChart } from "@/components/charts/dashboard/execution-monthly-chart";
+import { TopCustomersPareto } from "@/components/charts/dashboard/top-customers-pareto";
+import { CategoryMixDonut } from "@/components/charts/dashboard/category-mix-donut";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { KPIDashboardSection } from "@/components/dashboard/kpi-dashboard-section";
 import { Separator } from "@/components/ui/separator";
 
 export default function HomePage() {
   const [year, setYear] = useState(new Date().getFullYear());
   const [selectedTypes, setSelectedTypes] = useState<string[]>(["SALES_ORDER", "INVOICE"]);
 
-  // react-query: comparte la caché de ventas por año con KPIs/Análisis. Mismo action.
   const { data: recordsData, isLoading: l1 } = useQuery({
     queryKey: ["sales", { year }],
     queryFn: () => getSalesData({ year }),
+  });
+  const { data: prevData, isLoading: l1b } = useQuery({
+    queryKey: ["sales", { year: year - 1 }],
+    queryFn: () => getSalesData({ year: year - 1 }),
   });
   const { data: catsData, isLoading: l2 } = useQuery({
     queryKey: ["categories"],
     queryFn: getCategories,
   });
-  const isLoading = l1 || l2;
+  const isLoading = l1 || l1b || l2;
 
   const handleTypeToggle = (type: string) => {
-    setSelectedTypes(prev =>
-      prev.includes(type)
-        ? prev.filter(t => t !== type)
-        : [...prev, type]
+    setSelectedTypes((prev) =>
+      prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]
     );
   };
 
-  // Métricas (lógica compartida con KPIs — ver src/lib/dashboard-metrics.ts).
   const metrics = useMemo(
     () => computeDashboardMetrics(recordsData ?? [], catsData ?? []),
     [recordsData, catsData]
   );
+  const metricsPrev = useMemo(
+    () => computeDashboardMetrics(prevData ?? [], catsData ?? []),
+    [prevData, catsData]
+  );
+  const catMap = useMemo(
+    () => new Map((catsData ?? []).map((c) => [c.id, c.name] as [string, string])),
+    [catsData]
+  );
 
-  // Filtrar los datos que se pasan al gráfico basándose en la selección
   const chartData = useMemo(() => {
-    return metrics.monthly.map(m => ({
+    return metrics.monthly.map((m) => ({
       month: m.month,
       sales_orders: selectedTypes.includes("SALES_ORDER") ? m.sales_orders : 0,
       invoices: selectedTypes.includes("INVOICE") ? m.invoices : 0,
@@ -63,9 +72,7 @@ export default function HomePage() {
       <div className="space-y-6">
         <Skeleton className="h-10 w-full" />
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-32 w-full" />
-          ))}
+          {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-32 w-full" />)}
         </div>
         <Skeleton className="h-[400px] w-full" />
       </div>
@@ -74,80 +81,82 @@ export default function HomePage() {
 
   return (
     <div className="flex flex-col gap-10 pb-20">
-      {/* Cabecera Principal */}
+      {/* Cabecera */}
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-4xl font-bold tracking-tight">Dashboard General</h1>
           <p className="text-muted-foreground mt-1">Vista centralizada de métricas y rendimiento para el año {year}.</p>
         </div>
-        
         <div className="flex flex-wrap items-center gap-6 bg-card/50 px-4 py-2 rounded-lg border border-border/50 backdrop-blur-sm shadow-sm">
           <Select value={String(year)} onValueChange={(v) => setYear(Number(v))}>
             <SelectTrigger className="w-[140px] border-none shadow-none focus:ring-0 font-semibold bg-transparent">
               <SelectValue placeholder="Año" />
             </SelectTrigger>
             <SelectContent>
-              {getYearRange().map((y) => (
-                <SelectItem key={y} value={String(y)}>
-                  Año {y}
-                </SelectItem>
-              ))}
+              {getYearRange().map((y) => <SelectItem key={y} value={String(y)}>Año {y}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
       </div>
 
-      {/* Sección 1: KPIs de Ejecución (Principal) */}
-      <section>
-        <KPIDashboardSection metrics={metrics} showCharts={false} />
+      {/* Sección 1: KPIs con Δ interanual */}
+      <section className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
+        <KPICard title="Ventas Comprometidas (OV)" value={formatUSD(metrics.sales_orders)} change={yoyChange(metrics.sales_orders, metricsPrev.sales_orders) ?? undefined} icon={ShoppingCart} variant="premium" />
+        <KPICard title="Total Facturado" value={formatUSD(metrics.invoices)} change={yoyChange(metrics.invoices, metricsPrev.invoices) ?? undefined} icon={FileText} variant="premium" />
+        <KPICard title="Ticket Medio (OV)" value={formatUSD(metrics.avg_ticket)} change={yoyChange(metrics.avg_ticket, metricsPrev.avg_ticket) ?? undefined} icon={Receipt} variant="premium" />
+        <KPICard title="% Ejecución (FAC/OV)" value={`${metrics.execution_rate.toFixed(1)}%`} change={metricsPrev.execution_rate > 0 ? metrics.execution_rate - metricsPrev.execution_rate : undefined} icon={Activity} variant="premium" />
       </section>
 
       <Separator className="opacity-50" />
 
-      {/* Sección 2: Análisis Mensual (Tendencias) */}
+      {/* Sección 2: Evolución */}
       <section className="space-y-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-1">
             <h2 className="text-2xl font-bold tracking-tight">Análisis de Tendencias</h2>
             <p className="text-sm text-muted-foreground">Evolución mensual de ventas y facturación.</p>
           </div>
-
           <div className="flex items-center gap-4 bg-muted/30 p-2 rounded-md">
             <div className="flex items-center space-x-2">
-              <Checkbox 
-                id="type-ov-home" 
-                checked={selectedTypes.includes("SALES_ORDER")}
-                onCheckedChange={() => handleTypeToggle("SALES_ORDER")}
-              />
+              <Checkbox id="type-ov-home" checked={selectedTypes.includes("SALES_ORDER")} onCheckedChange={() => handleTypeToggle("SALES_ORDER")} />
               <Label htmlFor="type-ov-home" className="text-sm font-medium cursor-pointer">Órdenes (OV)</Label>
             </div>
             <div className="flex items-center space-x-2 border-l pl-4 border-border/50">
-              <Checkbox 
-                id="type-fac-home" 
-                checked={selectedTypes.includes("INVOICE")}
-                onCheckedChange={() => handleTypeToggle("INVOICE")}
-              />
+              <Checkbox id="type-fac-home" checked={selectedTypes.includes("INVOICE")} onCheckedChange={() => handleTypeToggle("INVOICE")} />
               <Label htmlFor="type-fac-home" className="text-sm font-medium cursor-pointer">Facturas (FAC)</Label>
             </div>
           </div>
         </div>
 
-        <div className="w-full">
-          <BarChartMonthly data={chartData} />
+        <BarChartMonthly data={chartData} />
+
+        <div className="grid gap-6 grid-cols-1 lg:grid-cols-5">
+          <div className="lg:col-span-3">
+            <CumulativeYoYChart current={(recordsData ?? []) as InsightRecord[]} previous={(prevData ?? []) as InsightRecord[]} yearActual={year} yearPrev={year - 1} />
+          </div>
+          <div className="lg:col-span-2">
+            <ExecutionMonthlyChart monthly={metrics.monthly} />
+          </div>
         </div>
       </section>
 
       <Separator className="opacity-50" />
 
-      {/* Sección 3: Análisis de Backlog (Aging & Concentración) */}
+      {/* Sección 3: Composición y concentración */}
       <section className="space-y-6">
         <div className="space-y-1">
-          <h2 className="text-2xl font-bold tracking-tight">Análisis Detallado de Backlog</h2>
-          <p className="text-sm text-muted-foreground">Distribución por antigüedad y categorías de riesgo.</p>
+          <h2 className="text-2xl font-bold tracking-tight">Composición y concentración</h2>
+          <p className="text-sm text-muted-foreground">Clientes principales y mix por macro-categoría.</p>
         </div>
-        <KPIDashboardSection metrics={metrics} showGrid={false} />
+        <div className="grid gap-6 grid-cols-1 lg:grid-cols-5">
+          <div className="lg:col-span-3">
+            <TopCustomersPareto year={year} />
+          </div>
+          <div className="lg:col-span-2">
+            <CategoryMixDonut records={(recordsData ?? []) as InsightRecord[]} catMap={catMap} />
+          </div>
+        </div>
       </section>
     </div>
   );
 }
-
