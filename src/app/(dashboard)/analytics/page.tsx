@@ -5,24 +5,22 @@ import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import { getSalesData } from "@/actions/sales-actions";
 import { getCategories } from "@/actions/category-actions";
-import { MONTHS, getYearRange, formatUSD, formatCompactUSD } from "@/lib/constants";
+import { getYearRange } from "@/lib/constants";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import dynamic from "next/dynamic";
 import { MeshBackground } from "@/components/ui/mesh-background";
 import { computeForecast } from "@/lib/forecast";
-import { ComposedChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from "recharts";
+import { monthlyTotals, historicalMatrix } from "@/lib/forecast-widget-data";
+import { buildTechServiceData } from "@/lib/tech-service";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import type { Category } from "@/types/database";
 import { Sparkles, BarChart3, TrendingUp, FileText, Receipt } from "lucide-react";
 import { motion } from "framer-motion";
 import type { SalesRecord } from "@/types/database";
-import type { ChartTooltipProps } from "@/lib/chart-types";
 import { usePeriod } from "@/components/providers/period-provider";
-import { InfoTooltip } from "@/components/common/info-tooltip";
 import { CHART_HELP } from "@/lib/chart-help";
 
 // Lazy-load de los charts pesados (recharts/framer) con next/dynamic (F3-02):
@@ -31,6 +29,14 @@ import { CHART_HELP } from "@/lib/chart-help";
 const chartSkeleton = () => <Skeleton className="h-[400px] w-full rounded-xl" />;
 const TechServiceAnalysis = dynamic(
   () => import("@/components/charts/tech-service-analysis").then((m) => m.TechServiceAnalysis),
+  { ssr: false, loading: chartSkeleton }
+);
+const MonthlyComparisonChart = dynamic(
+  () => import("@/components/charts/dashboard/monthly-comparison-chart").then((m) => m.MonthlyComparisonChart),
+  { ssr: false, loading: chartSkeleton }
+);
+const SeasonalForecastChart = dynamic(
+  () => import("@/components/charts/dashboard/seasonal-forecast-chart").then((m) => m.SeasonalForecastChart),
   { ssr: false, loading: chartSkeleton }
 );
 const HistoricalSalesCategory = dynamic(
@@ -110,27 +116,6 @@ const MarginByCustomerCard = dynamic(
   { ssr: false, loading: chartSkeleton }
 );
 
-// Punto de la serie mensual: month + claves dinámicas `Año X` + acumulados.
-type MonthlyPoint = {
-  month: string;
-  acumA: number;
-  acumB: number;
-  rawA: number;
-  tendencia?: number;
-  [key: string]: string | number | undefined;
-};
-
-const ST_CATEGORIES = [
-  'Alquileres', 'CAL CO', 'CAL NOx', 'CAL O3', 'CAL PM', 'CAL SO2', 'ST', 
-  'ST APMA', 'ST APNA', 'ST APOA', 'ST APSA', 'ST EDM 180'
-];
-
-const CR_CATEGORIES = [
-  'C&R AP Series', 'C&R APMA-370', 'C&R APNA-370', 'C&R APOA-370', 'C&R APSA-370', 
-  'C&R D-R 290', 'C&R EDM 180', 'C&R ENDA Series', 'C&R Enviro', 'C&R OCMA-500', 
-  'C&R PG Series', 'C&R Series 6103', 'C&R Series 7000', 'C&R Shelter', 'C&R U-50 Series'
-];
-
 function AnalyticsContent() {
   const [activeTab, setActiveTab] = useState("exploration");
   const { tipo: recordType, setTipo: setRecordType, year: yearA, setYear: setYearA } = usePeriod();
@@ -164,50 +149,14 @@ function AnalyticsContent() {
   const allRecords: SalesRecord[] = useMemo(() => recordsData ?? [], [recordsData]);
   const categories = useMemo<Category[]>(() => (catsData as Category[]) ?? [], [catsData]);
 
-  // 1. Comparativa mensual + Forecast estacional (cálculo idéntico, memorizado).
-  const { monthlyData, forecastMonthlyData, forecast } = useMemo(() => {
-    const dataA = allRecords.filter((r: SalesRecord) => r.record_year === yearA);
-    const dataB = allRecords.filter((r: SalesRecord) => r.record_year === yearB);
-
-    let runningAcumA = 0;
-    let runningAcumB = 0;
-    const parsedMonthlyData: MonthlyPoint[] = MONTHS.map(m => {
-      const totalA = dataA.filter((r: SalesRecord) => r.record_month === m.value && r.record_type === recordType)
-        .reduce((acc: number, r: SalesRecord) => acc + Number(r.amount_usd), 0) || 0;
-
-      const totalB = dataB.filter((r: SalesRecord) => r.record_month === m.value && r.record_type === recordType)
-        .reduce((acc: number, r: SalesRecord) => acc + Number(r.amount_usd), 0) || 0;
-
-      runningAcumA += totalA;
-      runningAcumB += totalB;
-
-      return {
-        month: m.label,
-        [`Año ${yearA}`]: totalA,
-        [`Año ${yearB}`]: totalB,
-        acumA: runningAcumA,
-        acumB: runningAcumB,
-        rawA: totalA, // To calculate trend
-      };
-    });
-
-    // --- Calcular Estacionalidad (Basado en 2023-2025) ---
-    const historicalYears = [2025, 2024, 2023];
-    const historicalMatrix = historicalYears.map(y => {
-      const yearRecords = allRecords.filter((r: SalesRecord) => r.record_year === y && r.record_type === recordType);
-      return MONTHS.map(m =>
-        yearRecords.filter((r: SalesRecord) => r.record_month === m.value).reduce((acc: number, r: SalesRecord) => acc + Number(r.amount_usd), 0)
-      );
-    });
-
+  // 1. Forecast del año A: alimenta las dos tarjetas de proyección de cierre.
+  // Las series salen de los helpers compartidos con los widgets del dashboard.
+  const forecast = useMemo(() => {
     const now = new Date();
-    const currentYearMonthly = parsedMonthlyData.map((d) => d.rawA);
-    const lastYearMonthly = parsedMonthlyData.map((d) => Number(d[`Año ${yearB}`] || 0));
-
-    const forecast = computeForecast({
-      currentYearMonthly,
-      lastYearMonthly,
-      historicalMatrix,
+    return computeForecast({
+      currentYearMonthly: monthlyTotals(allRecords, yearA, recordType),
+      lastYearMonthly: monthlyTotals(allRecords, yearB, recordType),
+      historicalMatrix: historicalMatrix(allRecords, [2025, 2024, 2023], recordType),
       weights: [3, 2, 1], // 2025 / 2024 / 2023
       now: {
         monthIdx: now.getMonth(),
@@ -216,79 +165,16 @@ function AnalyticsContent() {
       },
       isCurrentActualYear: yearA === now.getFullYear(),
     });
-
-    const forecastWithTrend = parsedMonthlyData.map((d, i) => ({
-      ...d,
-      tendencia: Math.round(forecast.monthlyForecast[i] * 100) / 100,
-    }));
-
-    return { monthlyData: parsedMonthlyData, forecastMonthlyData: forecastWithTrend, forecast };
   }, [allRecords, yearA, yearB, recordType]);
 
-  // 2. Análisis Financiero ST vs C&R (dinamizado por viewMode), memorizado.
+  // 2. Análisis Financiero ST vs C&R: mismo lib puro que usa el widget del dashboard.
   const techServiceData = useMemo(() => {
     const dataA = allRecords.filter((r: SalesRecord) => r.record_year === yearA);
     const dataB = allRecords.filter((r: SalesRecord) => r.record_year === yearB);
     const catMap = new Map<string, string>(
       categories.map((c) => [String(c.id), String(c.name)])
     );
-
-    let timeSlots: { label: string; months: number[] }[] = [];
-
-    if (techServiceViewMode === "MONTHLY") {
-      timeSlots = MONTHS.map(m => ({ label: m.label, months: [m.value] }));
-    } else if (techServiceViewMode === "QUARTERLY") {
-      timeSlots = [
-        { label: "T1", months: [1, 2, 3] },
-        { label: "T2", months: [4, 5, 6] },
-        { label: "T3", months: [7, 8, 9] },
-        { label: "T4", months: [10, 11, 12] },
-      ];
-    } else {
-      // ANNUAL
-      timeSlots = [{ label: "Anual", months: [1,2,3,4,5,6,7,8,9,10,11,12] }];
-    }
-
-    let acumA = 0;
-    let acumB = 0;
-
-    return timeSlots.map(slot => {
-      const recordsA = dataA.filter((r) => slot.months.includes(Number(r.record_month)) && r.record_type === recordType);
-      const recordsB = dataB.filter((r) => slot.months.includes(Number(r.record_month)) && r.record_type === recordType);
-
-      let stA = 0, crA = 0, stB = 0, crB = 0;
-
-      recordsA.forEach((r) => {
-        const catName = catMap.get(r.category_id);
-        const amt = Number(r.amount_usd);
-        if (catName && ST_CATEGORIES.includes(catName)) stA += amt;
-        else if (catName && CR_CATEGORIES.includes(catName)) crA += amt;
-      });
-
-      recordsB.forEach((r) => {
-        const catName = catMap.get(r.category_id);
-        const amt = Number(r.amount_usd);
-        if (catName && ST_CATEGORIES.includes(catName)) stB += amt;
-        else if (catName && CR_CATEGORIES.includes(catName)) crB += amt;
-      });
-
-      const totalA = stA + crA;
-      const totalB = stB + crB;
-      acumA += totalA;
-      acumB += totalB;
-
-      return {
-        label: slot.label,
-        st: stA,
-        cr: crA,
-        total: totalA,
-        acum: acumA,
-        st_prev: stB,
-        cr_prev: crB,
-        total_prev: totalB,
-        acum_prev: acumB,
-      };
-    });
+    return buildTechServiceData(dataA, dataB, catMap, recordType, techServiceViewMode);
   }, [allRecords, categories, yearA, yearB, recordType, techServiceViewMode]);
 
   if (loading) {
@@ -299,41 +185,6 @@ function AnalyticsContent() {
       </div>
     );
   }
-
-  // Componente Tooltip personalizado para el gráfico mensual
-  const CustomMonthlyTooltip = ({ active, payload, label }: ChartTooltipProps<MonthlyPoint>) => {
-    if (active && payload && payload.length) {
-      const data = payload[0].payload;
-      return (
-        <div className="bg-white/95 backdrop-blur-md border border-white/20 p-4 rounded-2xl shadow-xl space-y-3">
-          <p className="text-sm font-bold text-zinc-950 border-b border-zinc-100 pb-2">{label}</p>
-          <div className="space-y-2">
-            {/* Valores Mensuales */}
-            <div className="flex items-center justify-between gap-8">
-              <span className="text-xs font-semibold text-primary">Año {yearA}:</span>
-              <span className="text-xs font-bold text-zinc-900">{formatUSD(Number(data?.[`Año ${yearA}`] ?? 0))}</span>
-            </div>
-            <div className="flex items-center justify-between gap-8">
-              <span className="text-xs font-semibold text-rose-500">Año {yearB}:</span>
-              <span className="text-xs font-bold text-zinc-900">{formatUSD(Number(data?.[`Año ${yearB}`] ?? 0))}</span>
-            </div>
-            {/* Valores Acumulados */}
-            <div className="pt-2 mt-2 border-t border-zinc-100 space-y-2">
-              <div className="flex items-center justify-between gap-8">
-                <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Acumulado {yearA}:</span>
-                <span className="text-xs font-bold text-primary">{formatUSD(data?.acumA ?? 0)}</span>
-              </div>
-              <div className="flex items-center justify-between gap-8">
-                <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Acumulado {yearB}:</span>
-                <span className="text-xs font-bold text-rose-500">{formatUSD(data?.acumB ?? 0)}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      );
-    }
-    return null;
-  };
 
   return (
     <div className="relative min-h-screen">
@@ -419,41 +270,15 @@ function AnalyticsContent() {
                 </div>
               </div>
 
-              <Card className="shadow-2xl border-white/5 bg-white/5 backdrop-blur-xl dark:bg-black/20 overflow-hidden group">
-                <div className="absolute inset-0 bg-gradient-to-tr from-indigo-500/5 to-transparent pointer-events-none" />
-                <CardHeader className="relative z-10 border-b border-white/5 py-4">
-                  <CardTitle className="text-lg font-bold flex items-center gap-2">
-                    <div className="w-1 h-4 bg-indigo-500 rounded-full" />
-                    {recordType === "SALES_ORDER" ? "Órdenes de Venta (Reserva)" : "Facturación (Ventas)"}
-                    <span className="text-muted-foreground font-normal text-sm ml-2">Global Mensual</span>
-                    <InfoTooltip text={CHART_HELP.explorationGlobalMensual} />
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={350}>
-                    <BarChart data={monthlyData}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="oklch(0.91 0.01 250 / 0.1)" />
-                      <XAxis dataKey="month" axisLine={false} tickLine={false} dy={10} />
-                      <YAxis tickFormatter={formatCompactUSD} axisLine={false} tickLine={false} />
-                      <RechartsTooltip 
-                        content={<CustomMonthlyTooltip />}
-                        cursor={{ fill: "rgba(147, 197, 253, 0.15)" }}
-                      />
-                      <Legend wrapperStyle={{ paddingTop: '20px' }} />
-                      <Bar 
-                        dataKey={`Año ${yearA}`} 
-                        fill="oklch(0.65 0.2 255)" 
-                        radius={[4, 4, 0, 0]}
-                      />
-                      <Bar 
-                        dataKey={`Año ${yearB}`} 
-                        fill="oklch(0.65 0.25 20)" 
-                        radius={[4, 4, 0, 0]}
-                      />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
+              <div className="h-[480px]">
+                <MonthlyComparisonChart
+                  recordType={recordType}
+                  yearA={yearA}
+                  yearB={yearB}
+                  records={allRecords}
+                  prevRecords={allRecords}
+                />
+              </div>
 
               <TechServiceAnalysis 
                 data={techServiceData} 
@@ -544,101 +369,9 @@ function AnalyticsContent() {
                 </div>
 
                 {/* Task 2: Trend Chart in its own row */}
-                <Card className="shadow-2xl border-white/10 bg-white/5 backdrop-blur-xl overflow-hidden relative group">
-                  <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 to-transparent pointer-events-none" />
-                  <CardHeader className="relative z-10 p-6 border-b border-white/5 flex flex-row items-center justify-between">
-                    <div>
-                      <CardTitle className="text-xl font-bold flex items-center gap-3">
-                        <TrendingUp className="h-5 w-5 text-indigo-400" /> Histórico con Proyección Estacional ({recordType === "SALES_ORDER" ? "Órdenes" : "Facturas"})
-                        <InfoTooltip text={CHART_HELP.forecastEstacional} />
-                      </CardTitle>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Datos reales {yearA} + proyección: estacionalidad ponderada por recencia y ritmo interanual.
-                      </p>
-                    </div>
-                    
-                    <div className="flex items-center gap-4">
-                      <div className="flex items-center gap-2">
-                          <div className="size-3 rounded-sm bg-primary" />
-                          <span className="text-xs font-medium text-muted-foreground">Ventas Reales</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                          <div className="w-3 h-0.5 border-t border-dashed border-cyan-400" />
-                          <span className="text-xs font-medium text-muted-foreground">Proyección Estacional</span>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="p-6">
-                    <div className="h-[400px] w-full">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <ComposedChart data={forecastMonthlyData}>
-                          <defs>
-                            <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-                              <feGaussianBlur stdDeviation="4" result="blur" />
-                              <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                            </filter>
-                          </defs>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
-                          <XAxis 
-                            dataKey="month" 
-                            axisLine={false} 
-                            tickLine={false} 
-                            tick={{ fill: "rgba(255,255,255,0.5)", fontSize: 12, fontWeight: 500 }}
-                            dy={10} 
-                          />
-                          <YAxis 
-                            tickFormatter={formatCompactUSD} 
-                            axisLine={false} 
-                            tickLine={false}
-                            tick={{ fill: "rgba(255,255,255,0.5)", fontSize: 12 }} 
-                          />
-                          <RechartsTooltip 
-                            content={({ active, payload, label }) => {
-                              if (active && payload && payload.length) {
-                                return (
-                                  <div className="bg-black/80 backdrop-blur-xl border border-white/10 p-4 rounded-xl shadow-2xl space-y-2">
-                                    <p className="font-bold text-white mb-2">{label}</p>
-                                    {payload.map((entry, index: number) => (
-                                      <div key={index} className="flex items-center justify-between gap-6 text-sm">
-                                        <div className="flex items-center gap-2">
-                                          <div className="size-2 rounded-full" style={{ backgroundColor: entry.color }} />
-                                          <span className="text-white/60">{entry.name}</span>
-                                        </div>
-                                        <span className="font-mono font-bold text-white">
-                                          {formatUSD(Number(entry.value ?? 0))}
-                                        </span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                );
-                              }
-                              return null;
-                            }}
-                          />
-                          <Bar 
-                            name="Ventas Reales"
-                            dataKey={`Año ${yearA}`} 
-                            fill="oklch(0.65 0.2 255)" 
-                            radius={[6, 6, 0, 0]}
-                            barSize={35}
-                          />
-                          <Line 
-                            name="Proyección Estacional"
-                            type="monotone" 
-                            dataKey="tendencia" 
-                            stroke="#22d3ee" 
-                            strokeWidth={3}
-                            strokeDasharray="8 5"
-                            dot={false}
-                            activeDot={{ r: 6, fill: "#22d3ee", strokeWidth: 0 }}
-                            filter="url(#glow)"
-                            animationDuration={2000}
-                          />
-                        </ComposedChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </CardContent>
-                </Card>
+                <div className="h-[560px]">
+                  <SeasonalForecastChart recordType={recordType} year={yearA} />
+                </div>
               </div>
 
               {/* Task 3: Group Forecast Card */}
