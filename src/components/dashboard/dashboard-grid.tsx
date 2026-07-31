@@ -90,33 +90,30 @@ export function DashboardGrid() {
     [items]
   );
 
-  if (!items || data.isLoading) {
-    return (
-      <div className="space-y-4">
-        <div className="grid gap-4 md:grid-cols-4">{[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-32 w-full" />)}</div>
-        <Skeleton className="h-[400px] w-full" />
-      </div>
-    );
-  }
+  // OJO: no se puede hacer early-return aquí. `useContainerWidth` sólo engancha su
+  // ResizeObserver si el nodo del ref existe cuando corre su efecto; si durante la
+  // carga no renderizamos el contenedor, el ancho se queda en el valor inicial
+  // (1280) y la rejilla aparece estrecha y desplazada. El contenedor va siempre.
+  const loading = !items || data.isLoading;
 
   const startEdit = () => { setBackup(items); setEditing(true); };
   const cancelEdit = () => { if (backup) setItems(backup); setBackup(null); setEditing(false); };
-  const save = () => { saveMut.mutate(items); }; // sale de edición en onSuccess
+  const save = () => { if (items) saveMut.mutate(items); }; // sale de edición en onSuccess
 
   const addWidget = (id: string) => {
     const def = WIDGET_MAP.get(id);
-    if (!def || items.some((i) => i.id === id)) return;
+    if (!items || !def || items.some((i) => i.id === id)) return;
     const maxY = items.reduce((m, i) => Math.max(m, i.y + i.h), 0);
     setItems([...items, { id, x: 0, y: maxY, w: def.defaultSize.w, h: def.defaultSize.h }]);
   };
-  const removeWidget = (id: string) => setItems(items.filter((i) => i.id !== id));
+  const removeWidget = (id: string) => setItems((prev) => (prev ?? []).filter((i) => i.id !== id));
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-end gap-2">
-        {editing ? (
+        {loading ? null : editing ? (
           <>
-            <WidgetPicker presentIds={new Set(items.map((i) => i.id))} onAdd={addWidget} />
+            <WidgetPicker presentIds={new Set((items ?? []).map((i) => i.id))} onAdd={addWidget} />
             <Button variant="outline" size="sm" onClick={() => resetMut.mutate()}>
               <RotateCcw className="mr-2 h-4 w-4" /> Restablecer
             </Button>
@@ -134,8 +131,16 @@ export function DashboardGrid() {
         )}
       </div>
 
-      <div ref={containerRef}>
-        {mounted && (
+      {/* Este contenedor debe montarse SIEMPRE (ver nota sobre useContainerWidth). */}
+      <div ref={containerRef} className="w-full">
+        {loading ? (
+          <div className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-4">
+              {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-32 w-full" />)}
+            </div>
+            <Skeleton className="h-[400px] w-full" />
+          </div>
+        ) : mounted && (
           <ReactGridLayout
             layout={rglLayout}
             width={width}
@@ -152,7 +157,7 @@ export function DashboardGrid() {
             onResizeStop={pokeResize}
             onDragStop={pokeResize}
           >
-            {items.map((it) => {
+            {(items ?? []).map((it) => {
               const def = WIDGET_MAP.get(it.id);
               if (!def) return <div key={it.id} />;
               return (
