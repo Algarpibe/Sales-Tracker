@@ -39,7 +39,7 @@ export function NewVsRecurringCard({ recordType }: { recordType: "SALES_ORDER" |
   const chart = useMemo(() => buildNewVsRecurring(data ?? []), [data]);
 
   return (
-    <Card className="border-border/40 bg-card/30 backdrop-blur-sm">
+    <Card className="flex h-full flex-col border-border/40 bg-card/30 backdrop-blur-sm">
       <CardHeader>
         <span className="inline-flex items-center gap-1.5">
           <CardTitle className="text-base font-semibold">Nuevos vs recurrentes</CardTitle>
@@ -47,13 +47,13 @@ export function NewVsRecurringCard({ recordType }: { recordType: "SALES_ORDER" |
         </span>
         <p className="text-xs text-muted-foreground">Importe por año según año de primera venta. {FIRST_YEAR} es 100% nuevos por definición.</p>
       </CardHeader>
-      <CardContent>
+      <CardContent className="min-h-0 flex-1">
         {isLoading ? (
-          <Skeleton className="h-[380px] w-full" />
+          <Skeleton className="h-full min-h-[380px] w-full" />
         ) : chart.length === 0 ? (
           <p className="text-sm text-muted-foreground py-10 text-center">Sin datos.</p>
         ) : (
-          <ResponsiveContainer width="100%" height={380}>
+          <ResponsiveContainer width="100%" height="100%" minHeight={380}>
             <ComposedChart data={chart} margin={{ top: 10, right: 10, left: 10, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-white/5" vertical={false} />
               <XAxis dataKey="year" className="text-xs fill-muted-foreground" tickLine={false} />

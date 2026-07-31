@@ -44,20 +44,20 @@ export function BrandMixCard({ recordType, year }: { recordType: "SALES_ORDER" |
   }, [data]);
 
   return (
-    <Card className="border-border/40 bg-card/30 backdrop-blur-sm">
+    <Card className="flex h-full flex-col border-border/40 bg-card/30 backdrop-blur-sm">
       <CardHeader>
         <span className="inline-flex items-center gap-1.5">
           <CardTitle className="text-base font-semibold">Mix por marca {year}</CardTitle>
           <InfoTooltip text={CHART_HELP.brandMix} />
         </span>
       </CardHeader>
-      <CardContent>
+      <CardContent className="min-h-0 flex-1">
         {isLoading ? (
-          <Skeleton className="h-[440px] w-full" />
+          <Skeleton className="h-full min-h-[440px] w-full" />
         ) : slices.length === 0 ? (
           <p className="text-sm text-muted-foreground py-10 text-center">Sin datos.</p>
         ) : (
-          <ResponsiveContainer width="100%" height={440}>
+          <ResponsiveContainer width="100%" height="100%" minHeight={440}>
             <PieChart>
               <Pie data={slices} dataKey="importe" nameKey="marca" cx="50%" cy="50%" innerRadius={70} outerRadius={120} paddingAngle={2}>
                 {slices.map((s, i) => (

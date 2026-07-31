@@ -47,20 +47,20 @@ export function BucketMixCard({ recordType }: { recordType: "SALES_ORDER" | "INV
   );
 
   return (
-    <Card className="border-border/40 bg-card/30 backdrop-blur-sm">
+    <Card className="flex h-full flex-col border-border/40 bg-card/30 backdrop-blur-sm">
       <CardHeader>
         <span className="inline-flex items-center gap-1.5">
           <CardTitle className="text-base font-semibold">Mix por macro-categoría (evolución anual)</CardTitle>
           <InfoTooltip text={CHART_HELP.bucketMixAnual} />
         </span>
       </CardHeader>
-      <CardContent>
+      <CardContent className="min-h-0 flex-1">
         {isLoading ? (
-          <Skeleton className="h-[340px] w-full" />
+          <Skeleton className="h-full min-h-[340px] w-full" />
         ) : rows.length === 0 ? (
           <p className="text-sm text-muted-foreground py-10 text-center">Sin datos.</p>
         ) : (
-          <ResponsiveContainer width="100%" height={340}>
+          <ResponsiveContainer width="100%" height="100%" minHeight={340}>
             <AreaChart data={rows} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-white/5" vertical={false} />
               <XAxis dataKey="year" className="text-xs fill-muted-foreground" tickLine={false} axisLine={false} />

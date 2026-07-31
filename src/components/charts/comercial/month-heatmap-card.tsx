@@ -28,7 +28,7 @@ export function MonthHeatmapCard({ recordType, year }: { recordType: "SALES_ORDE
   }, [data]);
 
   return (
-    <Card className="border-border/40 bg-card/30 backdrop-blur-sm">
+    <Card className="flex h-full flex-col border-border/40 bg-card/30 backdrop-blur-sm">
       <CardHeader>
         <span className="inline-flex items-center gap-1.5">
           <CardTitle className="text-base font-semibold">Heatmap cliente × mes {year} (top 15)</CardTitle>
@@ -36,13 +36,13 @@ export function MonthHeatmapCard({ recordType, year }: { recordType: "SALES_ORDE
         </span>
         <p className="text-xs text-muted-foreground">Importe neto por mes; intensidad absoluta (misma escala para toda la tabla).</p>
       </CardHeader>
-      <CardContent>
+      <CardContent className="min-h-0 flex-1">
         {isLoading ? (
-          <Skeleton className="h-[480px] w-full" />
+          <Skeleton className="h-full min-h-[480px] w-full" />
         ) : rows.length === 0 ? (
           <p className="text-sm text-muted-foreground py-10 text-center">Sin datos.</p>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="h-full overflow-auto">
             <table className="w-full border-separate border-spacing-1 text-xs">
               <thead>
                 <tr>

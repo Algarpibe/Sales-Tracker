@@ -36,20 +36,20 @@ export function SkuParetoCard({ recordType, year }: { recordType: "SALES_ORDER" 
   const top = useMemo(() => buildItemPareto(data ?? []).slice(0, 30), [data]);
 
   return (
-    <Card className="border-border/40 bg-card/30 backdrop-blur-sm">
+    <Card className="flex h-full flex-col border-border/40 bg-card/30 backdrop-blur-sm">
       <CardHeader>
         <span className="inline-flex items-center gap-1.5">
           <CardTitle className="text-base font-semibold">Pareto de SKUs {year} (top 30)</CardTitle>
           <InfoTooltip text={CHART_HELP.skuPareto} />
         </span>
       </CardHeader>
-      <CardContent>
+      <CardContent className="min-h-0 flex-1">
         {isLoading ? (
-          <Skeleton className="h-[400px] w-full" />
+          <Skeleton className="h-full min-h-[400px] w-full" />
         ) : top.length === 0 ? (
           <p className="text-sm text-muted-foreground py-10 text-center">Sin datos.</p>
         ) : (
-          <ResponsiveContainer width="100%" height={400}>
+          <ResponsiveContainer width="100%" height="100%" minHeight={400}>
             <ComposedChart data={top} margin={{ top: 10, right: 10, left: 10, bottom: 80 }}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-white/5" vertical={false} />
               <XAxis dataKey="label" className="text-[9px] fill-muted-foreground" interval={0} angle={-45} textAnchor="end" height={90} tickLine={false} />

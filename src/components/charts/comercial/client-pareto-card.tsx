@@ -43,7 +43,7 @@ export function ClientParetoCard({ recordType, year }: { recordType: "SALES_ORDE
   };
 
   return (
-    <Card className="border-border/40 bg-card/30 backdrop-blur-sm">
+    <Card className="flex h-full flex-col border-border/40 bg-card/30 backdrop-blur-sm">
       <CardHeader>
         <span className="inline-flex items-center gap-1.5">
           <CardTitle className="text-base font-semibold">Pareto de clientes {year} (top 20)</CardTitle>
@@ -51,13 +51,13 @@ export function ClientParetoCard({ recordType, year }: { recordType: "SALES_ORDE
         </span>
         <p className="text-xs text-muted-foreground">Clic en un cliente para ver su detalle.</p>
       </CardHeader>
-      <CardContent>
+      <CardContent className="min-h-0 flex-1">
         {isLoading ? (
-          <Skeleton className="h-[380px] w-full" />
+          <Skeleton className="h-full min-h-[380px] w-full" />
         ) : top.length === 0 ? (
           <p className="text-sm text-muted-foreground py-10 text-center">Sin datos.</p>
         ) : (
-          <ResponsiveContainer width="100%" height={380} className="cursor-pointer">
+          <ResponsiveContainer width="100%" height="100%" minHeight={380} className="cursor-pointer">
             <ComposedChart data={top} margin={{ top: 10, right: 10, left: 10, bottom: 70 }}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-white/5" vertical={false} />
               <XAxis dataKey="customer" className="text-[10px] fill-muted-foreground" interval={0} angle={-40} textAnchor="end" height={80} tickLine={false} />

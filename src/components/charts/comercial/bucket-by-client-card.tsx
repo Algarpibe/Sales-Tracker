@@ -51,7 +51,7 @@ export function BucketByClientCard({ recordType, year }: { recordType: "SALES_OR
   };
 
   return (
-    <Card className="border-border/40 bg-card/30 backdrop-blur-sm">
+    <Card className="flex h-full flex-col border-border/40 bg-card/30 backdrop-blur-sm">
       <CardHeader>
         <span className="inline-flex items-center gap-1.5">
           <CardTitle className="text-base font-semibold">Macro-categoría × cliente {year} (top 15)</CardTitle>
@@ -59,13 +59,13 @@ export function BucketByClientCard({ recordType, year }: { recordType: "SALES_OR
         </span>
         <p className="text-xs text-muted-foreground">Clic en un cliente para ver su detalle.</p>
       </CardHeader>
-      <CardContent>
+      <CardContent className="min-h-0 flex-1">
         {isLoading ? (
-          <Skeleton className="h-[440px] w-full" />
+          <Skeleton className="h-full min-h-[440px] w-full" />
         ) : top.length === 0 ? (
           <p className="text-sm text-muted-foreground py-10 text-center">Sin datos.</p>
         ) : (
-          <ResponsiveContainer width="100%" height={440} className="cursor-pointer">
+          <ResponsiveContainer width="100%" height="100%" minHeight={440} className="cursor-pointer">
             <BarChart data={top} layout="vertical" margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-white/5" horizontal={false} />
               <XAxis type="number" className="text-xs fill-muted-foreground" tickFormatter={formatCompactUSD} tickLine={false} axisLine={false} />

@@ -40,7 +40,7 @@ export function TopItemsCard({ recordType, year }: { recordType: "SALES_ORDER" |
   const top = useMemo(() => topItems(data ?? [], metric, 15), [data, metric]);
 
   return (
-    <Card className="border-border/40 bg-card/30 backdrop-blur-sm">
+    <Card className="flex h-full flex-col border-border/40 bg-card/30 backdrop-blur-sm">
       <CardHeader className="flex flex-row items-center justify-between gap-2">
         <span className="inline-flex items-center gap-1.5">
           <CardTitle className="text-base font-semibold">Top 15 artículos {year}</CardTitle>
@@ -51,13 +51,13 @@ export function TopItemsCard({ recordType, year }: { recordType: "SALES_ORDER" |
           <Button size="sm" variant={metric === "cantidad" ? "default" : "outline"} onClick={() => setMetric("cantidad")}>Uds</Button>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="min-h-0 flex-1">
         {isLoading ? (
-          <Skeleton className="h-[420px] w-full" />
+          <Skeleton className="h-full min-h-[420px] w-full" />
         ) : top.length === 0 ? (
           <p className="text-sm text-muted-foreground py-10 text-center">Sin datos.</p>
         ) : (
-          <ResponsiveContainer width="100%" height={420}>
+          <ResponsiveContainer width="100%" height="100%" minHeight={420}>
             <BarChart data={top} layout="vertical" margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-white/5" horizontal={false} />
               <XAxis type="number" className="text-xs fill-muted-foreground" tickFormatter={(v) => (metric === "importe" ? formatCompactUSD(v) : String(v))} tickLine={false} axisLine={false} />
