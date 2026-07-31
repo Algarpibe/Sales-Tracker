@@ -33,7 +33,7 @@ export const CHART_HELP = {
   // --- Análisis: Exploración / premium ---
   explorationGlobalMensual: "Ventas por mes comparando dos años (A vs B). Cambia entre Órdenes (OV) y Facturas (FAC) y elige los años con los selectores de arriba.",
   barCategoria: "Ventas por categoría (barras).",
-  techService: "Comparativa financiera entre las líneas ST y C&R por periodo (mensual, trimestral o anual).",
+  techService: "Comparativa financiera entre las líneas ST y C&R por periodo (mensual, trimestral o anual). Las barras son cada año; las dos líneas son el acumulado del año A (continua) y del año B (discontinua), en el eje derecho.",
   grupoEvolucion: "Evolución del importe de tus agrupaciones personalizadas a lo largo del tiempo.",
   groupingAnalysis: "Análisis de ventas por agrupaciones personalizadas de categorías.",
   historicoCategoria: "Ventas históricas por categoría seleccionada a lo largo de los años.",

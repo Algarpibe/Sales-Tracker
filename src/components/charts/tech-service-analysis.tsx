@@ -215,12 +215,12 @@ export function TechServiceAnalysis({ data, yearA, yearB, viewMode, onViewModeCh
                 tick={{ fill: "rgba(0,0,0,0.4)", fontSize: 11 }}
                 tickFormatter={(val) => `$${(val / 1000).toFixed(0)}k`}
               />
-              <YAxis 
+              <YAxis
                 yAxisId="right"
                 orientation="right"
-                axisLine={false} 
-                tickLine={false} 
-                tick={{ fill: "oklch(0.65 0.19 155)", fontSize: 11 }}
+                axisLine={false}
+                tickLine={false}
+                tick={{ fill: "rgba(0,0,0,0.4)", fontSize: 11 }}
                 tickFormatter={(val) => `$${(val / 1000).toFixed(0)}k`}
               />
               <Tooltip 
@@ -269,15 +269,28 @@ export function TechServiceAnalysis({ data, yearA, yearB, viewMode, onViewModeCh
                 barSize={viewMode === 'MONTHLY' ? 14 : 32}
               />
               
-              <Line 
+              <Line
                 yAxisId="right"
-                type="monotone" 
-                dataKey="acum" 
-                name={`Acum. (${yearA})`} 
-                stroke="oklch(0.65 0.19 155)" 
+                type="monotone"
+                dataKey="acum"
+                name={`Acum. (${yearA})`}
+                stroke="oklch(0.65 0.19 155)"
                 strokeWidth={4}
                 dot={{ r: 5, fill: "oklch(0.65 0.19 155)", strokeWidth: 2, stroke: "white" }}
                 activeDot={{ r: 7, fill: "white", stroke: "oklch(0.65 0.19 155)", strokeWidth: 3 }}
+              />
+
+              {/* Acumulado del año de comparación: discontinua y en naranja, a juego con sus barras. */}
+              <Line
+                yAxisId="right"
+                type="monotone"
+                dataKey="acum_prev"
+                name={`Acum. (${yearB})`}
+                stroke="oklch(0.68 0.17 55)"
+                strokeWidth={3}
+                strokeDasharray="6 4"
+                dot={{ r: 4, fill: "oklch(0.68 0.17 55)", strokeWidth: 2, stroke: "white" }}
+                activeDot={{ r: 6, fill: "white", stroke: "oklch(0.68 0.17 55)", strokeWidth: 3 }}
               />
             </ComposedChart>
           </ResponsiveContainer>
