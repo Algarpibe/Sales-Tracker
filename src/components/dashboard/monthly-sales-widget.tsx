@@ -20,8 +20,8 @@ export function MonthlySalesWidget({ metrics }: { metrics: DashboardMetrics }) {
   );
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-end gap-4">
+    <div className="flex h-full flex-col gap-2">
+      <div className="flex shrink-0 items-center justify-end gap-4">
         <div className="flex items-center space-x-2">
           <Checkbox id="w-ov" checked={showOV} onCheckedChange={() => setShowOV((v) => !v)} />
           <Label htmlFor="w-ov" className="text-xs font-medium cursor-pointer">Órdenes (OV)</Label>
@@ -31,7 +31,9 @@ export function MonthlySalesWidget({ metrics }: { metrics: DashboardMetrics }) {
           <Label htmlFor="w-fac" className="text-xs font-medium cursor-pointer">Facturas (FAC)</Label>
         </div>
       </div>
-      <BarChartMonthly data={data} />
+      <div className="min-h-0 flex-1">
+        <BarChartMonthly data={data} />
+      </div>
     </div>
   );
 }

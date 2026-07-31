@@ -89,7 +89,7 @@ export function BarChartMonthly({ data, title = "Ventas Mensuales" }: BarChartMo
   }, [data]);
 
   return (
-    <Card className="border-border/40 bg-card/30 backdrop-blur-sm shadow-xl">
+    <Card className="flex h-full flex-col border-border/40 bg-card/30 backdrop-blur-sm shadow-xl">
       <CardHeader>
         <CardTitle className="text-base font-semibold">
           <span className="inline-flex items-center gap-1.5">
@@ -98,8 +98,10 @@ export function BarChartMonthly({ data, title = "Ventas Mensuales" }: BarChartMo
           </span>
         </CardTitle>
       </CardHeader>
-      <CardContent>
-        <ResponsiveContainer width="100%" height={350}>
+      {/* flex-1 + min-h-0: el gráfico toma la altura que le dé el contenedor (el
+          widget es redimensionable). minHeight evita que colapse si no hay altura. */}
+      <CardContent className="min-h-0 flex-1">
+        <ResponsiveContainer width="100%" height="100%" minHeight={220}>
           <BarChart data={chartData} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" className="stroke-white/5" vertical={false} />
             <XAxis
