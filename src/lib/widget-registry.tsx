@@ -3,7 +3,7 @@ import { KPICard } from "@/components/cards/kpi-card";
 import { formatUSD } from "@/lib/constants";
 import { CHART_HELP } from "@/lib/chart-help";
 import { yoyChange, type InsightRecord } from "@/lib/dashboard-insights";
-import { WIDGET_IDS } from "@/lib/dashboard-layout";
+import { WIDGET_IDS, type WidgetId } from "@/lib/dashboard-layout";
 import type { DashboardMetrics } from "@/lib/dashboard-metrics";
 import type { SalesRecord } from "@/types/database";
 
@@ -41,7 +41,9 @@ export interface WidgetContext {
 }
 
 export interface WidgetDef {
-  id: string;
+  // Tipado al catálogo canónico: un id sobrante o con typo falla en compilación,
+  // en vez de renderizar un hueco vacío en silencio.
+  id: WidgetId;
   title: string;
   section: WidgetSection;
   defaultSize: { w: number; h: number };
@@ -107,8 +109,8 @@ export const WIDGETS: WidgetDef[] = [
     defaultSize: { w: 7, h: 10 }, minSize: CHART_MIN,
     render: (c) => (
       <CumulativeYoYChart
-        current={c.records as unknown as InsightRecord[]}
-        previous={c.prevRecords as unknown as InsightRecord[]}
+        current={c.records as InsightRecord[]}
+        previous={c.prevRecords as InsightRecord[]}
         yearActual={c.year} yearPrev={c.year - 1}
       />
     ),
@@ -126,7 +128,7 @@ export const WIDGETS: WidgetDef[] = [
   {
     id: "mix-categoria", title: "Mix por macro-categoría", section: "Dashboard",
     defaultSize: { w: 5, h: 11 }, minSize: CHART_MIN,
-    render: (c) => <CategoryMixDonut records={c.records as unknown as InsightRecord[]} catMap={c.catMap} />,
+    render: (c) => <CategoryMixDonut records={c.records as InsightRecord[]} catMap={c.catMap} />,
   },
 
   // --- Comercial ---
@@ -199,7 +201,9 @@ export const WIDGETS: WidgetDef[] = [
   },
 ];
 
-export const WIDGET_MAP = new Map(WIDGETS.map((w) => [w.id, w]));
+// Clave `string`: los ids llegan desde el layout persistido (BD), donde no hay
+// garantía de tipo. Un id desconocido devuelve undefined y el grid lo ignora.
+export const WIDGET_MAP = new Map<string, WidgetDef>(WIDGETS.map((w) => [w.id, w]));
 
 // Salvaguarda: el registro debe cubrir exactamente los ids canónicos.
 export const MISSING_WIDGETS = WIDGET_IDS.filter((id) => !WIDGET_MAP.has(id));

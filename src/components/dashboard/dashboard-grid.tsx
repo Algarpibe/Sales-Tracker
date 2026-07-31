@@ -41,19 +41,34 @@ export function DashboardGrid() {
   // resuelve); mismo criterio que period-provider.tsx.
   useEffect(() => {
     if (items === null && !layoutQ.isLoading) {
+      // `null` = el usuario nunca personalizó → por defecto. Un array vacío es una
+      // elección válida (dashboard sin tarjetas) y debe respetarse.
       /* eslint-disable-next-line react-hooks/set-state-in-effect */
-      setItems(layoutQ.data && layoutQ.data.length > 0 ? layoutQ.data : DEFAULT_LAYOUT);
+      setItems(layoutQ.data ?? DEFAULT_LAYOUT);
     }
   }, [layoutQ.data, layoutQ.isLoading, items]);
 
+  // Se sale del modo edición sólo si la persistencia tuvo éxito: si falla, el
+  // usuario conserva sus cambios en pantalla y puede reintentar.
   const saveMut = useMutation({
     mutationFn: (next: DashboardItem[]) => saveDashboardLayout(next),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["dashboard-layout"] }); toast.success("Dashboard guardado"); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["dashboard-layout"] });
+      setEditing(false);
+      setBackup(null);
+      toast.success("Dashboard guardado");
+    },
     onError: () => toast.error("No se pudo guardar el dashboard"),
   });
   const resetMut = useMutation({
     mutationFn: resetDashboardLayout,
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["dashboard-layout"] }); setItems(DEFAULT_LAYOUT); toast.success("Dashboard restablecido"); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["dashboard-layout"] });
+      setItems(DEFAULT_LAYOUT);
+      setEditing(false);
+      setBackup(null);
+      toast.success("Dashboard restablecido");
+    },
     onError: () => toast.error("No se pudo restablecer"),
   });
 
@@ -85,8 +100,8 @@ export function DashboardGrid() {
   }
 
   const startEdit = () => { setBackup(items); setEditing(true); };
-  const cancelEdit = () => { if (backup) setItems(backup); setEditing(false); };
-  const save = () => { saveMut.mutate(items); setEditing(false); };
+  const cancelEdit = () => { if (backup) setItems(backup); setBackup(null); setEditing(false); };
+  const save = () => { saveMut.mutate(items); }; // sale de edición en onSuccess
 
   const addWidget = (id: string) => {
     const def = WIDGET_MAP.get(id);

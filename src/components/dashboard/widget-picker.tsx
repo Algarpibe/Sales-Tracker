@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
@@ -13,10 +14,17 @@ export function WidgetPicker({
   presentIds: Set<string>;
   onAdd: (id: string) => void;
 }) {
+  const [open, setOpen] = useState(false);
   const available = WIDGETS.filter((w) => !presentIds.has(w.id));
 
+  // Añadir cierra el diálogo: la tarjeta nueva se ve inmediatamente en la rejilla.
+  const add = (id: string) => {
+    onAdd(id);
+    setOpen(false);
+  };
+
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger
         render={(props) => (
           <Button variant="outline" size="sm" {...props}>
@@ -43,7 +51,7 @@ export function WidgetPicker({
                       <button
                         key={w.id}
                         type="button"
-                        onClick={() => onAdd(w.id)}
+                        onClick={() => add(w.id)}
                         className="rounded-md border border-border/50 px-3 py-2 text-left text-sm hover:bg-muted/50"
                       >
                         {w.title}

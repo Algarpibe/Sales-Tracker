@@ -31,12 +31,17 @@ export async function getDashboardLayout(): Promise<DashboardItem[] | null> {
 
 export async function saveDashboardLayout(items: DashboardItem[]): Promise<void> {
   const { profile } = await requireApproved();
+  // Los tipos de TS no existen en runtime y esto es un endpoint HTTP: se valida y
+  // normaliza lo que se persiste (descarta ids desconocidos, acota el jsonb).
+  const safe = parseDashboardLayout({ items });
+  if (!safe) return;
+  const state = { items: safe };
   await db
     .insert(savedViews)
-    .values({ user_id: profile.id, view_key: VIEW_KEY, name: NAME, state: { items } })
+    .values({ user_id: profile.id, view_key: VIEW_KEY, name: NAME, state })
     .onConflictDoUpdate({
       target: [savedViews.user_id, savedViews.view_key, savedViews.name],
-      set: { state: { items } },
+      set: { state },
     });
 }
 
