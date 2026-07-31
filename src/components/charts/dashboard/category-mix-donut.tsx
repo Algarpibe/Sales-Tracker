@@ -41,7 +41,7 @@ export function CategoryMixDonut({
   );
 
   return (
-    <Card className="border-border/40 bg-card/30 backdrop-blur-sm h-full">
+    <Card className="flex h-full flex-col border-border/40 bg-card/30 backdrop-blur-sm">
       <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0">
         <CardTitle className="text-base font-semibold">
           <span className="inline-flex items-center gap-1.5">
@@ -51,11 +51,11 @@ export function CategoryMixDonut({
         </CardTitle>
         <RecordTypeSelect value={tipo} onValueChange={setTipo} className="w-[190px]" />
       </CardHeader>
-      <CardContent>
+      <CardContent className="min-h-0 flex-1">
         {mix.length === 0 ? (
           <p className="text-sm text-muted-foreground py-10 text-center">Sin datos en el año.</p>
         ) : (
-          <ResponsiveContainer width="100%" height={340}>
+          <ResponsiveContainer width="100%" height="100%" minHeight={340}>
             <PieChart>
               <Pie data={mix} dataKey="amount" nameKey="label" cx="50%" cy="50%" innerRadius={70} outerRadius={110} paddingAngle={2}>
                 {mix.map((m) => <Cell key={m.bucket} fill={COLORS[m.bucket]} />)}

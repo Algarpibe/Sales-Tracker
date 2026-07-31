@@ -29,7 +29,7 @@ export function ExecutionMonthlyChart({
 }) {
   const data = useMemo(() => executionByMonth(monthly), [monthly]);
   return (
-    <Card className="border-border/40 bg-card/30 backdrop-blur-sm h-full">
+    <Card className="flex h-full flex-col border-border/40 bg-card/30 backdrop-blur-sm">
       <CardHeader>
         <CardTitle className="text-base font-semibold">
           <span className="inline-flex items-center gap-1.5">
@@ -38,8 +38,8 @@ export function ExecutionMonthlyChart({
           </span>
         </CardTitle>
       </CardHeader>
-      <CardContent>
-        <ResponsiveContainer width="100%" height={320}>
+      <CardContent className="min-h-0 flex-1">
+        <ResponsiveContainer width="100%" height="100%" minHeight={320}>
           <LineChart data={data} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" className="stroke-white/5" vertical={false} />
             <XAxis dataKey="month" className="text-xs fill-muted-foreground" tickLine={false} axisLine={false} />

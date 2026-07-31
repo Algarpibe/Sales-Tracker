@@ -41,7 +41,7 @@ export function TopCustomersPareto({ year }: { year: number }) {
   );
 
   return (
-    <Card className="border-border/40 bg-card/30 backdrop-blur-sm h-full">
+    <Card className="flex h-full flex-col border-border/40 bg-card/30 backdrop-blur-sm">
       <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0">
         <CardTitle className="text-base font-semibold">
           <span className="inline-flex items-center gap-1.5">
@@ -51,13 +51,13 @@ export function TopCustomersPareto({ year }: { year: number }) {
         </CardTitle>
         <RecordTypeSelect value={tipo} onValueChange={setTipo} className="w-[190px]" />
       </CardHeader>
-      <CardContent>
+      <CardContent className="min-h-0 flex-1">
         {isLoading ? (
-          <Skeleton className="h-[340px] w-full" />
+          <Skeleton className="h-full min-h-[340px] w-full" />
         ) : rows.length === 0 ? (
           <p className="text-sm text-muted-foreground py-10 text-center">Sin datos en el año.</p>
         ) : (
-          <ResponsiveContainer width="100%" height={340}>
+          <ResponsiveContainer width="100%" height="100%" minHeight={340}>
             <ComposedChart data={rows} margin={{ top: 10, right: 10, left: 10, bottom: 40 }}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-white/5" vertical={false} />
               <XAxis dataKey="customer" className="text-[10px] fill-muted-foreground" tickLine={false} axisLine={false} interval={0} angle={-35} textAnchor="end" height={60} />
