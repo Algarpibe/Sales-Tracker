@@ -657,6 +657,41 @@ function AnalyticsContent() {
           </TabsContent>
           <TabsContent value="comercial" className="outline-none">
             <div className="space-y-6">
+              {/* Controles: tipo de registro y año (contexto de periodo compartido). */}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3">
+                <Tabs
+                  value={recordType}
+                  onValueChange={(v) => setRecordType(v as "SALES_ORDER" | "INVOICE")}
+                  className="w-full sm:w-auto"
+                >
+                  <TabsList className="grid w-full grid-cols-2 bg-card/50 backdrop-blur-sm border border-white/10 h-10 p-1">
+                    <TabsTrigger
+                      value="SALES_ORDER"
+                      className="text-[10px] h-8 font-bold gap-2 uppercase tracking-wider data-active:bg-primary data-active:text-primary-foreground transition-all"
+                    >
+                      <FileText className="size-3.5" /> ÓRDENES (OV)
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="INVOICE"
+                      className="text-[10px] h-8 font-bold gap-2 uppercase tracking-wider data-active:bg-emerald-500 data-active:text-white transition-all"
+                    >
+                      <Receipt className="size-3.5" /> FACTURAS (FAC)
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
+
+                <div className="flex gap-2 items-center bg-card/30 p-1 rounded-xl border border-white/5 backdrop-blur-sm">
+                  <Select value={String(yearA)} onValueChange={(v) => { if (v) setYearA(Number(v)); }}>
+                    <SelectTrigger className="w-[125px] border-none bg-transparent shadow-none h-8 font-semibold">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getYearRange().map((y) => <SelectItem key={y} value={String(y)}>Año {y}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
               <BucketMixCard recordType={recordType} />
               <div className="grid gap-6 lg:grid-cols-2">
                 <ClientParetoCard recordType={recordType} year={yearA} />
