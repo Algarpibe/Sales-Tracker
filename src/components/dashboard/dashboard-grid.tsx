@@ -78,6 +78,7 @@ export function DashboardGrid() {
     records: data.records,
     prevRecords: data.prevRecords,
     catMap: data.catMap,
+    categories: data.categories,
     metrics: data.metrics,
     metricsPrev: data.metricsPrev,
   }), [tipo, data]);

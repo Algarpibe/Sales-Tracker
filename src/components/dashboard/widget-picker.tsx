@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { WIDGETS, type WidgetSection } from "@/lib/widget-registry";
 
-const SECTIONS: WidgetSection[] = ["KPIs", "Dashboard", "Comercial", "Margen"];
+const SECTIONS: WidgetSection[] = ["KPIs", "Dashboard", "Exploración", "Forecast", "Comercial", "Margen"];
 
 export function WidgetPicker({
   presentIds, onAdd,

@@ -5,7 +5,6 @@ import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import { getSalesData } from "@/actions/sales-actions";
 import { getCategories } from "@/actions/category-actions";
-import { getSavedCategoryGroupings } from "@/actions/grouping-actions";
 import { MONTHS, getYearRange, formatUSD, formatCompactUSD } from "@/lib/constants";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -17,7 +16,7 @@ import { MeshBackground } from "@/components/ui/mesh-background";
 import { computeForecast } from "@/lib/forecast";
 import { ComposedChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from "recharts";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import type { Category, CategoryGroup } from "@/types/database";
+import type { Category } from "@/types/database";
 import { Sparkles, BarChart3, TrendingUp, FileText, Receipt } from "lucide-react";
 import { motion } from "framer-motion";
 import type { SalesRecord } from "@/types/database";
@@ -160,18 +159,10 @@ function AnalyticsContent() {
     queryKey: ["categories"],
     queryFn: getCategories,
   });
-  const { data: groupData, isLoading: l3 } = useQuery({
-    queryKey: ["groupings"],
-    queryFn: getSavedCategoryGroupings,
-  });
-  const loading = l1 || l2 || l3;
+  const loading = l1 || l2;
 
   const allRecords: SalesRecord[] = useMemo(() => recordsData ?? [], [recordsData]);
   const categories = useMemo<Category[]>(() => (catsData as Category[]) ?? [], [catsData]);
-  const savedGroups = useMemo<CategoryGroup[]>(
-    () => (groupData?.groups ?? []).map((g) => ({ ...g, mappings: g.mappings || [] })),
-    [groupData]
-  );
 
   // 1. Comparativa mensual + Forecast estacional (cálculo idéntico, memorizado).
   const { monthlyData, forecastMonthlyData, forecast } = useMemo(() => {
@@ -474,7 +465,7 @@ function AnalyticsContent() {
 
               <HistoricalSalesCategory />
               <GroupingAnalysisCard categories={categories} recordType={recordType} />
-              <GroupEvolutionCard savedGroups={savedGroups} recordType={recordType} />
+              <GroupEvolutionCard recordType={recordType} />
             </motion.div>
           </TabsContent>
 
@@ -651,7 +642,7 @@ function AnalyticsContent() {
               </div>
 
               {/* Task 3: Group Forecast Card */}
-              <GroupForecastCard savedGroups={savedGroups} recordType={recordType} baseYear={yearA} />
+              <GroupForecastCard recordType={recordType} baseYear={yearA} />
               <ForecastSalesCategory baseYear={yearA} />
             </motion.div>
           </TabsContent>

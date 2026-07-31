@@ -5,13 +5,23 @@ import { CHART_HELP } from "@/lib/chart-help";
 import { yoyChange, type InsightRecord } from "@/lib/dashboard-insights";
 import { WIDGET_IDS, type WidgetId } from "@/lib/dashboard-layout";
 import type { DashboardMetrics } from "@/lib/dashboard-metrics";
-import type { SalesRecord } from "@/types/database";
+import type { Category, SalesRecord } from "@/types/database";
 
 import { MonthlySalesWidget } from "@/components/dashboard/monthly-sales-widget";
 import { CumulativeYoYChart } from "@/components/charts/dashboard/cumulative-yoy-chart";
 import { ExecutionMonthlyChart } from "@/components/charts/dashboard/execution-monthly-chart";
 import { TopCustomersPareto } from "@/components/charts/dashboard/top-customers-pareto";
 import { CategoryMixDonut } from "@/components/charts/dashboard/category-mix-donut";
+import { MonthlyComparisonChart } from "@/components/charts/dashboard/monthly-comparison-chart";
+import { TechServiceWidget } from "@/components/charts/dashboard/tech-service-widget";
+import { SeasonalForecastChart } from "@/components/charts/dashboard/seasonal-forecast-chart";
+import { ForecastSummaryWidget } from "@/components/charts/dashboard/forecast-summary-widget";
+
+import { HistoricalSalesCategory } from "@/components/charts/premium/historical-sales-category";
+import { GroupingAnalysisCard } from "@/components/charts/premium/grouping-analysis-card";
+import { GroupEvolutionCard } from "@/components/charts/premium/group-evolution-card";
+import { GroupForecastCard } from "@/components/charts/premium/group-forecast-card";
+import { ForecastSalesCategory } from "@/components/charts/premium/forecast-sales-category";
 
 import { ClientParetoCard } from "@/components/charts/comercial/client-pareto-card";
 import { TopItemsCard } from "@/components/charts/comercial/top-items-card";
@@ -28,7 +38,7 @@ import { MarginByCustomerCard } from "@/components/charts/margin/margin-by-custo
 import { MarginByItemCard } from "@/components/charts/margin/margin-by-item-card";
 import { MarginScatterCard } from "@/components/charts/margin/margin-scatter-card";
 
-export type WidgetSection = "KPIs" | "Dashboard" | "Comercial" | "Margen";
+export type WidgetSection = "KPIs" | "Dashboard" | "Exploración" | "Forecast" | "Comercial" | "Margen";
 
 export interface WidgetContext {
   recordType: "SALES_ORDER" | "INVOICE";
@@ -36,6 +46,7 @@ export interface WidgetContext {
   records: SalesRecord[];
   prevRecords: SalesRecord[];
   catMap: Map<string, string>;
+  categories: Category[];
   metrics: DashboardMetrics;
   metricsPrev: DashboardMetrics;
 }
@@ -129,6 +140,66 @@ export const WIDGETS: WidgetDef[] = [
     id: "mix-categoria", title: "Mix por macro-categoría", section: "Dashboard",
     defaultSize: { w: 5, h: 11 }, minSize: CHART_MIN,
     render: (c) => <CategoryMixDonut records={c.records as InsightRecord[]} catMap={c.catMap} />,
+  },
+
+  // --- Exploración ---
+  {
+    id: "global-mensual", title: "Ventas mensuales (año A vs B)", section: "Exploración",
+    defaultSize: { w: 12, h: 11 }, minSize: { w: 4, h: 8 },
+    render: (c) => (
+      <MonthlyComparisonChart recordType={c.recordType} yearA={c.year} yearB={c.year - 1}
+        records={c.records} prevRecords={c.prevRecords} />
+    ),
+  },
+  {
+    id: "analisis-financiero", title: "Análisis Financiero (ST vs C&R)", section: "Exploración",
+    defaultSize: { w: 12, h: 16 }, minSize: { w: 6, h: 10 },
+    render: (c) => (
+      <TechServiceWidget recordType={c.recordType} yearA={c.year} yearB={c.year - 1}
+        records={c.records} prevRecords={c.prevRecords} catMap={c.catMap} />
+    ),
+  },
+  {
+    id: "historico-categoria", title: "Histórico por categoría", section: "Exploración",
+    defaultSize: { w: 12, h: 12 }, minSize: { w: 4, h: 8 },
+    render: () => <HistoricalSalesCategory />,
+  },
+  {
+    id: "agrupaciones", title: "Análisis por agrupaciones", section: "Exploración",
+    defaultSize: { w: 12, h: 12 }, minSize: { w: 4, h: 8 },
+    render: (c) => <GroupingAnalysisCard categories={c.categories} recordType={c.recordType} />,
+  },
+  {
+    id: "evolucion-grupos", title: "Evolución por grupo", section: "Exploración",
+    defaultSize: { w: 12, h: 12 }, minSize: { w: 4, h: 8 },
+    render: (c) => <GroupEvolutionCard recordType={c.recordType} />,
+  },
+
+  // --- Forecast ---
+  {
+    id: "forecast-mes", title: "Proyección de cierre (mes)", section: "Forecast",
+    defaultSize: { w: 6, h: 6 }, minSize: { w: 3, h: 5 },
+    render: (c) => <ForecastSummaryWidget recordType={c.recordType} year={c.year} scope="month" />,
+  },
+  {
+    id: "forecast-anio", title: "Proyección de cierre (año)", section: "Forecast",
+    defaultSize: { w: 6, h: 6 }, minSize: { w: 3, h: 5 },
+    render: (c) => <ForecastSummaryWidget recordType={c.recordType} year={c.year} scope="year" />,
+  },
+  {
+    id: "forecast-estacional", title: "Histórico con proyección estacional", section: "Forecast",
+    defaultSize: { w: 12, h: 12 }, minSize: { w: 4, h: 8 },
+    render: (c) => <SeasonalForecastChart recordType={c.recordType} year={c.year} />,
+  },
+  {
+    id: "forecast-categoria", title: "Forecast por categoría", section: "Forecast",
+    defaultSize: { w: 12, h: 12 }, minSize: { w: 4, h: 8 },
+    render: (c) => <ForecastSalesCategory baseYear={c.year} />,
+  },
+  {
+    id: "forecast-grupos", title: "Forecast por grupo", section: "Forecast",
+    defaultSize: { w: 12, h: 12 }, minSize: { w: 4, h: 8 },
+    render: (c) => <GroupForecastCard recordType={c.recordType} baseYear={c.year} />,
   },
 
   // --- Comercial ---

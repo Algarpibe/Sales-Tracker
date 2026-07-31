@@ -13,6 +13,8 @@ export const WIDGET_IDS = [
   "pareto-clientes", "top-articulos", "pareto-skus", "mix-marca", "bucket-cliente",
   "heatmap-mes", "nuevos-recurrentes", "estacionalidad", "mix-anual",
   "margen-kpi", "margen-cliente", "margen-articulo", "margen-scatter",
+  "global-mensual", "analisis-financiero", "historico-categoria", "agrupaciones", "evolucion-grupos",
+  "forecast-mes", "forecast-anio", "forecast-estacional", "forecast-categoria", "forecast-grupos",
 ] as const;
 
 export type WidgetId = (typeof WIDGET_IDS)[number];

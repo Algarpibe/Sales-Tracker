@@ -40,7 +40,7 @@ import {
 import { cn } from "@/lib/utils";
 import { getGroupingAnalysisData } from "@/actions/grouping-actions";
 import { calculateSeasonalityFactors, getSeasonalForecast, calculateRunRate } from "@/lib/math-utils";
-import type { CategoryGroup, GroupingAnalysisResult, RecordType } from "@/types/database";
+import type { GroupingAnalysisResult, RecordType } from "@/types/database";
 import type { ChartTooltipEntry, ChartTooltipProps } from "@/lib/chart-types";
 import { InfoTooltip } from "@/components/common/info-tooltip";
 import { CHART_HELP } from "@/lib/chart-help";
@@ -71,7 +71,6 @@ const formatCurrencyFull = (value: number) => {
 };
 
 interface GroupForecastCardProps {
-  savedGroups: CategoryGroup[];
   recordType: RecordType;
   baseYear?: number;
 }

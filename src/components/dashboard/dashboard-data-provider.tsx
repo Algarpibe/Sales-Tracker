@@ -5,13 +5,14 @@ import { useQuery } from "@tanstack/react-query";
 import { getSalesData } from "@/actions/sales-actions";
 import { getCategories } from "@/actions/category-actions";
 import { computeDashboardMetrics, type DashboardMetrics } from "@/lib/dashboard-metrics";
-import type { SalesRecord } from "@/types/database";
+import type { Category, SalesRecord } from "@/types/database";
 
 export interface DashboardData {
   year: number;
   records: SalesRecord[];
   prevRecords: SalesRecord[];
   catMap: Map<string, string>;
+  categories: Category[];
   metrics: DashboardMetrics;
   metricsPrev: DashboardMetrics;
   isLoading: boolean;
@@ -48,6 +49,7 @@ export function DashboardDataProvider({ year, children }: { year: number; childr
       records,
       prevRecords,
       catMap: new Map(cats.map((c) => [c.id, c.name] as [string, string])),
+      categories: cats as Category[],
       metrics: computeDashboardMetrics(records, cats),
       metricsPrev: computeDashboardMetrics(prevRecords, cats),
       isLoading: l1 || l2 || l3,

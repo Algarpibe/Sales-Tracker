@@ -41,7 +41,7 @@ import { cn } from "@/lib/utils";
 import { InfoTooltip } from "@/components/common/info-tooltip";
 import { CHART_HELP } from "@/lib/chart-help";
 import { getGroupingAnalysisData } from "@/actions/grouping-actions";
-import type { CategoryGroup, GroupingAnalysisResult, RecordType } from "@/types/database";
+import type { GroupingAnalysisResult, RecordType } from "@/types/database";
 import type { ChartTooltipEntry, ChartTooltipProps } from "@/lib/chart-types";
 
 // --- Helpers ---
@@ -72,7 +72,6 @@ const formatCurrencyFull = (value: number) => {
 };
 
 interface GroupEvolutionCardProps {
-  savedGroups: CategoryGroup[];
   recordType: RecordType;
 }
 
