@@ -28,7 +28,13 @@ export function WidgetFrame({
           </button>
         </div>
       )}
-      <div className="min-h-0 flex-1 overflow-auto">{children}</div>
+      {/* overflow-hidden: el widget nunca muestra barras de scroll; el contenido se
+          adapta a la celda. La anulación de min-height es necesaria porque los
+          gráficos declaran un minHeight (que SÍ hace falta en las páginas de
+          Análisis, donde el padre no tiene altura); aquí la celda manda. */}
+      <div className="min-h-0 flex-1 overflow-hidden [&_.recharts-responsive-container]:!min-h-0">
+        {children}
+      </div>
     </div>
   );
 }

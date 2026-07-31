@@ -23,15 +23,17 @@ export function KPICard({ title, value, change, icon: Icon, description, info, v
 
   return (
     <Card className={cn(
-      "transition-all duration-500 relative",
-      isPremium 
-        ? "border-t border-t-primary/30 bg-white/40 dark:bg-black/20 backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.05)] ring-0 overflow-hidden hover:shadow-[0_20px_50px_rgba(0,0,0,0.1)] border-x border-b border-white/20 dark:border-white/5" 
+      // h-full: dentro de un widget redimensionable la tarjeta llena la celda
+      // en vez de desbordarla (fuera del dashboard resuelve a auto).
+      "transition-all duration-500 relative h-full",
+      isPremium
+        ? "border-t border-t-primary/30 bg-white/40 dark:bg-black/20 backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.05)] ring-0 overflow-hidden hover:shadow-[0_20px_50px_rgba(0,0,0,0.1)] border-x border-b border-white/20 dark:border-white/5"
         : "hover:shadow-md"
     )}>
       {isPremium && (
         <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent pointer-events-none" />
       )}
-      <CardContent className="p-6">
+      <CardContent className="h-full p-6">
         <div className="flex items-start justify-between">
           <div className="space-y-2">
             <div className="flex items-center gap-1.5">
