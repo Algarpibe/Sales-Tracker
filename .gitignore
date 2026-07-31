@@ -43,3 +43,10 @@ next-env.d.ts
 
 # Claves sensibles - nunca versionar
 scripts/keys.txt
+
+# Informes de auditoría de seguridad — SOLO EN LOCAL.
+# Este repositorio es PÚBLICO: estos documentos detallan hallazgos abiertos,
+# rutas de ficheros con credenciales/PII e infraestructura. Publicarlos daría
+# un mapa de ataque y quedaría en el historial de git de forma permanente.
+AUDIT_*.md
+REMEDIATION_*.md
