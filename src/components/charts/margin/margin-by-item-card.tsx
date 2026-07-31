@@ -44,7 +44,7 @@ export function MarginByItemCard({ recordType, year }: { recordType: "SALES_ORDE
   }, [data, mode]);
 
   return (
-    <Card className="border-border/40 bg-card/30 backdrop-blur-sm">
+    <Card className="flex h-full flex-col border-border/40 bg-card/30 backdrop-blur-sm">
       <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
         <div className="space-y-1">
           <CardTitle className="text-base font-semibold"><span className="inline-flex items-center gap-1.5">Margen por artículo {year} (top 15)<InfoTooltip text={CHART_HELP.margenPorArticulo} /></span></CardTitle>
@@ -52,13 +52,13 @@ export function MarginByItemCard({ recordType, year }: { recordType: "SALES_ORDE
         </div>
         <AmountModeToggle value={mode} onChange={setMode} />
       </CardHeader>
-      <CardContent>
+      <CardContent className="min-h-0 flex-1">
         {isLoading ? (
-          <Skeleton className="h-[440px] w-full" />
+          <Skeleton className="h-full min-h-[440px] w-full" />
         ) : top.length === 0 ? (
           <p className="text-sm text-muted-foreground py-10 text-center">Sin datos.</p>
         ) : (
-          <ResponsiveContainer width="100%" height={440}>
+          <ResponsiveContainer width="100%" height="100%" minHeight={440}>
             <BarChart data={top} layout="vertical" margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-white/5" horizontal={false} />
               <XAxis type="number" className="text-xs fill-muted-foreground" tickFormatter={mode === "pct" ? (v) => `${Math.round(v)}%` : formatCompactUSD} tickLine={false} axisLine={false} />

@@ -46,7 +46,7 @@ export function MarginScatterCard({ recordType, year }: { recordType: "SALES_ORD
   }, [data, mode]);
 
   return (
-    <Card className="border-border/40 bg-card/30 backdrop-blur-sm">
+    <Card className="flex h-full flex-col border-border/40 bg-card/30 backdrop-blur-sm">
       <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
         <div className="space-y-1">
           <CardTitle className="text-base font-semibold"><span className="inline-flex items-center gap-1.5">Importe vs margen {mode === "pct" ? "%" : "$"} {year}<InfoTooltip text={CHART_HELP.margenScatter} /></span></CardTitle>
@@ -56,13 +56,13 @@ export function MarginScatterCard({ recordType, year }: { recordType: "SALES_ORD
         </div>
         <AmountModeToggle value={mode} onChange={setMode} />
       </CardHeader>
-      <CardContent>
+      <CardContent className="min-h-0 flex-1">
         {isLoading ? (
-          <Skeleton className="h-[440px] w-full" />
+          <Skeleton className="h-full min-h-[440px] w-full" />
         ) : points.length === 0 ? (
           <p className="text-sm text-muted-foreground py-10 text-center">Sin datos.</p>
         ) : (
-          <ResponsiveContainer width="100%" height={440}>
+          <ResponsiveContainer width="100%" height="100%" minHeight={440}>
             <ScatterChart margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-white/5" />
               <XAxis type="number" dataKey="ventas" name="Ventas" className="text-xs fill-muted-foreground" tickFormatter={formatCompactUSD} tickLine={false} />

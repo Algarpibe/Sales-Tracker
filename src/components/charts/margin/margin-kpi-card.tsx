@@ -46,7 +46,7 @@ export function MarginKpiCard({ recordType }: { recordType: "SALES_ORDER" | "INV
   const { series, totals } = useMemo(() => buildMarginByYear(data ?? []), [data]);
 
   return (
-    <Card className="border-border/40 bg-card/30 backdrop-blur-sm">
+    <Card className="flex h-full flex-col border-border/40 bg-card/30 backdrop-blur-sm">
       <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
         <div className="space-y-1">
           <CardTitle className="text-base font-semibold"><span className="inline-flex items-center gap-1.5">Margen bruto estimado (solo bienes)<InfoTooltip text={CHART_HELP.margenKpi} /></span></CardTitle>
@@ -54,35 +54,37 @@ export function MarginKpiCard({ recordType }: { recordType: "SALES_ORDER" | "INV
         </div>
         <AmountModeToggle value={mode} onChange={setMode} />
       </CardHeader>
-      <CardContent>
+      <CardContent className="min-h-0 flex-1">
         {isLoading ? (
-          <Skeleton className="h-[320px] w-full" />
+          <Skeleton className="h-full min-h-[320px] w-full" />
         ) : series.length === 0 ? (
           <p className="text-sm text-muted-foreground py-10 text-center">Sin datos.</p>
         ) : (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="flex h-full flex-col gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 shrink-0">
               <Tile label="Ventas (bienes)" value={formatUSD(totals.ventas)} />
               <Tile label="Costo" value={formatUSD(totals.costo)} />
               <Tile label="Margen" value={formatUSD(totals.margen)} />
               <Tile label="Margen %" value={`${totals.margenPct.toFixed(1)}%`} />
             </div>
-            <ResponsiveContainer width="100%" height={240}>
-              <LineChart data={series} margin={{ top: 10, right: 10, left: 10, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-white/5" vertical={false} />
-                <XAxis dataKey="year" className="text-xs fill-muted-foreground" tickLine={false} />
-                <YAxis
-                  domain={mode === "pct" ? [0, 100] : ["auto", "auto"]}
-                  ticks={mode === "pct" ? [0, 25, 50, 75, 100] : undefined}
-                  className="text-xs fill-muted-foreground"
-                  tickFormatter={mode === "pct" ? (v) => `${Math.round(v)}%` : formatCompactUSD}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <Tooltip content={<PctTooltip />} />
-                <Line type="monotone" dataKey={mode === "pct" ? "margenPct" : "margen"} name={mode === "pct" ? "Margen %" : "Margen"} stroke="#10b981" strokeWidth={2} dot={{ r: 3 }} />
-              </LineChart>
-            </ResponsiveContainer>
+            <div className="min-h-0 flex-1">
+              <ResponsiveContainer width="100%" height="100%" minHeight={240}>
+                <LineChart data={series} margin={{ top: 10, right: 10, left: 10, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-white/5" vertical={false} />
+                  <XAxis dataKey="year" className="text-xs fill-muted-foreground" tickLine={false} />
+                  <YAxis
+                    domain={mode === "pct" ? [0, 100] : ["auto", "auto"]}
+                    ticks={mode === "pct" ? [0, 25, 50, 75, 100] : undefined}
+                    className="text-xs fill-muted-foreground"
+                    tickFormatter={mode === "pct" ? (v) => `${Math.round(v)}%` : formatCompactUSD}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <Tooltip content={<PctTooltip />} />
+                  <Line type="monotone" dataKey={mode === "pct" ? "margenPct" : "margen"} name={mode === "pct" ? "Margen %" : "Margen"} stroke="#10b981" strokeWidth={2} dot={{ r: 3 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         )}
       </CardContent>
