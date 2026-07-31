@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main]
 
+# Least-privilege: el pipeline solo lee el repo (typecheck+test+lint+build, sin escritura).
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
