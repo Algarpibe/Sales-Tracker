@@ -1,88 +1,18 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { ShoppingCart, FileText, Receipt, Activity } from "lucide-react";
-import { BarChartMonthly } from "@/components/charts/bar-chart-monthly";
-import { KPICard } from "@/components/cards/kpi-card";
-import { getSalesData } from "@/actions/sales-actions";
-import { getCategories } from "@/actions/category-actions";
-import { getYearRange, formatUSD } from "@/lib/constants";
-import { CHART_HELP } from "@/lib/chart-help";
-import { computeDashboardMetrics } from "@/lib/dashboard-metrics";
-import { yoyChange, type InsightRecord } from "@/lib/dashboard-insights";
-import { CumulativeYoYChart } from "@/components/charts/dashboard/cumulative-yoy-chart";
-import { ExecutionMonthlyChart } from "@/components/charts/dashboard/execution-monthly-chart";
-import { TopCustomersPareto } from "@/components/charts/dashboard/top-customers-pareto";
-import { CategoryMixDonut } from "@/components/charts/dashboard/category-mix-donut";
+import { useState } from "react";
+import { getYearRange } from "@/lib/constants";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Separator } from "@/components/ui/separator";
+import { DashboardDataProvider } from "@/components/dashboard/dashboard-data-provider";
+import { DashboardGrid } from "@/components/dashboard/dashboard-grid";
 
 export default function HomePage() {
   const [year, setYear] = useState(new Date().getFullYear());
-  const [selectedTypes, setSelectedTypes] = useState<string[]>(["SALES_ORDER", "INVOICE"]);
-
-  const { data: recordsData, isLoading: l1 } = useQuery({
-    queryKey: ["sales", { year }],
-    queryFn: () => getSalesData({ year }),
-  });
-  const { data: prevData, isLoading: l1b } = useQuery({
-    queryKey: ["sales", { year: year - 1 }],
-    queryFn: () => getSalesData({ year: year - 1 }),
-  });
-  const { data: catsData, isLoading: l2 } = useQuery({
-    queryKey: ["categories"],
-    queryFn: getCategories,
-  });
-  const isLoading = l1 || l1b || l2;
-
-  const handleTypeToggle = (type: string) => {
-    setSelectedTypes((prev) =>
-      prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]
-    );
-  };
-
-  const metrics = useMemo(
-    () => computeDashboardMetrics(recordsData ?? [], catsData ?? []),
-    [recordsData, catsData]
-  );
-  const metricsPrev = useMemo(
-    () => computeDashboardMetrics(prevData ?? [], catsData ?? []),
-    [prevData, catsData]
-  );
-  const catMap = useMemo(
-    () => new Map((catsData ?? []).map((c) => [c.id, c.name] as [string, string])),
-    [catsData]
-  );
-
-  const chartData = useMemo(() => {
-    return metrics.monthly.map((m) => ({
-      month: m.month,
-      sales_orders: selectedTypes.includes("SALES_ORDER") ? m.sales_orders : 0,
-      invoices: selectedTypes.includes("INVOICE") ? m.invoices : 0,
-    }));
-  }, [metrics.monthly, selectedTypes]);
-
-  if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <Skeleton className="h-10 w-full" />
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-32 w-full" />)}
-        </div>
-        <Skeleton className="h-[400px] w-full" />
-      </div>
-    );
-  }
 
   return (
-    <div className="flex flex-col gap-10 pb-20">
-      {/* Cabecera */}
+    <div className="flex flex-col gap-6 pb-20">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-4xl font-bold tracking-tight">Dashboard General</h1>
@@ -100,64 +30,9 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Sección 1: KPIs con Δ interanual */}
-      <section className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
-        <KPICard title="Ventas Comprometidas (OV)" value={formatUSD(metrics.sales_orders)} change={yoyChange(metrics.sales_orders, metricsPrev.sales_orders) ?? undefined} icon={ShoppingCart} variant="premium" info={CHART_HELP.kpiVentasOV} />
-        <KPICard title="Total Facturado" value={formatUSD(metrics.invoices)} change={yoyChange(metrics.invoices, metricsPrev.invoices) ?? undefined} icon={FileText} variant="premium" info={CHART_HELP.kpiFacturado} />
-        <KPICard title="Ticket Medio (OV)" value={formatUSD(metrics.avg_ticket)} change={yoyChange(metrics.avg_ticket, metricsPrev.avg_ticket) ?? undefined} icon={Receipt} variant="premium" info={CHART_HELP.kpiTicket} />
-        <KPICard title="% Ejecución (FAC/OV)" value={`${metrics.execution_rate.toFixed(1)}%`} change={metricsPrev.execution_rate > 0 ? metrics.execution_rate - metricsPrev.execution_rate : undefined} icon={Activity} variant="premium" info={CHART_HELP.kpiEjecucion} />
-      </section>
-
-      <Separator className="opacity-50" />
-
-      {/* Sección 2: Evolución */}
-      <section className="space-y-8">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="space-y-1">
-            <h2 className="text-2xl font-bold tracking-tight">Análisis de Tendencias</h2>
-            <p className="text-sm text-muted-foreground">Evolución mensual de ventas y facturación.</p>
-          </div>
-          <div className="flex items-center gap-4 bg-muted/30 p-2 rounded-md">
-            <div className="flex items-center space-x-2">
-              <Checkbox id="type-ov-home" checked={selectedTypes.includes("SALES_ORDER")} onCheckedChange={() => handleTypeToggle("SALES_ORDER")} />
-              <Label htmlFor="type-ov-home" className="text-sm font-medium cursor-pointer">Órdenes (OV)</Label>
-            </div>
-            <div className="flex items-center space-x-2 border-l pl-4 border-border/50">
-              <Checkbox id="type-fac-home" checked={selectedTypes.includes("INVOICE")} onCheckedChange={() => handleTypeToggle("INVOICE")} />
-              <Label htmlFor="type-fac-home" className="text-sm font-medium cursor-pointer">Facturas (FAC)</Label>
-            </div>
-          </div>
-        </div>
-
-        <BarChartMonthly data={chartData} />
-
-        <div className="grid gap-6 grid-cols-1 lg:grid-cols-5">
-          <div className="lg:col-span-3">
-            <CumulativeYoYChart current={(recordsData ?? []) as InsightRecord[]} previous={(prevData ?? []) as InsightRecord[]} yearActual={year} yearPrev={year - 1} />
-          </div>
-          <div className="lg:col-span-2">
-            <ExecutionMonthlyChart monthly={metrics.monthly} />
-          </div>
-        </div>
-      </section>
-
-      <Separator className="opacity-50" />
-
-      {/* Sección 3: Composición y concentración */}
-      <section className="space-y-6">
-        <div className="space-y-1">
-          <h2 className="text-2xl font-bold tracking-tight">Composición y concentración</h2>
-          <p className="text-sm text-muted-foreground">Clientes principales y mix por macro-categoría.</p>
-        </div>
-        <div className="grid gap-6 grid-cols-1 lg:grid-cols-5">
-          <div className="lg:col-span-3">
-            <TopCustomersPareto year={year} />
-          </div>
-          <div className="lg:col-span-2">
-            <CategoryMixDonut records={(recordsData ?? []) as InsightRecord[]} catMap={catMap} />
-          </div>
-        </div>
-      </section>
+      <DashboardDataProvider year={year}>
+        <DashboardGrid />
+      </DashboardDataProvider>
     </div>
   );
 }
