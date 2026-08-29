@@ -10,7 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { InfoTooltip } from "@/components/common/info-tooltip";
 import { AmountModeToggle, type AmountMode } from "@/components/common/amount-mode-toggle";
 import { CHART_HELP } from "@/lib/chart-help";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import type { ChartTooltipProps } from "@/lib/chart-types";
 import type { MarginYearPoint } from "@/lib/analytics-margin";
 
@@ -50,7 +50,7 @@ export function MarginKpiCard({ recordType }: { recordType: "SALES_ORDER" | "INV
       <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
         <div className="space-y-1">
           <CardTitle className="text-base font-semibold"><span className="inline-flex items-center gap-1.5">Margen bruto estimado (solo bienes)<InfoTooltip text={CHART_HELP.margenKpi} /></span></CardTitle>
-          <p className="text-xs text-muted-foreground">Costo estándar del maestro; excluye servicios sin costo. {mode === "pct" ? "La línea muestra el margen %" : "La línea muestra el margen $"} por año.</p>
+          <p className="text-xs text-muted-foreground">Costo estándar del maestro; excluye servicios sin costo. {mode === "pct" ? "Las barras muestran el margen %" : "Las barras muestran el margen $"} por año.</p>
         </div>
         <AmountModeToggle value={mode} onChange={setMode} />
       </CardHeader>
@@ -69,7 +69,7 @@ export function MarginKpiCard({ recordType }: { recordType: "SALES_ORDER" | "INV
             </div>
             <div className="min-h-0 flex-1">
               <ResponsiveContainer width="100%" height="100%" minHeight={240}>
-                <LineChart data={series} margin={{ top: 10, right: 10, left: 10, bottom: 5 }}>
+                <BarChart data={series} margin={{ top: 10, right: 10, left: 10, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-white/5" vertical={false} />
                   <XAxis dataKey="year" className="text-xs fill-muted-foreground" tickLine={false} />
                   <YAxis
@@ -80,9 +80,9 @@ export function MarginKpiCard({ recordType }: { recordType: "SALES_ORDER" | "INV
                     tickLine={false}
                     axisLine={false}
                   />
-                  <Tooltip content={<PctTooltip />} />
-                  <Line type="monotone" dataKey={mode === "pct" ? "margenPct" : "margen"} name={mode === "pct" ? "Margen %" : "Margen"} stroke="#10b981" strokeWidth={2} dot={{ r: 3 }} />
-                </LineChart>
+                  <Tooltip content={<PctTooltip />} cursor={{ fill: "rgba(16,185,129,0.08)" }} />
+                  <Bar dataKey={mode === "pct" ? "margenPct" : "margen"} name={mode === "pct" ? "Margen %" : "Margen"} fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={64} />
+                </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
