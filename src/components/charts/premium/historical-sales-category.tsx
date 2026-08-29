@@ -54,6 +54,10 @@ const formatCurrency = (value: number) => {
   }).format(value);
 };
 
+// Primer año con datos completos. El resto de la app arranca igual (ver
+// getYearRange en @/lib/constants); 2020 es parcial y distorsiona la comparación.
+const FIRST_YEAR = 2021;
+
 export function HistoricalSalesCategory() {
   const [isLoading, setIsLoading] = useState(true);
   const [recordType, setRecordType] = useState<RecordType>("SALES_ORDER");
@@ -98,7 +102,7 @@ export function HistoricalSalesCategory() {
         // --- 1. Available Years ---
         const yearsSet = new Set<number>();
         records.forEach((r) => yearsSet.add(Number(r.record_year)));
-        const years = Array.from(yearsSet).sort((a, b) => a - b);
+        const years = Array.from(yearsSet).filter((y) => y >= FIRST_YEAR).sort((a, b) => a - b);
         setAvailableYears(years);
         if (!selectedYear && years.length > 0) {
           setSelectedYear(years[years.length - 1]); // Default to latest
