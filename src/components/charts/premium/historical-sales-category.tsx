@@ -212,14 +212,26 @@ export function HistoricalSalesCategory() {
     if (active && payload && payload.length) {
       const sortedPayload = [...payload].sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
       const total = sortedPayload.reduce((sum: number, entry) => sum + (entry.value ?? 0), 0);
+      // Con muchas categorías el tooltip crecía tanto que el total quedaba fuera de
+      // pantalla: ahora va en la cabecera y la lista se acota con un resumen del resto.
+      const MAX_ROWS = 12;
+      const shown = sortedPayload.slice(0, MAX_ROWS);
+      const rest = sortedPayload.slice(MAX_ROWS);
+      const restTotal = rest.reduce((sum: number, entry) => sum + (entry.value ?? 0), 0);
 
       return (
         <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-black/5 dark:border-white/5 p-4 rounded-xl shadow-2xl min-w-[240px]">
-          <h3 className="text-lg font-bold mb-3 text-slate-800 dark:text-slate-200 border-b border-black/5 dark:border-white/5 pb-2">
-            {viewMode === "ANNUAL" ? label : `${label} ${selectedYear}`}
-          </h3>
+          <div className="mb-3 flex items-baseline justify-between gap-6 border-b border-black/5 dark:border-white/5 pb-2">
+            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">
+              {viewMode === "ANNUAL" ? label : `${label} ${selectedYear}`}
+            </h3>
+            <div className="text-right">
+              <div className="text-[10px] uppercase tracking-wider text-slate-400">Total</div>
+              <div className="font-mono font-bold text-primary">{formatCurrency(total)}</div>
+            </div>
+          </div>
           <div className="space-y-2">
-            {sortedPayload.map((entry: ChartTooltipEntry, index: number) => {
+            {shown.map((entry: ChartTooltipEntry, index: number) => {
               const category = catMap.get(String(entry.dataKey));
               return (
                 <div key={`item-${index}`} className="flex items-center justify-between text-sm">
@@ -239,10 +251,12 @@ export function HistoricalSalesCategory() {
               );
             })}
           </div>
-          <div className="mt-3 pt-2 border-t border-black/5 dark:border-white/5 flex justify-between items-center font-bold">
-            <span className="text-sm text-slate-400">Total</span>
-            <span className="font-mono text-primary">{formatCurrency(total)}</span>
-          </div>
+          {rest.length > 0 && (
+            <div className="mt-3 flex items-center justify-between border-t border-black/5 pt-2 text-sm text-slate-400 dark:border-white/5">
+              <span>+{rest.length} categorías más</span>
+              <span className="font-mono">{formatCurrency(restTotal)}</span>
+            </div>
+          )}
         </div>
       );
     }
