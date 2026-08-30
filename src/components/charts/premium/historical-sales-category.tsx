@@ -114,6 +114,9 @@ export function HistoricalSalesCategory() {
 
         records.forEach((r) => {
           const year = Number(r.record_year);
+          // Sin bucket = año anterior a FIRST_YEAR: se ignora. Sin esta guarda,
+          // annualGrouped[year] es undefined y el throw vacía todo el gráfico.
+          if (!annualGrouped[year]) return;
           const catId = String(r.category_id);
           const amount = Number(r.amount_usd) || 0;
           annualGrouped[year][catId] = (annualGrouped[year][catId] || 0) + amount;
