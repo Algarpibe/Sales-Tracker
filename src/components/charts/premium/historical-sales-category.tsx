@@ -430,6 +430,23 @@ export function HistoricalSalesCategory() {
                         ))}
                         </CommandGroup>
                     </CommandList>
+                    {/* Acción fija al pie: vaciar la selección de una vez, sin ir
+                        desmarcando una a una (los chips quedan tapados por el popover). */}
+                    {selectedCategoryIds.length > 0 && (
+                      <div className="flex items-center justify-between gap-2 border-t border-white/10 px-2 py-1.5">
+                        <span className="text-[11px] text-muted-foreground">
+                          {selectedCategoryIds.length} seleccionada{selectedCategoryIds.length === 1 ? "" : "s"}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleClearCategories}
+                          className="h-6 text-[11px] text-muted-foreground hover:text-destructive"
+                        >
+                          <X className="mr-1 h-3 w-3" /> Limpiar todo
+                        </Button>
+                      </div>
+                    )}
                 </Command>
               </PopoverContent>
             </Popover>
