@@ -64,6 +64,10 @@ interface GroupingAnalysisCardProps {
   recordType: RecordType;
 }
 
+// Primer año con datos completos, igual que el resto de la app (ver getYearRange
+// en @/lib/constants). 2020 es parcial y distorsiona la comparación.
+const FIRST_YEAR = 2021;
+
 export function GroupingAnalysisCard({ categories, recordType: initialRecordType }: GroupingAnalysisCardProps) {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<GroupingAnalysisResult | null>(null);
@@ -84,7 +88,27 @@ export function GroupingAnalysisCard({ categories, recordType: initialRecordType
   const fetchData = async () => {
     setLoading(true);
     try {
-      const result = await getGroupingAnalysisData(recordType);
+      const raw = await getGroupingAnalysisData(recordType);
+      // Se recorta el rango en el origen (punto único). Importante: además de las
+      // columnas hay que recalcular el promedio y descartar el año de cada fila, o
+      // las columnas PROMEDIO/TOTAL seguirían incluyendo el año oculto y no cuadrarían.
+      const years = raw.years.filter((y) => y >= FIRST_YEAR);
+      const rows = raw.rows.map((row) => {
+        const yearsKept = Object.fromEntries(
+          Object.entries(row.years).filter(([y]) => Number(y) >= FIRST_YEAR)
+        ) as typeof row.years;
+        const vals = Object.values(yearsKept);
+        const n = vals.length || 1;
+        return {
+          ...row,
+          years: yearsKept,
+          average: {
+            amount: vals.reduce((sum, v) => sum + v.amount, 0) / n,
+            percentage: vals.reduce((sum, v) => sum + v.percentage, 0) / n,
+          },
+        };
+      });
+      const result = { ...raw, years, rows };
       setData(result);
       // Auto-select all by default if none selected yet
       if (selectedGroupIds.length === 0 && result.rows.length > 0) {
