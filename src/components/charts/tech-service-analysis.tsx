@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { formatUSD } from "@/lib/constants";
 import {
@@ -15,6 +16,7 @@ import {
 } from "recharts";
 import type { ChartTooltipProps } from "@/lib/chart-types";
 import { InfoTooltip } from "@/components/common/info-tooltip";
+import { Checkbox } from "@/components/ui/checkbox";
 import { CHART_HELP } from "@/lib/chart-help";
 
 export interface TechServiceDataPoint {
@@ -68,6 +70,8 @@ function formatYoY(value: number | null): React.ReactNode {
 }
 
 export function TechServiceAnalysis({ data, yearA, yearB, viewMode, onViewModeChange }: TechServiceAnalysisProps) {
+  // Activo por defecto: las líneas de acumulado ya formaban parte del gráfico.
+  const [showCumulative, setShowCumulative] = useState(true);
   // Custom Tooltip
   const CustomTooltip = ({ active, payload, label }: ChartTooltipProps) => {
     if (active && payload && payload.length) {
@@ -163,6 +167,11 @@ export function TechServiceAnalysis({ data, yearA, yearB, viewMode, onViewModeCh
           </div>
           
           <div className="flex flex-wrap items-center gap-3">
+            <label className="flex shrink-0 cursor-pointer items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              <Checkbox checked={showCumulative} onCheckedChange={() => setShowCumulative((v) => !v)} />
+              Acumulado
+            </label>
+
             {/* RESOLUTION FILTER */}
             <div className="bg-black/10 dark:bg-white/10 p-1 rounded-xl flex gap-1">
               {[
@@ -215,14 +224,16 @@ export function TechServiceAnalysis({ data, yearA, yearB, viewMode, onViewModeCh
                 tick={{ fill: "rgba(0,0,0,0.4)", fontSize: 11 }}
                 tickFormatter={(val) => `$${(val / 1000).toFixed(0)}k`}
               />
-              <YAxis
-                yAxisId="right"
-                orientation="right"
-                axisLine={false}
-                tickLine={false}
-                tick={{ fill: "rgba(0,0,0,0.4)", fontSize: 11 }}
-                tickFormatter={(val) => `$${(val / 1000).toFixed(0)}k`}
-              />
+              {showCumulative && (
+                <YAxis
+                  yAxisId="right"
+                  orientation="right"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: "rgba(0,0,0,0.4)", fontSize: 11 }}
+                  tickFormatter={(val) => `${(val / 1000).toFixed(0)}k`}
+                />
+              )}
               <Tooltip 
                 content={<CustomTooltip />} 
                 cursor={{ fill: "rgba(147, 197, 253, 0.15)", radius: 10 }} 
@@ -269,6 +280,7 @@ export function TechServiceAnalysis({ data, yearA, yearB, viewMode, onViewModeCh
                 barSize={viewMode === 'MONTHLY' ? 14 : 32}
               />
               
+              {showCumulative && (
               <Line
                 yAxisId="right"
                 type="monotone"
@@ -279,8 +291,10 @@ export function TechServiceAnalysis({ data, yearA, yearB, viewMode, onViewModeCh
                 dot={{ r: 5, fill: "oklch(0.65 0.19 155)", strokeWidth: 2, stroke: "white" }}
                 activeDot={{ r: 7, fill: "white", stroke: "oklch(0.65 0.19 155)", strokeWidth: 3 }}
               />
+              )}
 
               {/* Acumulado del año de comparación: discontinua y en naranja, a juego con sus barras. */}
+              {showCumulative && (
               <Line
                 yAxisId="right"
                 type="monotone"
@@ -292,6 +306,7 @@ export function TechServiceAnalysis({ data, yearA, yearB, viewMode, onViewModeCh
                 dot={{ r: 4, fill: "oklch(0.68 0.17 55)", strokeWidth: 2, stroke: "white" }}
                 activeDot={{ r: 6, fill: "white", stroke: "oklch(0.68 0.17 55)", strokeWidth: 3 }}
               />
+              )}
             </ComposedChart>
           </ResponsiveContainer>
         </div>
