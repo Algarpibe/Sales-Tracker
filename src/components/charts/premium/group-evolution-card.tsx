@@ -77,6 +77,10 @@ interface GroupEvolutionCardProps {
 
 type ViewMode = "ANNUAL" | "QUARTERLY" | "MONTHLY";
 
+// Primer año con datos completos, igual que el resto de la app (ver getYearRange
+// en @/lib/constants). 2020 es parcial y distorsiona la comparación.
+const FIRST_YEAR = 2021;
+
 export function GroupEvolutionCard({ recordType: initialRecordType }: GroupEvolutionCardProps) {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<GroupingAnalysisResult | null>(null);
@@ -94,7 +98,10 @@ export function GroupEvolutionCard({ recordType: initialRecordType }: GroupEvolu
   const fetchData = async () => {
     setLoading(true);
     try {
-      const result = await getGroupingAnalysisData(recordType);
+      const raw = await getGroupingAnalysisData(recordType);
+      // Se filtra aquí (punto único) para que gráfico, selector de año y totales
+      // usen el mismo rango sin tener que repetir el filtro en cada consumidor.
+      const result = { ...raw, years: raw.years.filter((y) => y >= FIRST_YEAR) };
       setData(result);
       // Auto-select first 3 groups if none selected
       if (selectedGroupIds.length === 0 && result.rows.length > 0) {
