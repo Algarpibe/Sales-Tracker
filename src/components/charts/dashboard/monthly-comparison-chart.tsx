@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend,
+  ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MONTHS, formatUSD, formatCompactUSD } from "@/lib/constants";
 import { InfoTooltip } from "@/components/common/info-tooltip";
+import { Checkbox } from "@/components/ui/checkbox";
 import { CHART_HELP } from "@/lib/chart-help";
 import { monthlyTotals } from "@/lib/forecast-widget-data";
 import type { ChartTooltipProps } from "@/lib/chart-types";
@@ -77,6 +78,9 @@ export function MonthlyComparisonChart({
   records: SalesRecord[];
   prevRecords: SalesRecord[];
 }) {
+  // Acumulado desactivado por defecto: es una capa opcional sobre las barras.
+  const [showCumulative, setShowCumulative] = useState(false);
+
   const monthlyData = useMemo<MonthlyPoint[]>(() => {
     const a = monthlyTotals(records, yearA, recordType);
     const b = monthlyTotals(prevRecords, yearB, recordType);
@@ -94,36 +98,70 @@ export function MonthlyComparisonChart({
   return (
     <Card className="flex h-full flex-col shadow-2xl border-white/5 bg-white/5 backdrop-blur-xl dark:bg-black/20 overflow-hidden group">
       <div className="absolute inset-0 bg-gradient-to-tr from-indigo-500/5 to-transparent pointer-events-none" />
-      <CardHeader className="relative z-10 border-b border-white/5 py-4">
+      <CardHeader className="relative z-10 flex flex-row items-center justify-between gap-4 space-y-0 border-b border-white/5 py-4">
         <CardTitle className="text-lg font-bold flex items-center gap-2">
           <div className="w-1 h-4 bg-indigo-500 rounded-full" />
           {recordType === "SALES_ORDER" ? "Órdenes de Venta (Reserva)" : "Facturación (Ventas)"}
           <span className="text-muted-foreground font-normal text-sm ml-2">Global Mensual</span>
           <InfoTooltip text={CHART_HELP.explorationGlobalMensual} />
         </CardTitle>
+        <label className="flex shrink-0 cursor-pointer items-center gap-2 text-xs font-medium text-muted-foreground">
+          <Checkbox checked={showCumulative} onCheckedChange={() => setShowCumulative((v) => !v)} />
+          Línea de acumulado
+        </label>
       </CardHeader>
       <CardContent className="min-h-0 flex-1">
         <ResponsiveContainer width="100%" height="100%" minHeight={350}>
-          <BarChart data={monthlyData}>
+          <ComposedChart data={monthlyData}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="oklch(0.91 0.01 250 / 0.1)" />
             <XAxis dataKey="month" axisLine={false} tickLine={false} dy={10} />
-            <YAxis tickFormatter={formatCompactUSD} axisLine={false} tickLine={false} />
+            <YAxis yAxisId="left" tickFormatter={formatCompactUSD} axisLine={false} tickLine={false} />
+            {/* Eje propio: el acumulado es de otra magnitud que el importe mensual. */}
+            {showCumulative && (
+              <YAxis yAxisId="right" orientation="right" tickFormatter={formatCompactUSD} axisLine={false} tickLine={false} />
+            )}
             <RechartsTooltip
               content={<CustomMonthlyTooltip yearA={yearA} yearB={yearB} />}
               cursor={{ fill: "rgba(147, 197, 253, 0.15)" }}
             />
             <Legend wrapperStyle={{ paddingTop: '20px' }} />
             <Bar
+              yAxisId="left"
               dataKey={`Año ${yearA}`}
               fill="oklch(0.65 0.2 255)"
               radius={[4, 4, 0, 0]}
             />
             <Bar
+              yAxisId="left"
               dataKey={`Año ${yearB}`}
               fill="oklch(0.65 0.25 20)"
               radius={[4, 4, 0, 0]}
             />
-          </BarChart>
+            {/* Acumulado: continua el año A, discontinua el de comparación. */}
+            {showCumulative && (
+              <Line
+                yAxisId="right"
+                type="monotone"
+                dataKey="acumA"
+                name={`Acum. ${yearA}`}
+                stroke="oklch(0.65 0.2 255)"
+                strokeWidth={3}
+                dot={{ r: 3 }}
+              />
+            )}
+            {showCumulative && (
+              <Line
+                yAxisId="right"
+                type="monotone"
+                dataKey="acumB"
+                name={`Acum. ${yearB}`}
+                stroke="oklch(0.65 0.25 20)"
+                strokeWidth={2}
+                strokeDasharray="6 4"
+                dot={{ r: 3 }}
+              />
+            )}
+          </ComposedChart>
         </ResponsiveContainer>
       </CardContent>
     </Card>
