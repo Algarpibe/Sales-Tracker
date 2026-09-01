@@ -1,39 +1,49 @@
 import { test, expect } from "@playwright/test";
-import { APPROVED_STATE, YEAR_WITH_GAPS, CATEGORY_MISSING_IN_GAP_YEAR } from "../constants";
+import { APPROVED_STATE } from "../constants";
 
 test.use({ storageState: APPROVED_STATE });
 
-test("un año con datos parciales no deja el gráfico roto", async ({ page }) => {
+test("el Histórico Anual pinta datos pese al registro de un año anterior a FIRST_YEAR (bug 9dc66ee)", async ({ page }) => {
   const crashes: string[] = [];
   page.on("pageerror", (err) => crashes.push(err.message));
 
   await page.goto("/analytics");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 
-  // El selector de año (pestaña "Exploración", año A) no expone la palabra "año"
-  // como nombre accesible: base-ui muestra solo el valor seleccionado en el
-  // disparador (p. ej. "2026"), aunque cada opción de la lista sí lleva el
-  // prefijo "A: " (p. ej. "A: 2026"). Es el primer combobox de la página.
-  await page.getByRole("combobox").first().click();
-  await page.getByRole("option", { name: String(YEAR_WITH_GAPS) }).click();
-
-  // El widget "Histórico Anual" (el que corrige el bug 9dc66ee) filtra categorías
-  // con su propio selector, independiente del año de la página. La semilla deja
-  // 2021 con ventas SOLO de 'Aguas': seleccionar 'Aire' reproduce el bucket
-  // ausente para ese año dentro de la agrupación anual.
+  // El widget "Histórico Anual" arranca sin categorías seleccionadas: no pinta
+  // barras hasta elegir alguna. La semilla incluye un registro de 2020
+  // (YEAR_BEFORE_FIRST_YEAR en e2e/constants.ts), anterior al FIRST_YEAR = 2021
+  // que usa este componente: esa es la condición exacta del bug 9dc66ee. Con la
+  // guarda, el componente ignora ese registro y agrega 2021-2024 con
+  // normalidad; sin ella, el TypeError al escribir en el bucket inexistente
+  // (annualGrouped[2020] es undefined) se traga silenciosamente en el catch del
+  // fetch y el gráfico queda vacío — sin lanzar un error de página.
   await page.getByRole("button", { name: /Seleccionar Categorías/i }).click();
-  await page.getByRole("option", { name: CATEGORY_MISSING_IN_GAP_YEAR, exact: true }).click();
+  await page.getByRole("option", { name: "Aire", exact: true }).click();
   await page.keyboard.press("Escape");
 
-  await expect(page.getByText(CATEGORY_MISSING_IN_GAP_YEAR).first()).toBeVisible();
+  await expect(page.getByText("Aire").first()).toBeVisible();
 
-  // La página sigue viva: cabecera presente, el gráfico llegó a renderizar y no
-  // hubo excepciones sin capturar.
-  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  // Card de shadcn/ui: `data-slot="card"` es un atributo estructural de la
+  // librería (no una clase de Tailwind), estable frente a cambios de estilo.
+  // Se usa para acotar la comprobación al widget "Histórico Anual" y no a
+  // cualquier otro gráfico de la página.
+  const historicalCard = page.locator('[data-slot="card"]', { hasText: "Histórico Anual" });
+
+  // El punto real del test: con la guarda, recharts pinta barras
+  // (.recharts-bar-rectangle) dentro del svg; sin ella, currentChartData queda
+  // vacío y el svg solo trae ejes y grid, sin ninguna barra. Nótese que
+  // svg.recharts-surface SIEMPRE existe (incluso vacío, con un <rect> interno
+  // del clipPath): por eso el chequeo tiene que ser sobre las barras mismas,
+  // no sobre la mera presencia del <svg>.
   await expect(async () => {
-    expect(await page.locator("svg.recharts-surface").count()).toBeGreaterThan(0);
+    const bars = await historicalCard.locator("svg.recharts-surface .recharts-bar-rectangle").count();
+    expect(bars).toBeGreaterThan(0);
   }).toPass();
-  expect(crashes, `La página lanzó al filtrar ${YEAR_WITH_GAPS}:\n${crashes.join("\n")}`).toEqual([]);
+
+  // La página sigue viva y no hubo excepciones sin capturar.
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  expect(crashes, `La página lanzó al cargar el Histórico Anual:\n${crashes.join("\n")}`).toEqual([]);
 });
 
 test("cambiar de año no rompe el renderizado de los gráficos", async ({ page }) => {
