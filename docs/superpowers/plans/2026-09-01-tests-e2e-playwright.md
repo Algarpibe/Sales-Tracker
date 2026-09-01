@@ -433,10 +433,13 @@ async function seedUser(client, companyId, user, { approved }) {
     [user.name, user.email],
   );
 
+  // accountId es text y userId es uuid: NO se puede reutilizar $1 para ambos.
+  // Postgres no logra inferir un tipo unico y falla con
+  // "inconsistent types deduced for parameter $1".
   await client.query(
     `INSERT INTO account ("accountId", "providerId", "userId", password)
-     VALUES ($1, 'credential', $1, $2)`,
-    [row.id, hash],
+     VALUES ($1, 'credential', $2, $3)`,
+    [row.id, row.id, hash],
   );
 
   await client.query(
