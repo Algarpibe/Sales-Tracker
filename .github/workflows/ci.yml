@@ -39,3 +39,57 @@ jobs:
           # next build fija NEXT_PHASE=phase-production-build, así que el fail-fast de
           # BETTER_AUTH_SECRET se omite. Las páginas son dinámicas (no tocan la BD en build).
           NEXT_TELEMETRY_DISABLED: "1"
+
+  e2e:
+    runs-on: ubuntu-latest
+    needs: build
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # El service container expone el 5432 estándar, no el 55432 del Compose local.
+      E2E_PG_HOST: 127.0.0.1
+      E2E_PG_PORT: "5432"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: "Preparar la BD de E2E (crea ambas bases, migra y siembra)"
+        run: npm run e2e:db:reset
+
+      # OJO: este paso NO debe exportar DATABASE_URL. Playwright se lo pasa al
+      # servidor Next por el bloque webServer.env de playwright.config.ts. Si se
+      # exportara aquí, auth.smoke.test.ts dejaría de saltarse en el job de tests.
+      - name: E2E
+        run: npx playwright test
+
+      - name: Subir el reporte al fallar
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
