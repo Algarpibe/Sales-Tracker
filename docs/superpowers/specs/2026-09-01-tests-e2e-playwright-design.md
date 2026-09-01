@@ -57,15 +57,16 @@ La semilla no es "unos datos cualesquiera". Su forma es lo que decide si el smok
 
 | Dato sembrado | Qué cubre |
 |---|---|
-| Años 2021–2024 con ventas; **2021 solo tiene datos de una categoría** | Bug #3: bucket de año inexistente |
+| **2020 parcial** (solo meses 10-12), anterior al `FIRST_YEAR = 2021` que usan los componentes | Bug #3: bucket de año inexistente |
+| Años 2021–2024 con ventas; **2021 solo tiene datos de una categoría** | Estados vacíos por categoría dentro de un año válido (no reproduce el bug #3) |
 | ≥3 categorías repartidas en ≥2 grupos | Agrupaciones y evolución histórica |
 | ≥5 clientes y ≥5 artículos; alguno sin ventas en un año | Drill-down y estados vacíos |
 | Bienes con `purchase_rate > 0` y servicios a costo 0 | Pestaña Margen |
 | Usuario **aprobado** y usuario **sin aprobar** | Las dos ramas del middleware |
 
-El año mínimo sembrado es 2021, coherente con la convención del proyecto (2020 es parcial).
+El año mínimo sembrado es 2020 (parcial), un año antes de la convención del proyecto (`FIRST_YEAR = 2021`, con 2020 real pero incompleto en producción).
 
-**Por qué un año parcial y no un año vacío.** La primera versión de este spec proponía sembrar 2025 sin ningún dato. No sirve: un año sin **ningún** registro no llega a aparecer en el selector, así que no hay nada que filtrar y el bug no se reproduce. El commit `9dc66ee` describe la condición real — un año presente en el selector cuyo *bucket falta para una agrupación concreta*. Por eso 2021 lleva ventas de `Aguas` y de ninguna otra categoría.
+**Por qué un año parcial y no un año vacío.** La primera versión de este spec proponía sembrar 2025 sin ningún dato. No sirve: un año sin **ningún** registro no llega a aparecer en el selector, así que no hay nada que filtrar y el bug no se reproduce. Tampoco sirve un hueco de categoría dentro de un año ya incluido en el selector (así se pensó inicialmente, con 2021 sin `Aire`): se verificó revirtiendo el commit `9dc66ee` que ese caso **no** hace fallar el test. La condición real, confirmada por el mismo revert, es un registro cuyo `record_year` es **anterior a `FIRST_YEAR`**: como los componentes descartan esos años al construir `years`, el bucket de agrupación nunca se crea y escribir en él revienta. Por eso la semilla incluye 2020 (parcial, meses 10-12) además de 2021-2024; el hueco de `Aguas` en 2021 se mantiene aparte, solo para ejercitar estados vacíos por categoría.
 
 ### 1.6 Presupuesto de logins: 5 por minuto
 

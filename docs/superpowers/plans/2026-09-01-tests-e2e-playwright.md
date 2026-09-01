@@ -1332,9 +1332,9 @@ git commit -m "test(e2e): regresion del ancho de la rejilla y persistencia del l
 
 ### Task 14: Regresión del bucket de año inexistente (bug #3, commit 9dc66ee)
 
-Causa raíz: al filtrar un año que existe en el selector pero sin datos para la agrupación pedida, el bucket no existía y el gráfico quedaba vacío en vez de mostrar un estado vacío legible.
+**Causa raíz real (verificada revirtiendo `9dc66ee`):** el componente construye `annualGrouped` solo para los años `>= FIRST_YEAR` (2021). Un registro cuyo `record_year` es **anterior a `FIRST_YEAR`** no tiene bucket: sin la guarda `if (!annualGrouped[year]) return;`, escribir en `annualGrouped[year][catId]` revienta con `TypeError`, el `catch` del fetch se lo traga en silencio y el gráfico "Histórico Anual" queda vacío.
 
-La semilla reproduce exactamente esa condición: **2021 sólo tiene ventas de `Aguas`**, así que filtrar 2021 por `Aire` da un bucket ausente.
+Esto **no** es un hueco de categoría dentro de un año ya válido — esa hipótesis inicial se descartó al comprobar que revertir `9dc66ee` con solo el hueco de 2021 (`Aguas` sin `Aire`) seguía dejando el test en verde. La semilla reproduce la condición real sembrando **2020 parcial** (meses 10-12), anterior a `FIRST_YEAR`. El hueco de `Aguas` en 2021 se mantiene, pero solo para ejercitar estados vacíos por categoría.
 
 **Files:**
 - Create: `e2e/specs/charts.spec.ts`
@@ -1345,26 +1345,37 @@ La semilla reproduce exactamente esa condición: **2021 sólo tiene ventas de `A
 
 ```ts
 import { test, expect } from "@playwright/test";
-import { APPROVED_STATE, YEAR_WITH_GAPS, CATEGORY_MISSING_IN_GAP_YEAR } from "../constants";
+import { APPROVED_STATE } from "../constants";
 
 test.use({ storageState: APPROVED_STATE });
 
-test("un año con datos parciales no deja el gráfico roto", async ({ page }) => {
+test("el Histórico Anual pinta datos pese al registro de un año anterior a FIRST_YEAR (bug 9dc66ee)", async ({ page }) => {
   const crashes: string[] = [];
   page.on("pageerror", (err) => crashes.push(err.message));
 
   await page.goto("/analytics");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 
-  // La semilla deja 2021 con datos SOLO de 'Aguas': filtrar ese anio por otra
-  // categoria reproduce el bucket ausente del bug 9dc66ee.
-  await page.getByRole("combobox", { name: /año/i }).selectOption(String(YEAR_WITH_GAPS));
+  // La semilla incluye un registro de 2020 (anterior a FIRST_YEAR = 2021): esa
+  // es la condicion exacta del bug 9dc66ee. El widget arranca sin categorias
+  // seleccionadas, asi que hay que elegir una para que pinte barras.
+  await page.getByRole("button", { name: /Seleccionar Categorías/i }).click();
+  await page.getByRole("option", { name: "Aire", exact: true }).click();
+  await page.keyboard.press("Escape");
 
-  await expect(page.getByText(CATEGORY_MISSING_IN_GAP_YEAR).first()).toBeVisible();
+  await expect(page.getByText("Aire").first()).toBeVisible();
 
-  // La pagina sigue viva: cabecera presente y sin excepciones sin capturar.
+  const historicalCard = page.locator('[data-slot="card"]', { hasText: "Histórico Anual" });
+
+  // svg.recharts-surface SIEMPRE existe (incluso vacio); lo que distingue el
+  // bug es la ausencia de barras (.recharts-bar-rectangle) dentro de el.
+  await expect(async () => {
+    const bars = await historicalCard.locator("svg.recharts-surface .recharts-bar-rectangle").count();
+    expect(bars).toBeGreaterThan(0);
+  }).toPass();
+
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-  expect(crashes, `La pagina lanzó al filtrar ${YEAR_WITH_GAPS}:\n${crashes.join("\n")}`).toEqual([]);
+  expect(crashes, `La pagina lanzó al cargar el Historico Anual:\n${crashes.join("\n")}`).toEqual([]);
 });
 
 test("cambiar de año no rompe el renderizado de los gráficos", async ({ page }) => {
@@ -1375,7 +1386,8 @@ test("cambiar de año no rompe el renderizado de los gráficos", async ({ page }
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 
   for (const year of [2024, 2023, 2022, 2021]) {
-    await page.getByRole("combobox", { name: /año/i }).selectOption(String(year));
+    await page.getByRole("combobox").first().click();
+    await page.getByRole("option", { name: String(year) }).click();
     // Recharts monta en un <svg>: se espera a que exista al menos uno.
     await expect(async () => {
       expect(await page.locator("svg.recharts-surface").count()).toBeGreaterThan(0);
@@ -1386,14 +1398,7 @@ test("cambiar de año no rompe el renderizado de los gráficos", async ({ page }
 });
 ```
 
-Si el selector de año no es un `<select>` nativo (base-ui puede renderizarlo como botón + listbox), sustituir `selectOption` por:
-
-```ts
-await page.getByRole("combobox", { name: /año/i }).click();
-await page.getByRole("option", { name: String(YEAR_WITH_GAPS) }).click();
-```
-
-Comprobar cuál aplica abriendo `src/app/(dashboard)/analytics/page.tsx`.
+El selector de año de la página no es un `<select>` nativo (base-ui lo renderiza como botón + listbox), de ahí el patrón `click()` + `getByRole("option")`. El widget "Histórico Anual" no usa ese selector: gestiona su propio año interno y filtra categorías con su propio popover (`Seleccionar Categorías`).
 
 - [ ] **Step 2: Ejecutar**
 
@@ -1661,6 +1666,6 @@ Se declaran para que nadie los confunda con cobertura:
 ## Autorrevisión del plan
 
 - **Cobertura del spec:** las 11 secciones tienen tarea. §1 → Tasks 1-3, 5-7; §2 → Task 9; §3 → Task 8; §4 → Tasks 10-15; §5 → Task 8 (config) y las reglas dentro de cada spec; §6 → Task 17; §7 → Tasks 1, 7, 16; §8 → Tasks 8 y 16; §9 → sección "Huecos conocidos"; §10 → ídem; §11 → Task 16 (criterios 1, 4, 5) y Tasks 12-14 (criterio 2), Task 17 (criterio 3).
-- **Desviación respecto al spec, deliberada:** el spec decía "2025 existe pero vacío" para el bug #3. Al leer el commit `9dc66ee` se ve que la condición real es *un año presente en el selector cuyo bucket falta para una agrupación concreta*. Un año totalmente vacío ni siquiera aparecería en el selector, así que no reproduciría nada. La semilla usa **2021 con datos solo de `Aguas`**, que sí reproduce el mecanismo.
+- **Desviación respecto al spec, deliberada:** el spec decía "2025 existe pero vacío" para el bug #3. Un año totalmente vacío ni siquiera aparecería en el selector, así que no reproduciría nada. Una primera hipótesis leyó el commit `9dc66ee` como *un año presente en el selector cuyo bucket falta para una agrupación concreta*, y la semilla usó **2021 con datos solo de `Aguas`** para reproducirlo. Se verificó revirtiendo `9dc66ee` que esa hipótesis era incorrecta: el test seguía en verde. La condición real es un registro cuyo `record_year` es **anterior a `FIRST_YEAR = 2021`** — esos años ni siquiera entran en el `annualGrouped` que construye el componente. La semilla se corrigió para sembrar **2020 parcial** (meses 10-12) además de 2021-2024; el hueco de `Aguas` en 2021 se conserva, pero solo cubre estados vacíos por categoría, no el bug #3.
 - **Restricción descubierta al planificar:** el rate limit de 5 logins/minuto (R1). No estaba en el spec. Se resuelve por diseño — presupuesto de 3 logins y `retries: 0` en los proyectos que autentican — sin tocar `auth.ts`.
 - **Consistencia de nombres:** `APPROVED_STATE`/`PENDING_STATE`, `APPROVED_USER`/`PENDING_USER`, `YEAR_WITH_GAPS`, `CATEGORY_MISSING_IN_GAP_YEAR` se definen en `e2e/constants.ts` (Task 4) y se usan con esos mismos nombres en las Tasks 9-15. `applyMigrations`, `seedApp` y `seedHub` se exportan en las Tasks 2, 5 y 6 y se importan con esos nombres en la Task 7.
