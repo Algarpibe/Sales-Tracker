@@ -57,13 +57,23 @@ La semilla no es "unos datos cualesquiera". Su forma es lo que decide si el smok
 
 | Dato sembrado | Qué cubre |
 |---|---|
-| Años 2021–2024 con ventas; **2025 existe pero vacío** | Bug #3: bucket de año inexistente |
+| Años 2021–2024 con ventas; **2021 solo tiene datos de una categoría** | Bug #3: bucket de año inexistente |
 | ≥3 categorías repartidas en ≥2 grupos | Agrupaciones y evolución histórica |
 | ≥5 clientes y ≥5 artículos; alguno sin ventas en un año | Drill-down y estados vacíos |
 | Bienes con `purchase_rate > 0` y servicios a costo 0 | Pestaña Margen |
 | Usuario **aprobado** y usuario **sin aprobar** | Las dos ramas del middleware |
 
 El año mínimo sembrado es 2021, coherente con la convención del proyecto (2020 es parcial).
+
+**Por qué un año parcial y no un año vacío.** La primera versión de este spec proponía sembrar 2025 sin ningún dato. No sirve: un año sin **ningún** registro no llega a aparecer en el selector, así que no hay nada que filtrar y el bug no se reproduce. El commit `9dc66ee` describe la condición real — un año presente en el selector cuyo *bucket falta para una agrupación concreta*. Por eso 2021 lleva ventas de `Aguas` y de ninguna otra categoría.
+
+### 1.6 Presupuesto de logins: 5 por minuto
+
+`src/lib/auth/auth.ts` aplica rate limiting con `"/sign-in/email": { window: 60, max: 5 }`, por IP y activo también fuera de producción. La suite gasta **3**: dos en el setup y uno en el test de credenciales inválidas.
+
+Consecuencia de diseño: los proyectos de Playwright que autentican van con `retries: 0`. Con reintentos, un fallo real dispararía logins extra, chocaría con el 429 y el reintento fallaría por una causa distinta a la original, enmascarando el bug.
+
+**No se modifica `auth.ts` para relajar el límite.** Añadir un env var que debilite un control de seguridad para que pasen los tests es el tipo de atajo que acaba activado en producción.
 
 ### 1.5 El usuario semilla
 
