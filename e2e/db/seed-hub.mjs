@@ -18,20 +18,40 @@ const CUSTOMERS = [
   "Epsilon Energia",
 ];
 
-const YEARS = [2021, 2022, 2023, 2024];
+const FIRST_SEEDED_YEAR = 2020;
+const YEARS = [2020, 2021, 2022, 2023, 2024];
 
 /**
- * 2021 solo tiene ventas de 'Aguas'. Ese hueco es DELIBERADO: reproduce la
- * condicion del bug 9dc66ee (bucket de anio inexistente) — un anio que si
- * aparece en el selector, pero que para una categoria concreta no tiene datos.
+ * 2020 es PARCIAL a proposito, con ventas solo en los meses 10, 11 y 12. Asi
+ * es la produccion real: el proyecto tiene datos desde 2020, pero ese anio
+ * esta incompleto y por eso los componentes arrancan en FIRST_YEAR = 2021
+ * (ver src/components/charts/premium/historical-sales-category.tsx). Un
+ * registro con anio anterior a FIRST_YEAR es justo la condicion que reproduce
+ * el bug del bucket inexistente (commit 9dc66ee): sin la guarda, el bucket
+ * annualGrouped[2020] no existe y el TypeError al escribir en el vacia el
+ * grafico completo en vez de ignorar solo ese registro.
+ *
+ * 2021 solo tiene ventas de 'Aguas'. Ese hueco es DELIBERADO pero cubre algo
+ * distinto: dentro de un anio VALIDO (posterior o igual a FIRST_YEAR), ejercita
+ * los estados vacios por categoria. No reproduce 9dc66ee, cuyo mecanismo es el
+ * anio anterior a FIRST_YEAR, no un hueco de categoria.
  */
 function itemsForYear(year) {
   return year === 2021 ? ITEMS.filter((i) => i.category_name === "Aguas") : ITEMS;
 }
 
-// Importes deterministas: sin RNG, para que dos corridas den exactamente lo mismo.
+// 2020 solo siembra el ultimo trimestre: refleja que ese anio esta incompleto
+// en produccion, sin dejarlo totalmente vacio (un anio sin ningun registro no
+// aparece en absoluto y no reproduce nada).
+function monthsForYear(year) {
+  return year === FIRST_SEEDED_YEAR ? [10, 11, 12] : Array.from({ length: 12 }, (_, i) => i + 1);
+}
+
+// Importes deterministas: sin RNG, para que dos corridas den exactamente lo
+// mismo. La base es FIRST_SEEDED_YEAR (2020) para que el multiplicador de anio
+// nunca sea negativo, ni siquiera para el anio parcial.
 function amountFor(year, month, itemIndex) {
-  return 100 + (year - 2021) * 50 + month * 10 + itemIndex * 7;
+  return 100 + (year - FIRST_SEEDED_YEAR) * 50 + month * 10 + itemIndex * 7;
 }
 
 export async function seedHub(connectionString) {
@@ -54,7 +74,7 @@ export async function seedHub(connectionString) {
 
     for (const year of YEARS) {
       const items = itemsForYear(year);
-      for (let month = 1; month <= 12; month++) {
+      for (const month of monthsForYear(year)) {
         const customer = CUSTOMERS[(month - 1) % CUSTOMERS.length];
         const date = `${year}-${String(month).padStart(2, "0")}-15`;
         const soId = `SO-${year}-${String(month).padStart(2, "0")}`;

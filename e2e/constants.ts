@@ -15,8 +15,18 @@ export const COMPANY_NAME = "Ambientalia S.A.S.";
 export const CATEGORIES = ["Aguas", "Aire", "Suelos"] as const;
 
 /**
- * 2021 solo tiene datos de 'Aguas'. Ese hueco deliberado es lo que reproduce
- * el bug del bucket de año inexistente (commit 9dc66ee).
+ * 2020 es un año PARCIAL sembrado a propósito, anterior al FIRST_YEAR = 2021
+ * que usan los componentes. Un registro de este año es lo que reproduce el bug
+ * del bucket inexistente (commit 9dc66ee): sin su guarda, annualGrouped[2020]
+ * es undefined y la excepción vacía el gráfico entero.
+ */
+export const YEAR_BEFORE_FIRST_YEAR = 2020;
+
+/**
+ * 2021 solo tiene datos de 'Aguas'. Este hueco es deliberado, pero cubre algo
+ * distinto de 9dc66ee: dentro de un año VÁLIDO (>= FIRST_YEAR), ejercita los
+ * estados vacíos por categoría — no reproduce el bucket de año inexistente,
+ * cuya condición es un año anterior a FIRST_YEAR, no un hueco de categoría.
  */
 export const YEAR_WITH_GAPS = 2021;
 export const CATEGORY_MISSING_IN_GAP_YEAR = "Aire";
