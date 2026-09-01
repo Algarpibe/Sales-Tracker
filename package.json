@@ -12,6 +12,7 @@
     "test:watch": "vitest",
     "e2e:db:up": "docker compose -f e2e/docker-compose.e2e.yml up -d --wait",
     "e2e:db:down": "docker compose -f e2e/docker-compose.e2e.yml down -v",
+    "e2e:db:reset": "node e2e/db/reset.mjs",
     "prepare": "husky || true"
   },
   "lint-staged": {
