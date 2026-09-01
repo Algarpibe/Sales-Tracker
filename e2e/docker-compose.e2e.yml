@@ -1,0 +1,19 @@
+# Motor Postgres para los tests E2E. Solo levanta el servidor: las dos bases
+# (salestracker_e2e y zoho_hub_e2e) las crea e2e/db/reset.mjs, para que el mismo
+# script sirva aqui y en el service container de CI, sin logica duplicada.
+services:
+  postgres-e2e:
+    image: postgres:16-alpine
+    container_name: salestracker-postgres-e2e
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    ports:
+      # Puerto no estandar a proposito: no debe chocar con un Postgres local.
+      - "55432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
