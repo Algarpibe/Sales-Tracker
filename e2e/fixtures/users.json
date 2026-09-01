@@ -1,0 +1,12 @@
+{
+  "approved": {
+    "email": "e2e-aprobado@example.test",
+    "password": "E2ePassw0rd!2026",
+    "name": "E2E Aprobado"
+  },
+  "pending": {
+    "email": "e2e-pendiente@example.test",
+    "password": "E2ePassw0rd!2026",
+    "name": "E2E Pendiente"
+  }
+}

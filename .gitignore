@@ -50,3 +50,11 @@ scripts/keys.txt
 # un mapa de ataque y quedaría en el historial de git de forma permanente.
 AUDIT_*.md
 REMEDIATION_*.md
+
+# Playwright
+/test-results/
+/playwright-report/
+/playwright/.cache/
+
+# storageState de los tests E2E: contiene cookies de sesión reales. Nunca versionar.
+/e2e/.auth/
