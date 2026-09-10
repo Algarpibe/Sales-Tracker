@@ -1,6 +1,10 @@
 # Histórico de ventas por cliente 2015-2020 — Diseño
 
-**Contexto:** La tabla "Ventas por cliente" arranca en 2021 porque el zoho-hub solo tiene datos desde ese año. Existe un histórico 2015-2020 en una hoja de cálculo, fuera de todo sistema. Hoy nadie puede ver la trayectoria completa de un cliente sin abrir dos fuentes distintas.
+**Contexto:** La tabla "Ventas por cliente" arranca en 2021. Existe un histórico 2015-2020 en una hoja de cálculo, fuera de todo sistema. Hoy nadie puede ver la trayectoria completa de un cliente sin abrir dos fuentes distintas.
+
+**Corrección de una premisa inicial.** La primera versión de este spec decía que el hub "solo tiene datos desde 2021". Es falso, y se descubrió al desplegar: al bajar `FIRST_YEAR` a 2015 aparecieron importes de **2020** en el hub, tanto en Órdenes de Venta como en Facturas. La razón real es que en Ambientalia **se empezó a trabajar con Zoho a mediados de 2020**, así que ese año está en el hub pero incompleto — por eso los componentes arrancaban en 2021 y nadie lo veía.
+
+Medido en producción: el 2020 del hub suma unos **$130.000** frente a los **$646.314** del histórico, y cubre solo a una parte de los clientes. Sumar ambas fuentes habría inflado 2020: `buildCustomerMatrix` acumula por `(cliente, año)` y no detecta solapes.
 
 **Goal:** Incorporar el histórico 2015-2020 **exclusivamente** a la vista "Ventas por cliente" (`/clientes`), sin alterar ninguna otra pantalla, gráfico ni cálculo del resto de la aplicación.
 
@@ -16,6 +20,7 @@
 - **Los datos van a la BD, nunca al repositorio.** El repositorio de GitHub es **público** y esto son nombres de clientes de Ambientalia con su facturación. Un `.json` o `.ts` con la matriz quedaría en el historial de git de forma permanente e irreversible.
 - **Cruce por nombre con alias curados.** Nada se adivina: lo que no case se reporta y lo decide una persona.
 - **El histórico se ata a Facturas (FAC).** El origen no distingue OV de factura y representa facturación consolidada. Con el selector en Órdenes de Venta el histórico no se muestra.
+- **El histórico manda hasta 2020 incluido.** Con `includeHistory` activo se descartan las filas del hub anteriores a 2021: ≤2020 sale del histórico, ≥2021 del hub. Decisión del usuario, y por el motivo correcto: el 2020 del hub está incompleto porque Zoho se adoptó a mitad de ese año. Lo hace `mergeWithHistory` en `src/lib/customer-sales.ts`, de modo que el solape es **imposible por construcción**, no por vigilancia. Fuera de esta vista el hub se lee tal cual, sin filtrar.
 
 ## 0. Evidencia: el cruce de nombres, medido
 

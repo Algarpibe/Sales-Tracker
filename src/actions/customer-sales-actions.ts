@@ -3,6 +3,7 @@
 import { requireApproved } from "@/lib/auth/guards";
 import { getHubCustomerSales } from "@/db/hub-customer-sales";
 import { getHistoricalCustomerSales, HISTORICAL_LAST_YEAR } from "@/db/historical-customer-sales";
+import { mergeWithHistory } from "@/lib/customer-sales";
 import type { CustomerSalesFilters, CustomerYearRow } from "@/types/database";
 
 // Lectura: lanza en error (react-query lo maneja). Requiere el hub (HUB_DB_URL).
@@ -30,5 +31,7 @@ export async function getCustomerSales(filters: CustomerSalesFilters): Promise<C
     filters.hastaAnio
   );
 
-  return [...hubRows, ...histRows];
+  // El historico manda en su rango: el 2020 del hub es parcial (Zoho se empezo
+  // a usar a mediados de 2020) y sumar ambas fuentes duplicaria ese anio.
+  return mergeWithHistory(hubRows, histRows, HISTORICAL_LAST_YEAR);
 }

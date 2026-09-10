@@ -135,3 +135,24 @@ export function customerMatrixToExcel(matrix: CustomerMatrixRow[], years: number
     ],
   };
 }
+
+/**
+ * Fusiona las filas del hub con las del histórico, dando prioridad al histórico
+ * en los años que este cubre.
+ *
+ * El 2020 del hub es PARCIAL: en Ambientalia se empezó a trabajar con Zoho a
+ * mediados de 2020, así que ese año solo tiene una porción de la facturación.
+ * Sumarlo al histórico inflaría el año, porque buildCustomerMatrix acumula por
+ * (cliente, año) y no detecta solapes. Descartando aquí las filas del hub de
+ * ese rango, el solape es imposible por construcción y no por vigilancia.
+ *
+ * Solo se usa cuando la vista pide el histórico explícitamente; el resto de la
+ * aplicación sigue leyendo el hub tal cual.
+ */
+export function mergeWithHistory(
+  hubRows: CustomerYearRow[],
+  historicalRows: CustomerYearRow[],
+  lastHistoricalYear: number
+): CustomerYearRow[] {
+  return [...hubRows.filter((r) => r.year > lastHistoricalYear), ...historicalRows];
+}

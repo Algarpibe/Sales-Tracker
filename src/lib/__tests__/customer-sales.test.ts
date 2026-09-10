@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   buildCustomerMatrix,
+  mergeWithHistory,
   computeColumnTotals,
   filterCustomers,
   customerMatrixToCsv,
@@ -135,5 +136,50 @@ describe("buildCustomerMatrix con dos fuentes", () => {
     expect(matrix[0].byYear[2015]).toBe(100);
     expect(matrix[0].byYear[2025]).toBe(200);
     expect(matrix[0].total).toBe(300);
+  });
+});
+
+describe("mergeWithHistory", () => {
+  it("el histórico manda en su rango: descarta las filas del hub de esos años", () => {
+    // El 2020 del hub es PARCIAL (Zoho se empezó a usar a mitad de 2020).
+    // Si se sumara al histórico, 2020 quedaría inflado.
+    const hub: CustomerYearRow[] = [
+      { customer: "Cliente Mixto", year: 2020, ventas: 75_555, source: "hub" },
+      { customer: "Cliente Mixto", year: 2021, ventas: 99_943, source: "hub" },
+    ];
+    const hist: CustomerYearRow[] = [
+      { customer: "Cliente Mixto", year: 2020, ventas: 176_611, source: "historical" },
+    ];
+
+    const merged = mergeWithHistory(hub, hist, 2020);
+
+    const de2020 = merged.filter((r) => r.year === 2020);
+    expect(de2020).toHaveLength(1);
+    expect(de2020[0].ventas).toBe(176_611);
+    expect(de2020[0].source).toBe("historical");
+  });
+
+  it("conserva intactas las filas del hub posteriores al histórico", () => {
+    const hub: CustomerYearRow[] = [
+      { customer: "Cliente Hub", year: 2021, ventas: 100, source: "hub" },
+      { customer: "Cliente Hub", year: 2026, ventas: 200, source: "hub" },
+    ];
+    const merged = mergeWithHistory(hub, [], 2020);
+    expect(merged).toHaveLength(2);
+    expect(merged.every((r) => r.source === "hub")).toBe(true);
+  });
+
+  it("el total tras fusionar no duplica ningún año", () => {
+    const hub: CustomerYearRow[] = [
+      { customer: "C", year: 2020, ventas: 500, source: "hub" },
+      { customer: "C", year: 2021, ventas: 300, source: "hub" },
+    ];
+    const hist: CustomerYearRow[] = [
+      { customer: "C", year: 2020, ventas: 1000, source: "historical" },
+    ];
+    const matrix = buildCustomerMatrix(mergeWithHistory(hub, hist, 2020));
+    expect(matrix).toHaveLength(1);
+    expect(matrix[0].byYear[2020]).toBe(1000);
+    expect(matrix[0].total).toBe(1300);
   });
 });
