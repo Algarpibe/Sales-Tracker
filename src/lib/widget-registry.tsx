@@ -152,10 +152,10 @@ export const WIDGETS: WidgetDef[] = [
     ),
   },
   {
-    id: "analisis-financiero", title: "Análisis Financiero (ST vs C&R)", section: "Exploración",
+    id: "analisis-financiero", title: "Análisis de Servicio Técnico (ST vs C&R)", section: "Exploración",
     defaultSize: { w: 12, h: 16 }, minSize: { w: 6, h: 10 },
     render: (c) => (
-      <TechServiceWidget recordType={c.recordType} yearA={c.year} yearB={c.year - 1}
+      <TechServiceWidget yearA={c.year} yearB={c.year - 1}
         records={c.records} prevRecords={c.prevRecords} catMap={c.catMap} />
     ),
   },

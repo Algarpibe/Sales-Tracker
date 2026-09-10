@@ -6,13 +6,14 @@ import { buildTechServiceData, type TechServiceViewMode } from "@/lib/tech-servi
 import type { SalesRecord } from "@/types/database";
 
 /**
- * Análisis Financiero (ST vs C&R) como widget autónomo: el selector de
- * resolución (mensual/trimestral/anual) es estado propio.
+ * Análisis de Servicio Técnico (ST vs C&R) como widget autónomo: tanto el
+ * selector de resolución (mensual/trimestral/anual) como el tipo de
+ * registro (OV/Facturas) son estado propio, independiente del contexto
+ * del dashboard.
  */
 export function TechServiceWidget({
-  recordType, yearA, yearB, records, prevRecords, catMap,
+  yearA, yearB, records, prevRecords, catMap,
 }: {
-  recordType: "SALES_ORDER" | "INVOICE";
   yearA: number;
   yearB: number;
   records: SalesRecord[];
@@ -20,6 +21,7 @@ export function TechServiceWidget({
   catMap: Map<string, string>;
 }) {
   const [viewMode, setViewMode] = useState<TechServiceViewMode>("QUARTERLY");
+  const [recordType, setRecordType] = useState<"SALES_ORDER" | "INVOICE">("INVOICE");
   const data = useMemo(
     () => buildTechServiceData(records, prevRecords, catMap, recordType, viewMode),
     [records, prevRecords, catMap, recordType, viewMode]
@@ -31,6 +33,8 @@ export function TechServiceWidget({
       yearB={yearB}
       viewMode={viewMode}
       onViewModeChange={setViewMode}
+      recordType={recordType}
+      onRecordTypeChange={setRecordType}
     />
   );
 }

@@ -39,6 +39,8 @@ interface TechServiceAnalysisProps {
   yearB?: number;
   viewMode: TechServiceViewMode;
   onViewModeChange: (mode: TechServiceViewMode) => void;
+  recordType: "SALES_ORDER" | "INVOICE";
+  onRecordTypeChange: (tipo: "SALES_ORDER" | "INVOICE") => void;
 }
 
 // Utilidad para calcular el YoY Growth percentage
@@ -69,7 +71,7 @@ function formatYoY(value: number | null): React.ReactNode {
   );
 }
 
-export function TechServiceAnalysis({ data, yearA, yearB, viewMode, onViewModeChange }: TechServiceAnalysisProps) {
+export function TechServiceAnalysis({ data, yearA, yearB, viewMode, onViewModeChange, recordType, onRecordTypeChange }: TechServiceAnalysisProps) {
   // Activo por defecto: las líneas de acumulado ya formaban parte del gráfico.
   const [showCumulative, setShowCumulative] = useState(true);
   // Custom Tooltip
@@ -157,7 +159,7 @@ export function TechServiceAnalysis({ data, yearA, yearB, viewMode, onViewModeCh
           <div className="space-y-1">
             <h3 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
               <span className="inline-flex items-center gap-1.5">
-                Análisis Financiero
+                Análisis de Servicio Técnico
                 <InfoTooltip text={CHART_HELP.techService} />
               </span>
             </h3>
@@ -171,6 +173,28 @@ export function TechServiceAnalysis({ data, yearA, yearB, viewMode, onViewModeCh
               <Checkbox checked={showCumulative} onCheckedChange={() => setShowCumulative((v) => !v)} />
               Acumulado
             </label>
+
+            {/* Selector OV/Facturas propio de este gráfico: deliberadamente independiente
+                del tipo global de usePeriod(), que gobierna el resto de la pestaña. */}
+            <div className="bg-black/10 dark:bg-white/10 p-1 rounded-xl flex gap-1">
+              {[
+                { id: 'SALES_ORDER', label: 'Órdenes' },
+                { id: 'INVOICE', label: 'Facturas' }
+              ].map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => onRecordTypeChange(t.id as "SALES_ORDER" | "INVOICE")}
+                  className={cn(
+                    "px-4 py-1.5 text-[11px] font-bold uppercase tracking-wider rounded-lg transition-all",
+                    recordType === t.id
+                      ? "bg-white dark:bg-black/50 text-indigo-600 dark:text-indigo-400 shadow-sm"
+                      : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                  )}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
 
             {/* RESOLUTION FILTER */}
             <div className="bg-black/10 dark:bg-white/10 p-1 rounded-xl flex gap-1">

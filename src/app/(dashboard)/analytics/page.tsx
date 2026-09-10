@@ -121,6 +121,9 @@ function AnalyticsContent() {
   const { tipo: recordType, setTipo: setRecordType, year: yearA, setYear: setYearA } = usePeriod();
   const [yearB, setYearB] = useState(new Date().getFullYear() - 1);
   const [techServiceViewMode, setTechServiceViewMode] = useState<"MONTHLY" | "QUARTERLY" | "ANNUAL">("QUARTERLY");
+  // Tipo de registro PROPIO de Análisis de Servicio Técnico: deliberadamente
+  // independiente del tipo global de usePeriod(), que gobierna el resto de la pestaña.
+  const [techServiceRecordType, setTechServiceRecordType] = useState<"SALES_ORDER" | "INVOICE">("INVOICE");
 
   const searchParams = useSearchParams();
 
@@ -167,15 +170,15 @@ function AnalyticsContent() {
     });
   }, [allRecords, yearA, yearB, recordType]);
 
-  // 2. Análisis Financiero ST vs C&R: mismo lib puro que usa el widget del dashboard.
+  // 2. Análisis de Servicio Técnico ST vs C&R: mismo lib puro que usa el widget del dashboard.
   const techServiceData = useMemo(() => {
     const dataA = allRecords.filter((r: SalesRecord) => r.record_year === yearA);
     const dataB = allRecords.filter((r: SalesRecord) => r.record_year === yearB);
     const catMap = new Map<string, string>(
       categories.map((c) => [String(c.id), String(c.name)])
     );
-    return buildTechServiceData(dataA, dataB, catMap, recordType, techServiceViewMode);
-  }, [allRecords, categories, yearA, yearB, recordType, techServiceViewMode]);
+    return buildTechServiceData(dataA, dataB, catMap, techServiceRecordType, techServiceViewMode);
+  }, [allRecords, categories, yearA, yearB, techServiceRecordType, techServiceViewMode]);
 
   if (loading) {
     return (
@@ -280,12 +283,14 @@ function AnalyticsContent() {
                 />
               </div>
 
-              <TechServiceAnalysis 
-                data={techServiceData} 
-                yearA={yearA} 
-                yearB={yearB} 
+              <TechServiceAnalysis
+                data={techServiceData}
+                yearA={yearA}
+                yearB={yearB}
                 viewMode={techServiceViewMode}
                 onViewModeChange={setTechServiceViewMode}
+                recordType={techServiceRecordType}
+                onRecordTypeChange={setTechServiceRecordType}
               />
 
               <HistoricalSalesCategory />
