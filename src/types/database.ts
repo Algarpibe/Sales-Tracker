@@ -216,12 +216,23 @@ export interface CustomerSalesFilters {
   tipo: RecordType;      // "SALES_ORDER" (OV) | "INVOICE" (FAC)
   desdeAnio: number;
   hastaAnio: number;
+  /**
+   * Incluir el histórico 2015-2020. Opcional y por defecto false: SOLO lo pide
+   * la vista /clientes. Los otros seis consumidores no lo pasan y siguen
+   * viendo únicamente lo que devuelve el zoho-hub.
+   */
+  includeHistory?: boolean;
 }
 
 export interface CustomerYearRow {
   customer: string;
   year: number;
   ventas: number;        // neto del descuento de cabecera (igual al informe Zoho)
+  /**
+   * Procedencia de la fila. Opcional a propósito: los seis consumidores que no
+   * piden histórico no lo reciben ni lo necesitan, y su tipo no cambia.
+   */
+  source?: "hub" | "historical";
 }
 
 // ===== Ventas por cliente × artículo =====

@@ -22,6 +22,24 @@ export function buildCustomerMatrix(rows: CustomerYearRow[]): CustomerMatrixRow[
   return [...map.values()].sort((a, b) => b.total - a.total);
 }
 
+/**
+ * Clientes con al menos una fila procedente del hub. Solo estos enlazan al
+ * drill-down: /clientes/[customer] consulta únicamente el hub, así que para un
+ * cliente que solo tiene histórico la página saldría vacía.
+ *
+ * Se decide por PROCEDENCIA, no por importes a cero: un cliente del hub con
+ * todos los años a cero (existen) conserva su enlace igual que hoy.
+ * Las filas sin `source` se consideran del hub, para no romper a los
+ * consumidores que no piden histórico.
+ */
+export function hubCustomerNames(rows: CustomerYearRow[]): Set<string> {
+  const set = new Set<string>();
+  for (const r of rows) {
+    if (r.source !== "historical") set.add(r.customer);
+  }
+  return set;
+}
+
 export function computeColumnTotals(
   matrix: CustomerMatrixRow[],
   years: number[]

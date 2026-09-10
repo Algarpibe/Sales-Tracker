@@ -58,3 +58,7 @@ REMEDIATION_*.md
 
 # storageState de los tests E2E: contiene cookies de sesión reales. Nunca versionar.
 /e2e/.auth/
+
+# Datos del historico de clientes: nombres reales e importes de Ambientalia.
+# Este repositorio es PUBLICO. Ni las entradas ni el SQL generado se versionan.
+/scripts/historico/

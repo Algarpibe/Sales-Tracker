@@ -6,6 +6,7 @@ import {
   customerMatrixToCsv,
   sortCustomerMatrix,
   customerMatrixToExcel,
+  hubCustomerNames,
 } from "@/lib/customer-sales";
 import type { CustomerYearRow } from "@/types/database";
 
@@ -93,5 +94,46 @@ describe("customerMatrixToExcel", () => {
     const total = sheet.rows[sheet.rows.length - 1];
     expect(total.bold).toBe(true);
     expect(total.cells).toEqual(["TOTAL", 100, 300, 400, 1]);
+  });
+});
+
+describe("hubCustomerNames", () => {
+  it("incluye solo a los clientes con alguna fila del hub", () => {
+    const rows: CustomerYearRow[] = [
+      { customer: "Cliente Hub", year: 2021, ventas: 100, source: "hub" },
+      { customer: "Cliente Historico", year: 2018, ventas: 50, source: "historical" },
+    ];
+    const set = hubCustomerNames(rows);
+    expect(set.has("Cliente Hub")).toBe(true);
+    expect(set.has("Cliente Historico")).toBe(false);
+  });
+
+  it("incluye al cliente que tiene filas de las DOS fuentes", () => {
+    // Cliente presente en las dos fuentes: debe conservar su enlace al drill-down.
+    const rows: CustomerYearRow[] = [
+      { customer: "Cliente Mixto", year: 2015, ventas: 100, source: "historical" },
+      { customer: "Cliente Mixto", year: 2025, ventas: 200, source: "hub" },
+    ];
+    expect(hubCustomerNames(rows).has("Cliente Mixto")).toBe(true);
+  });
+
+  it("trata las filas sin source como del hub (compatibilidad)", () => {
+    // Los seis consumidores que no piden histórico no rellenan source.
+    const rows: CustomerYearRow[] = [{ customer: "Cliente Hub", year: 2021, ventas: 100 }];
+    expect(hubCustomerNames(rows).has("Cliente Hub")).toBe(true);
+  });
+});
+
+describe("buildCustomerMatrix con dos fuentes", () => {
+  it("colapsa hub e histórico del mismo cliente en UNA sola fila", () => {
+    const rows: CustomerYearRow[] = [
+      { customer: "Cliente Mixto", year: 2015, ventas: 100, source: "historical" },
+      { customer: "Cliente Mixto", year: 2025, ventas: 200, source: "hub" },
+    ];
+    const matrix = buildCustomerMatrix(rows);
+    expect(matrix).toHaveLength(1);
+    expect(matrix[0].byYear[2015]).toBe(100);
+    expect(matrix[0].byYear[2025]).toBe(200);
+    expect(matrix[0].total).toBe(300);
   });
 });

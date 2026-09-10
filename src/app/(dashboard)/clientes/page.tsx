@@ -17,6 +17,7 @@ import {
   customerMatrixToCsv,
   customerMatrixToExcel,
   sortCustomerMatrix,
+  hubCustomerNames,
   type CustomerSortKey,
   type CustomerSortDir,
 } from "@/lib/customer-sales";
@@ -39,7 +40,9 @@ import { downloadXlsx, copySheetToClipboard } from "@/lib/excel-client";
 import { SavedViewsMenu } from "@/components/clientes/saved-views-menu";
 import type { ClientesViewState } from "@/lib/clientes-view-state";
 
-const FIRST_YEAR = 2021;
+// 2015 porque esta vista (y SOLO esta) incorpora el histórico previo al hub.
+// Las otras nueve constantes FIRST_YEAR de la app siguen en 2021.
+const FIRST_YEAR = 2015;
 
 function range(from: number, to: number): number[] {
   const out: number[] = [];
@@ -132,8 +135,8 @@ export default function ClientesPage() {
   };
 
   const { data, isLoading } = useQuery({
-    queryKey: ["customer-sales", { tipo, desdeAnio, hastaAnio }],
-    queryFn: () => getCustomerSales({ tipo, desdeAnio, hastaAnio }),
+    queryKey: ["customer-sales", { tipo, desdeAnio, hastaAnio, includeHistory: true }],
+    queryFn: () => getCustomerSales({ tipo, desdeAnio, hastaAnio, includeHistory: true }),
   });
 
   const rows = useMemo<CustomerYearRow[]>(() => data ?? [], [data]);
@@ -142,6 +145,9 @@ export default function ClientesPage() {
     [desdeAnio, hastaAnio]
   );
   const matrix = useMemo(() => buildCustomerMatrix(rows), [rows]);
+  // Clientes con presencia en el hub. Los que solo tienen histórico no enlazan
+  // al drill-down, porque esa página consulta únicamente el hub y saldría vacía.
+  const conHub = useMemo(() => hubCustomerNames(rows), [rows]);
   const visible = useMemo(() => {
     const base = filterCustomers(matrix, search);
     return onlyFav ? base.filter((r) => favSet.has(r.customer)) : base;
@@ -269,7 +275,16 @@ export default function ClientesPage() {
                       <TableCell className="sticky left-0 z-10 bg-background font-medium">
                         <span className="inline-flex items-center gap-2">
                           <FavoriteStar active={favSet.has(r.customer)} onToggle={() => favMut.mutate(r.customer)} />
-                          <Link href={`/clientes/${encodeURIComponent(r.customer)}`} className="hover:text-primary hover:underline">{r.customer}</Link>
+                          {conHub.has(r.customer) ? (
+                            <Link href={`/clientes/${encodeURIComponent(r.customer)}`} className="hover:text-primary hover:underline">{r.customer}</Link>
+                          ) : (
+                            <span className="inline-flex items-center gap-2">
+                              {r.customer}
+                              <span className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                                solo histórico
+                              </span>
+                            </span>
+                          )}
                         </span>
                       </TableCell>
                       {years.map((y) => (

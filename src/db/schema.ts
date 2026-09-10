@@ -204,3 +204,17 @@ export const savedViews = pgTable("saved_views", {
   state: jsonb("state").notNull(),
   created_at: timestamp("created_at", tsString).notNull().defaultNow(),
 }, (t) => [unique("saved_views_user_key_name_unique").on(t.user_id, t.view_key, t.name)]);
+
+// Historico de ventas por cliente 2015-2020 (anterior al zoho-hub). Solo lo lee
+// la vista /clientes a traves de getCustomerSales({ includeHistory: true }).
+export const historicalCustomerSales = pgTable("historical_customer_sales", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  company_id: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+  customer_name: text("customer_name").notNull(),
+  record_year: integer("record_year").notNull(),
+  amount_usd: numeric("amount_usd", { precision: 15, scale: 2 }).notNull(),
+  created_at: timestamp("created_at", tsString).notNull().defaultNow(),
+}, (t) => [
+  unique("historical_customer_sales_unique").on(t.company_id, t.customer_name, t.record_year),
+  index("idx_hist_customer_company_year").on(t.company_id, t.record_year),
+]);
