@@ -13,12 +13,13 @@ import {
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { RecordTypeToggle } from "@/components/common/record-type-toggle";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Check, ChevronsUpDown, X, LayoutTemplate, Activity, FileText, Receipt } from "lucide-react";
+import { Check, ChevronsUpDown, X, LayoutTemplate, Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { InfoTooltip } from "@/components/common/info-tooltip";
 import { CHART_HELP } from "@/lib/chart-help";
@@ -393,26 +394,10 @@ export function HistoricalSalesCategory() {
             <div className="w-px h-6 bg-white/10 hidden sm:block" />
 
             {/* Record Type Toggle */}
-            <Tabs
+            <RecordTypeToggle
               value={recordType}
-              onValueChange={(v) => setRecordType(v as RecordType)}
-              className="w-full sm:w-auto"
-            >
-              <TabsList className="grid w-full grid-cols-2 bg-black/20 p-1 border border-white/5 rounded-xl h-10">
-                <TabsTrigger 
-                value="SALES_ORDER" 
-                className="text-[10px] h-8 font-bold gap-2 uppercase tracking-wider data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all"
-              >
-                <FileText className="h-3.5 w-3.5" /> ÓRDENES (OV)
-              </TabsTrigger>
-              <TabsTrigger 
-                value="INVOICE" 
-                className="text-[10px] h-8 font-bold gap-2 uppercase tracking-wider data-[state=active]:bg-emerald-500 data-[state=active]:text-white transition-all"
-              >
-                <Receipt className="h-3.5 w-3.5" /> FACTURAS (FAC)
-              </TabsTrigger>
-              </TabsList>
-            </Tabs>
+              onValueChange={setRecordType}
+            />
 
             {/* Category selection */}
             <Popover open={openPopover} onOpenChange={setOpenPopover}>

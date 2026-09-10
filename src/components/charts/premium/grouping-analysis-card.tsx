@@ -14,7 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { RecordTypeToggle, type RecordTypeValue } from "@/components/common/record-type-toggle";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { 
   Command, 
@@ -24,13 +24,11 @@ import {
   CommandItem, 
   CommandList 
 } from "@/components/ui/command";
-import { 
-  PieChart as PieChartIcon, 
-  Table as TableIcon, 
-  Layers, 
-  TrendingUp, 
-  FileText, 
-  Receipt,
+import {
+  PieChart as PieChartIcon,
+  Table as TableIcon,
+  Layers,
+  TrendingUp,
   Plus,
   Check,
   Filter,
@@ -319,20 +317,10 @@ export function GroupingAnalysisCard({ categories, recordType: initialRecordType
           </CardDescription>
         </div>
         <div className="flex items-center gap-4">
-          <Tabs
-            value={recordType}
-            onValueChange={(v) => setRecordType(v as RecordType)}
-            className="w-auto"
-          >
-            <TabsList className="grid w-[240px] grid-cols-2 bg-muted/50 backdrop-blur-sm border border-white/5 h-9">
-              <TabsTrigger value="SALES_ORDER" className="text-[10px] font-bold gap-1.5 uppercase tracking-wider">
-                <FileText className="h-3 w-3" /> Órdenes (OV)
-              </TabsTrigger>
-              <TabsTrigger value="INVOICE" className="text-[10px] font-bold gap-1.5 uppercase tracking-wider">
-                <Receipt className="h-3 w-3" /> Facturas (FAC)
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
+          <RecordTypeToggle
+            value={recordType as RecordTypeValue}
+            onValueChange={setRecordType}
+          />
           <div className="w-px h-6 bg-white/5" />
           
           {/* Group Multi-Select Filter */}

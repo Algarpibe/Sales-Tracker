@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { RecordTypeSelect } from "@/components/common/record-type-select";
+import { RecordTypeToggle } from "@/components/common/record-type-toggle";
 import { usePeriod } from "@/components/providers/period-provider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CustomerKpiRow } from "@/components/customers/customer-kpi-row";
@@ -37,7 +37,7 @@ export default function ClienteDetallePage() {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <h1 className="text-2xl font-bold tracking-tight break-words">{customer}</h1>
           <div className="flex flex-wrap items-end gap-3">
-            <RecordTypeSelect value={tipo} onValueChange={setTipo} />
+            <RecordTypeToggle value={tipo} onValueChange={setTipo} />
             <div className="flex flex-col gap-1">
               <label className="text-xs text-muted-foreground">Año</label>
               <Select value={String(anio)} onValueChange={(v) => { if (v) setAnio(Number(v)); }}>
