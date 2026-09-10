@@ -129,6 +129,31 @@ Sin el flag, el comportamiento es idéntico al actual. Es lo que mantiene intact
 
 `buildCustomerMatrix` **no se toca**: recibe una lista plana de `{customer, year, ventas}` y agrupa por cliente. Dos filas del mismo cliente procedentes de fuentes distintas colapsan en una sola fila de la matriz por construcción.
 
+### 3.3 Los clientes solo-históricos no deben enlazar al drill-down
+
+En `clientes/page.tsx:272` cada nombre es un `<Link>` a `/clientes/[customer]`. El drill-down tiene su propio `FIRST_YEAR = 2021`, consulta solo el hub y **no comprueba que el cliente exista**: coge el nombre de la URL y lo pinta como título.
+
+Sin hacer nada, los 17 clientes sin actividad desde 2021 pasarían a ser filas clicables que llevan a una página con su nombre y todas las tarjetas vacías. Es un callejón sin salida que hoy no existe.
+
+**Solución:** esas filas se renderizan como texto plano, no como enlace, con un distintivo discreto (`solo histórico`) junto al nombre.
+
+**Cómo se distingue el origen, sin tocar `buildCustomerMatrix`:**
+
+- `CustomerYearRow` gana un campo **opcional** `source?: "hub" | "historical"`. Al ser opcional, los seis consumidores restantes no cambian ni de tipo ni de comportamiento.
+- `getCustomerSales` lo rellena solo cuando fusiona: las filas del hub llevan `"hub"`, las históricas `"historical"`.
+- La página deriva el conjunto de clientes con presencia en el hub a partir de las filas que ya tiene:
+
+  ```ts
+  const conHub = useMemo(
+    () => new Set(rows.filter((r) => r.source !== "historical").map((r) => r.customer)),
+    [rows]
+  );
+  ```
+
+- En el render, se emite `<Link>` solo si `conHub.has(r.customer)`.
+
+Se distingue por **procedencia, no por importes a cero**. Un cliente del hub cuyos años estén todos a cero (hoy existen, como "Ambientalia S.A.S.") conserva su enlace exactamente como ahora: este cambio no altera ninguna fila preexistente.
+
 ## 4. Tests
 
 El fallo que de verdad importa es que un cliente presente en ambas fuentes salga **duplicado** en la tabla. Es puro y se prueba sin infraestructura nueva, en `src/lib/__tests__/customer-sales.test.ts`:
@@ -160,7 +185,8 @@ Se escriben **antes** de la implementación y deben fallar primero.
 2. Un cliente con histórico **y** actividad 2021+ (por ejemplo Corola Ambiental) aparece en **una sola fila**, con ambos tramos.
 3. Palermo Sociedad Portuaria aparece en una sola fila, con sus $114.831 históricos y sus $111.914 de 2025.
 4. Con el tipo en Órdenes de Venta, no se muestra ninguna columna anterior a 2021 con datos.
-5. `/clientes/[customer]`, el comparador, el dashboard y el command palette **siguen mostrando solo 2021+**. Verificado explícitamente, no supuesto.
-6. La suma de la fila TOTAL para 2015-2020 es **$2.745.037**.
-7. Re-ejecutar el `.sql` de importación no duplica filas ni altera los totales.
-8. Gates intactos: typecheck limpio, lint en 10 warnings exactos, vitest sin regresiones más los tests nuevos, suite E2E en verde.
+5. `/clientes/[customer]`, el comparador, el dashboard y el command palette **siguen mostrando solo 2021+**. Verificado explícitamente en los seis consumidores de `getCustomerSales`, no supuesto.
+6. Los 17 clientes solo-históricos aparecen como texto plano con el distintivo `solo histórico`, **sin enlace**. Los clientes con presencia en el hub conservan su enlace, incluidos los que tienen todos los años a cero.
+7. La suma de la fila TOTAL para 2015-2020 es **$2.745.037**.
+8. Re-ejecutar el `.sql` de importación no duplica filas ni altera los totales.
+9. Gates intactos: typecheck limpio, lint en 10 warnings exactos, vitest sin regresiones más los tests nuevos, suite E2E en verde.
