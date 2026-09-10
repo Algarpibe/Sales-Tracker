@@ -32,7 +32,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { toast } from "sonner";
-import { RecordTypeSelect } from "@/components/common/record-type-select";
+import { RecordTypeToggle } from "@/components/common/record-type-toggle";
 import { SearchInput } from "@/components/common/search-input";
 import { ExportMenu } from "@/components/common/export-menu";
 import { EmptyState } from "@/components/common/empty-state";
@@ -196,7 +196,7 @@ export default function ClientesPage() {
 
       {/* Controles servidor */}
       <div className="flex flex-wrap items-end gap-3">
-        <RecordTypeSelect value={tipo as "SALES_ORDER" | "INVOICE"} onValueChange={(v) => setTipo(v)} />
+        <RecordTypeToggle value={tipo as "SALES_ORDER" | "INVOICE"} onValueChange={(v) => setTipo(v)} />
         <div className="flex flex-col gap-1">
           <label className="text-xs text-muted-foreground">Desde año</label>
           <Select value={String(desdeAnio)} onValueChange={(v) => { if (v) setDesdeAnio(Number(v)); }}>

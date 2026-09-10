@@ -17,6 +17,7 @@ import {
 import type { ChartTooltipProps } from "@/lib/chart-types";
 import { InfoTooltip } from "@/components/common/info-tooltip";
 import { Checkbox } from "@/components/ui/checkbox";
+import { RecordTypeToggle } from "@/components/common/record-type-toggle";
 import { CHART_HELP } from "@/lib/chart-help";
 
 export interface TechServiceDataPoint {
@@ -176,25 +177,7 @@ export function TechServiceAnalysis({ data, yearA, yearB, viewMode, onViewModeCh
 
             {/* Selector OV/Facturas propio de este gráfico: deliberadamente independiente
                 del tipo global de usePeriod(), que gobierna el resto de la pestaña. */}
-            <div className="bg-black/10 dark:bg-white/10 p-1 rounded-xl flex gap-1">
-              {[
-                { id: 'SALES_ORDER', label: 'Órdenes' },
-                { id: 'INVOICE', label: 'Facturas' }
-              ].map((t) => (
-                <button
-                  key={t.id}
-                  onClick={() => onRecordTypeChange(t.id as "SALES_ORDER" | "INVOICE")}
-                  className={cn(
-                    "px-4 py-1.5 text-[11px] font-bold uppercase tracking-wider rounded-lg transition-all",
-                    recordType === t.id
-                      ? "bg-white dark:bg-black/50 text-indigo-600 dark:text-indigo-400 shadow-sm"
-                      : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
-                  )}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
+            <RecordTypeToggle value={recordType} onValueChange={onRecordTypeChange} />
 
             {/* RESOLUTION FILTER */}
             <div className="bg-black/10 dark:bg-white/10 p-1 rounded-xl flex gap-1">

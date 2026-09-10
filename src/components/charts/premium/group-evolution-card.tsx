@@ -17,6 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { RecordTypeToggle, type RecordTypeValue } from "@/components/common/record-type-toggle";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { 
@@ -27,13 +28,11 @@ import {
   CommandItem, 
   CommandList 
 } from "@/components/ui/command";
-import { 
-  BarChart3, 
-  FileText, 
-  Receipt, 
-  Plus, 
-  X, 
-  Check, 
+import {
+  BarChart3,
+  Plus,
+  X,
+  Check,
   History,
   Layers,
 } from "lucide-react";
@@ -285,26 +284,10 @@ export function GroupEvolutionCard({ recordType: initialRecordType }: GroupEvolu
           <div className="w-px h-8 bg-white/5 hidden sm:block" />
 
           {/* Record Type Toggle */}
-          <Tabs 
-            value={recordType} 
-            onValueChange={(v) => setRecordType(v as RecordType)}
-            className="w-auto"
-          >
-            <TabsList className="bg-muted/30 backdrop-blur-sm border border-white/5 h-10 p-1">
-              <TabsTrigger 
-                value="SALES_ORDER" 
-                className="text-[10px] h-8 font-bold gap-2 uppercase tracking-wider data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all"
-              >
-                <FileText className="h-3.5 w-3.5" /> ÓRDENES (OV)
-              </TabsTrigger>
-              <TabsTrigger 
-                value="INVOICE" 
-                className="text-[10px] h-8 font-bold gap-2 uppercase tracking-wider data-[state=active]:bg-emerald-500 data-[state=active]:text-white transition-all"
-              >
-                <Receipt className="h-3.5 w-3.5" /> FACTURAS (FAC)
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
+          <RecordTypeToggle
+            value={recordType as RecordTypeValue}
+            onValueChange={setRecordType}
+          />
 
           <div className="w-px h-8 bg-white/5 hidden sm:block" />
 

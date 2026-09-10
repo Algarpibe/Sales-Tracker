@@ -5,7 +5,7 @@ import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from "recha
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { bucketMix, type InsightRecord } from "@/lib/dashboard-insights";
 import { formatUSD } from "@/lib/constants";
-import { RecordTypeSelect } from "@/components/common/record-type-select";
+import { RecordTypeToggle } from "@/components/common/record-type-toggle";
 import { InfoTooltip } from "@/components/common/info-tooltip";
 import { CHART_HELP } from "@/lib/chart-help";
 import type { ChartTooltipProps } from "@/lib/chart-types";
@@ -49,7 +49,7 @@ export function CategoryMixDonut({
             <InfoTooltip text={CHART_HELP.mixCategoria} />
           </span>
         </CardTitle>
-        <RecordTypeSelect value={tipo} onValueChange={setTipo} className="w-[190px]" />
+        <RecordTypeToggle value={tipo} onValueChange={setTipo} />
       </CardHeader>
       <CardContent className="min-h-0 flex-1">
         {mix.length === 0 ? (

@@ -25,7 +25,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { RecordTypeSelect } from "@/components/common/record-type-select";
+import { RecordTypeToggle } from "@/components/common/record-type-toggle";
 import { SearchInput } from "@/components/common/search-input";
 import { ExportMenu } from "@/components/common/export-menu";
 import { EmptyState } from "@/components/common/empty-state";
@@ -93,7 +93,7 @@ export default function ClienteArticuloPage() {
 
       {/* Controles servidor */}
       <div className="flex flex-wrap items-end gap-3">
-        <RecordTypeSelect value={tipo as "SALES_ORDER" | "INVOICE"} onValueChange={(v) => setTipo(v)} />
+        <RecordTypeToggle value={tipo as "SALES_ORDER" | "INVOICE"} onValueChange={(v) => setTipo(v)} />
         {!compareMode ? (
           <div className="flex flex-col gap-1">
             <label className="text-xs text-muted-foreground">Año</label>

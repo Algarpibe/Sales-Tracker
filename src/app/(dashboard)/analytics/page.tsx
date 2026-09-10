@@ -16,8 +16,9 @@ import { computeForecast } from "@/lib/forecast";
 import { monthlyTotals, historicalMatrix } from "@/lib/forecast-widget-data";
 import { buildTechServiceData } from "@/lib/tech-service";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { RecordTypeToggle } from "@/components/common/record-type-toggle";
 import type { Category } from "@/types/database";
-import { Sparkles, BarChart3, TrendingUp, FileText, Receipt } from "lucide-react";
+import { Sparkles, BarChart3, TrendingUp } from "lucide-react";
 import { motion } from "framer-motion";
 import type { SalesRecord } from "@/types/database";
 import { usePeriod } from "@/components/providers/period-provider";
@@ -230,26 +231,10 @@ function AnalyticsContent() {
                 <div />
 
                 <div className="flex flex-col sm:flex-row gap-4 items-center">
-                  <Tabs 
-                    value={recordType} 
-                    onValueChange={(v) => setRecordType(v as "SALES_ORDER" | "INVOICE")}
-                    className="w-full sm:w-auto"
-                  >
-                    <TabsList className="grid w-full grid-cols-2 bg-card/50 backdrop-blur-sm border border-white/10 h-10 p-1">
-                      <TabsTrigger 
-                        value="SALES_ORDER" 
-                        className="text-[10px] h-8 font-bold gap-2 uppercase tracking-wider data-active:bg-primary data-active:text-primary-foreground transition-all"
-                      >
-                        <FileText className="size-3.5" /> ÓRDENES (OV)
-                      </TabsTrigger>
-                      <TabsTrigger 
-                        value="INVOICE" 
-                        className="text-[10px] h-8 font-bold gap-2 uppercase tracking-wider data-active:bg-emerald-500 data-active:text-white transition-all"
-                      >
-                        <Receipt className="size-3.5" /> FACTURAS (FAC)
-                      </TabsTrigger>
-                    </TabsList>
-                  </Tabs>
+                  <RecordTypeToggle
+                    value={recordType}
+                    onValueChange={(v) => setRecordType(v)}
+                  />
 
                   <div className="flex gap-2 items-center bg-card/30 p-1 rounded-xl border border-white/5 backdrop-blur-sm">
                     <Select value={String(yearA)} onValueChange={v => setYearA(Number(v))}>
@@ -321,26 +306,10 @@ function AnalyticsContent() {
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-4 items-center">
-                  <Tabs 
-                    value={recordType} 
-                    onValueChange={(v) => setRecordType(v as "SALES_ORDER" | "INVOICE")}
-                    className="w-full sm:w-auto"
-                  >
-                    <TabsList className="grid w-full grid-cols-2 bg-white/5 backdrop-blur-md border border-white/10 h-10 p-1 rounded-xl">
-                      <TabsTrigger 
-                        value="SALES_ORDER" 
-                        className="text-[10px] h-8 font-bold gap-2 uppercase tracking-wider data-active:bg-primary data-active:text-white transition-all rounded-lg"
-                      >
-                        <FileText className="size-3.5" /> ÓRDENES (OV)
-                      </TabsTrigger>
-                      <TabsTrigger 
-                        value="INVOICE" 
-                        className="text-[10px] h-8 font-bold gap-2 uppercase tracking-wider data-active:bg-emerald-500 data-active:text-white transition-all rounded-lg"
-                      >
-                        <Receipt className="size-3.5" /> FACTURAS (FAC)
-                      </TabsTrigger>
-                    </TabsList>
-                  </Tabs>
+                  <RecordTypeToggle
+                    value={recordType}
+                    onValueChange={(v) => setRecordType(v)}
+                  />
                 </div>
               </div>
 
@@ -388,26 +357,10 @@ function AnalyticsContent() {
             <div className="space-y-6">
               {/* Controles: tipo de registro y año (contexto de periodo compartido). */}
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3">
-                <Tabs
+                <RecordTypeToggle
                   value={recordType}
-                  onValueChange={(v) => setRecordType(v as "SALES_ORDER" | "INVOICE")}
-                  className="w-full sm:w-auto"
-                >
-                  <TabsList className="grid w-full grid-cols-2 bg-card/50 backdrop-blur-sm border border-white/10 h-10 p-1">
-                    <TabsTrigger
-                      value="SALES_ORDER"
-                      className="text-[10px] h-8 font-bold gap-2 uppercase tracking-wider data-active:bg-primary data-active:text-primary-foreground transition-all"
-                    >
-                      <FileText className="size-3.5" /> ÓRDENES (OV)
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="INVOICE"
-                      className="text-[10px] h-8 font-bold gap-2 uppercase tracking-wider data-active:bg-emerald-500 data-active:text-white transition-all"
-                    >
-                      <Receipt className="size-3.5" /> FACTURAS (FAC)
-                    </TabsTrigger>
-                  </TabsList>
-                </Tabs>
+                  onValueChange={(v) => setRecordType(v)}
+                />
 
                 <div className="flex gap-2 items-center bg-card/30 p-1 rounded-xl border border-white/5 backdrop-blur-sm">
                   <Select value={String(yearA)} onValueChange={(v) => { if (v) setYearA(Number(v)); }}>

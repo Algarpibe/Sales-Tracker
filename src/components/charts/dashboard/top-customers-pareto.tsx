@@ -10,7 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { getCustomerSales } from "@/actions/customer-sales-actions";
 import { topCustomers } from "@/lib/dashboard-insights";
 import { formatCompactUSD, formatUSD } from "@/lib/constants";
-import { RecordTypeSelect } from "@/components/common/record-type-select";
+import { RecordTypeToggle } from "@/components/common/record-type-toggle";
 import { InfoTooltip } from "@/components/common/info-tooltip";
 import { CHART_HELP } from "@/lib/chart-help";
 import type { ChartTooltipProps } from "@/lib/chart-types";
@@ -49,7 +49,7 @@ export function TopCustomersPareto({ year }: { year: number }) {
             <InfoTooltip text={CHART_HELP.topClientesPareto} />
           </span>
         </CardTitle>
-        <RecordTypeSelect value={tipo} onValueChange={setTipo} className="w-[190px]" />
+        <RecordTypeToggle value={tipo} onValueChange={setTipo} />
       </CardHeader>
       <CardContent className="min-h-0 flex-1">
         {isLoading ? (
