@@ -26,7 +26,9 @@ Hechos verificados en el código, no supuestos:
 4. **El middleware ya consulta `profiles` en cada request** (`src/middleware.ts:17-24`). Añadir una columna a ese `select` no cuesta una consulta extra.
 5. **`minPasswordLength: 10`** en `auth.ts`. La temporal generada debe cumplirlo.
 
-## 1. Migración `0007_must_change_password.sql`
+## 1. Migración `0008_must_change_password.sql`
+
+> **Renumerada.** Este spec reservaba el `0007`, pero ese número lo ocupó `0007_historical_customer_sales.sql`, ya aplicado en producción. Usar `0008`.
 
 ```sql
 ALTER TABLE profiles ADD COLUMN must_change_password boolean NOT NULL DEFAULT false;
