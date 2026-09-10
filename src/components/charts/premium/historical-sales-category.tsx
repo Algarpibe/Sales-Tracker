@@ -378,16 +378,19 @@ export function HistoricalSalesCategory() {
 
           <div className="flex flex-col sm:flex-row items-end sm:items-center gap-4 w-full lg:w-auto">
             
-            {/* View Mode Switcher */}
+            {/* Selector de resolución: mismo diseño que el de Evolución Histórica por
+                Grupo (inline-flex, sin grid). `grid-cols-3` equivale a
+                `minmax(0, 1fr)` y deja que las columnas se encojan por debajo del
+                texto, que es lo que solapaba ANUAL/TRIMESTRAL/MENSUAL. */}
             <Tabs
               value={viewMode}
               onValueChange={(v) => setViewMode(v as ViewMode)}
-              className="w-full sm:w-auto"
+              className="w-auto"
             >
-              <TabsList className="grid w-full grid-cols-3 bg-black/20 p-1 border border-white/5 rounded-xl h-10">
-                <TabsTrigger value="ANNUAL" className="text-[10px] font-bold uppercase tracking-wider">Anual</TabsTrigger>
-                <TabsTrigger value="QUARTERLY" className="text-[10px] font-bold uppercase tracking-wider">Trimestral</TabsTrigger>
-                <TabsTrigger value="MONTHLY" className="text-[10px] font-bold uppercase tracking-wider">Mensual</TabsTrigger>
+              <TabsList className="bg-muted/30 backdrop-blur-sm border border-white/5 h-10 p-1">
+                <TabsTrigger value="ANNUAL" className="text-[10px] h-8 font-bold uppercase tracking-wider">Anual</TabsTrigger>
+                <TabsTrigger value="QUARTERLY" className="text-[10px] h-8 font-bold uppercase tracking-wider">Trimestral</TabsTrigger>
+                <TabsTrigger value="MONTHLY" className="text-[10px] h-8 font-bold uppercase tracking-wider">Mensual</TabsTrigger>
               </TabsList>
             </Tabs>
 

@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 export type RecordTypeValue = "SALES_ORDER" | "INVOICE";
 
 const TRIGGER_BASE =
-  "text-[10px] h-8 font-bold gap-2 uppercase tracking-wider transition-all min-w-0";
+  "text-[10px] h-8 font-bold gap-2 uppercase tracking-wider transition-all";
 
 /**
  * Conmutador Órdenes de Venta / Facturas. Única definición del control en toda
@@ -15,11 +15,14 @@ const TRIGGER_BASE =
  * activo roto por usar `data-[state=active]` (sintaxis de Radix) en un proyecto
  * que usa base-ui, que emite `data-active`.
  *
- * Se adapta a su contenedor. Medido: a ancho completo ocupa 260px, pero los
- * widgets del dashboard pueden encogerse hasta 3 de 12 columnas (~288px menos
- * paddings), donde no cabría. Por debajo de 15rem las etiquetas se acortan a
- * "OV" y "FAC" en vez de desbordar. Es una consulta de CONTENEDOR, no de
- * viewport: lo que manda es el ancho del widget, no el de la pantalla.
+ * Se adapta a su contenedor, con anchos MEDIDOS en el navegador, no estimados:
+ * - Etiquetas completas: 260px (2 × 125px de la píldora más ancha + 10px de
+ *   padding y borde). Por eso el punto de corte es 260px: con 240px, entre 240 y
+ *   259px las etiquetas completas desbordaban hasta 20px.
+ * - Etiquetas cortas ("OV" / "FAC"): 125px. Es el ancho mínimo del contenedor.
+ *
+ * Es una consulta de CONTENEDOR, no de viewport: manda el ancho del widget o de
+ * la fila donde vive el control, no el de la pantalla.
  */
 export function RecordTypeToggle({
   value,
@@ -31,13 +34,20 @@ export function RecordTypeToggle({
   className?: string;
 }) {
   return (
-    <div className={cn("@container w-full max-w-[260px] shrink-0", className)}>
+    // Sin `shrink-0`: este conmutador es el que debe ceder espacio cuando la fila
+    // se estrecha; con `shrink-0` aplastaba a sus vecinos (el selector de
+    // resolución del Histórico). Pero `container-type: inline-size` anula el
+    // ancho mínimo por contenido, así que sin `min-w` se hundía hasta quedar
+    // ilegible. `min-w-[125px]` es el ancho medido de las etiquetas cortas.
+    <div className={cn("@container w-full max-w-[260px] min-w-[125px]", className)}>
       <Tabs
         value={value}
         onValueChange={(v) => { if (v) onValueChange(v as RecordTypeValue); }}
         className="w-full"
       >
-        <TabsList className="grid w-full grid-cols-2 bg-card/50 backdrop-blur-sm border border-white/10 h-10 p-1">
+        {/* flex y no grid: `grid-cols-2` equivale a `minmax(0, 1fr)` y deja que
+            las píldoras se encojan por debajo de su propio texto. */}
+        <TabsList className="flex w-full bg-card/50 backdrop-blur-sm border border-white/10 h-10 p-1">
           <TabsTrigger
             value="SALES_ORDER"
             className={cn(
@@ -50,8 +60,8 @@ export function RecordTypeToggle({
             )}
           >
             <FileText className="size-3.5 shrink-0" />
-            <span className="@max-[15rem]:hidden">ÓRDENES (OV)</span>
-            <span className="hidden @max-[15rem]:inline">OV</span>
+            <span className="@max-[260px]:hidden">ÓRDENES (OV)</span>
+            <span className="hidden @max-[260px]:inline">OV</span>
           </TabsTrigger>
           <TabsTrigger
             value="INVOICE"
@@ -62,8 +72,8 @@ export function RecordTypeToggle({
             )}
           >
             <Receipt className="size-3.5 shrink-0" />
-            <span className="@max-[15rem]:hidden">FACTURAS (FAC)</span>
-            <span className="hidden @max-[15rem]:inline">FAC</span>
+            <span className="@max-[260px]:hidden">FACTURAS (FAC)</span>
+            <span className="hidden @max-[260px]:inline">FAC</span>
           </TabsTrigger>
         </TabsList>
       </Tabs>
