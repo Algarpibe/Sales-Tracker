@@ -1,0 +1,7 @@
+{
+  "customer": "Gamma Agro",
+  "rows": [
+    { "year": 2017, "amount": 1000 },
+    { "year": 2019, "amount": 2500 }
+  ]
+}

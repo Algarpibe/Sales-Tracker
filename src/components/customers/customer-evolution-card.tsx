@@ -11,7 +11,10 @@ import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveCo
 import type { ChartTooltipProps } from "@/lib/chart-types";
 import type { CustomerYearPoint } from "@/lib/customer-detail";
 
-const FIRST_YEAR = 2021;
+// Primer año del histórico previo al hub: la gráfica lo incluye, igual que la
+// fila de KPIs y /clientes. Con Órdenes de Venta no hay histórico y el hub
+// aporta 2020 parcial.
+const HISTORY_FIRST_YEAR = 2015;
 
 function EvoTooltip({ active, payload, label }: ChartTooltipProps<CustomerYearPoint>) {
   if (!active || !payload || !payload.length) return null;
@@ -26,8 +29,8 @@ function EvoTooltip({ active, payload, label }: ChartTooltipProps<CustomerYearPo
 export function CustomerEvolutionCard({ customer, recordType, year }: { customer: string; recordType: "SALES_ORDER" | "INVOICE"; year: number }) {
   const thisYear = new Date().getFullYear();
   const { data, isLoading } = useQuery({
-    queryKey: ["customer-sales", { tipo: recordType, desdeAnio: FIRST_YEAR, hastaAnio: thisYear }],
-    queryFn: () => getCustomerSales({ tipo: recordType, desdeAnio: FIRST_YEAR, hastaAnio: thisYear }),
+    queryKey: ["customer-sales", { tipo: recordType, desdeAnio: HISTORY_FIRST_YEAR, hastaAnio: thisYear, includeHistory: true }],
+    queryFn: () => getCustomerSales({ tipo: recordType, desdeAnio: HISTORY_FIRST_YEAR, hastaAnio: thisYear, includeHistory: true }),
   });
   const series = useMemo(() => customerYearSeries(data ?? [], customer), [data, customer]);
 

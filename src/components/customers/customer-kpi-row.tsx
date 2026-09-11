@@ -4,12 +4,15 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getCustomerSales } from "@/actions/customer-sales-actions";
 import { getMarginByCustomer } from "@/actions/margin-actions";
-import { customerYearSeries, customerFirstYear, customerTotalVentas, customerMarginKpi } from "@/lib/customer-detail";
+import { customerYearSeries, customerSinceYear, customerTotalVentas, customerMarginKpi } from "@/lib/customer-detail";
 import { formatUSD } from "@/lib/constants";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
-const FIRST_YEAR = 2021;
+// Primer año del histórico previo al hub (tabla historical_customer_sales). La
+// ficha lo incluye, igual que /clientes: pidiendo desde 2021, "Cliente desde"
+// nunca podría mostrar un año anterior.
+const HISTORY_FIRST_YEAR = 2015;
 
 function Tile({ label, value }: { label: string; value: string }) {
   return (
@@ -24,9 +27,16 @@ function Tile({ label, value }: { label: string; value: string }) {
 
 export function CustomerKpiRow({ customer, recordType, year }: { customer: string; recordType: "SALES_ORDER" | "INVOICE"; year: number }) {
   const thisYear = new Date().getFullYear();
-  const salesQ = useQuery({
-    queryKey: ["customer-sales", { tipo: recordType, desdeAnio: FIRST_YEAR, hastaAnio: thisYear }],
-    queryFn: () => getCustomerSales({ tipo: recordType, desdeAnio: FIRST_YEAR, hastaAnio: thisYear }),
+  // Se cargan los dos tipos siempre: "Cliente desde" mira facturas y órdenes a
+  // la vez, así que no cambia al pulsar el conmutador. Misma forma de clave que
+  // /clientes, para compartir la caché de react-query.
+  const invoicesQ = useQuery({
+    queryKey: ["customer-sales", { tipo: "INVOICE", desdeAnio: HISTORY_FIRST_YEAR, hastaAnio: thisYear, includeHistory: true }],
+    queryFn: () => getCustomerSales({ tipo: "INVOICE", desdeAnio: HISTORY_FIRST_YEAR, hastaAnio: thisYear, includeHistory: true }),
+  });
+  const ordersQ = useQuery({
+    queryKey: ["customer-sales", { tipo: "SALES_ORDER", desdeAnio: HISTORY_FIRST_YEAR, hastaAnio: thisYear, includeHistory: true }],
+    queryFn: () => getCustomerSales({ tipo: "SALES_ORDER", desdeAnio: HISTORY_FIRST_YEAR, hastaAnio: thisYear, includeHistory: true }),
   });
   const marginQ = useQuery({
     queryKey: ["margin-customer", { tipo: recordType, anio: year }],
@@ -34,23 +44,27 @@ export function CustomerKpiRow({ customer, recordType, year }: { customer: strin
   });
 
   const kpis = useMemo(() => {
-    const series = customerYearSeries(salesQ.data ?? [], customer);
+    const invoices = invoicesQ.data ?? [];
+    const orders = ordersQ.data ?? [];
+    // El tipo elegido gobierna los importes; "Cliente desde" no.
+    const current = recordType === "INVOICE" ? invoices : orders;
+    const series = customerYearSeries(current, customer);
     return {
       ventasAnio: series.find((s) => s.year === year)?.ventas ?? 0,
-      total: customerTotalVentas(salesQ.data ?? [], customer),
-      first: customerFirstYear(salesQ.data ?? [], customer),
+      total: customerTotalVentas(current, customer),
+      since: customerSinceYear(invoices, orders, customer),
       margenPct: customerMarginKpi(marginQ.data ?? [], customer).margenPct,
     };
-  }, [salesQ.data, marginQ.data, customer, year]);
+  }, [invoicesQ.data, ordersQ.data, marginQ.data, customer, recordType, year]);
 
-  if (salesQ.isLoading || marginQ.isLoading) return <Skeleton className="h-[92px] w-full" />;
+  if (invoicesQ.isLoading || ordersQ.isLoading || marginQ.isLoading) return <Skeleton className="h-[92px] w-full" />;
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
       <Tile label={`Ventas ${year}`} value={formatUSD(kpis.ventasAnio)} />
       <Tile label={`Margen % ${year} (bienes)`} value={`${kpis.margenPct.toFixed(1)}%`} />
       <Tile label="Ventas histórico" value={formatUSD(kpis.total)} />
-      <Tile label="Cliente desde" value={kpis.first ? String(kpis.first) : "—"} />
+      <Tile label="Cliente desde" value={kpis.since ? String(kpis.since) : "—"} />
     </div>
   );
 }

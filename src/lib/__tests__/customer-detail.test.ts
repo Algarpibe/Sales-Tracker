@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  customerYearSeries, customerFirstYear, customerTotalVentas,
+  customerYearSeries, customerFirstYear, customerSinceYear, customerTotalVentas,
   customerBuckets, customerTopItems, customerMonths, customerMarginKpi,
   customerHref,
 } from "@/lib/customer-detail";
@@ -26,6 +26,43 @@ describe("customerFirstYear", () => {
 });
 describe("customerTotalVentas", () => {
   it("suma sus años", () => { expect(customerTotalVentas(years, "A")).toBe(150); });
+});
+
+describe("customerSinceYear", () => {
+  const facturas: CustomerYearRow[] = [
+    { customer: "A", year: 2017, ventas: 300 },
+    { customer: "A", year: 2021, ventas: 100 },
+  ];
+  const ordenes: CustomerYearRow[] = [{ customer: "A", year: 2021, ventas: 80 }];
+
+  it("gana el anio del historico", () => {
+    expect(customerSinceYear(facturas, ordenes, "A")).toBe(2017);
+  });
+  it("una orden anterior a la primera factura gana", () => {
+    expect(
+      customerSinceYear(
+        [{ customer: "A", year: 2022, ventas: 100 }],
+        [{ customer: "A", year: 2021, ventas: 80 }],
+        "A",
+      ),
+    ).toBe(2021);
+  });
+  it("solo ordenes", () => {
+    expect(customerSinceYear([], [{ customer: "A", year: 2020, ventas: 40 }], "A")).toBe(2020);
+  });
+  it("un anio a cero no cuenta como inicio", () => {
+    expect(
+      customerSinceYear(
+        [{ customer: "A", year: 2019, ventas: 0 }, { customer: "A", year: 2021, ventas: 100 }],
+        [],
+        "A",
+      ),
+    ).toBe(2021);
+  });
+  it("null si el cliente no tiene ventas", () => {
+    expect(customerSinceYear(facturas, ordenes, "Z")).toBeNull();
+    expect(customerSinceYear([{ customer: "A", year: 2021, ventas: 0 }], [], "A")).toBeNull();
+  });
 });
 
 const items: CustomerItemRow[] = [

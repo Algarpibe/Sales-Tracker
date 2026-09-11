@@ -7,6 +7,10 @@ import bcrypt from "bcryptjs";
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const USERS = JSON.parse(await readFile(path.resolve(HERE, "../fixtures/users.json"), "utf8"));
 
+// Historico ficticio previo al hub (tabla de la migracion 0007). Solo lo leen
+// /clientes y la ficha de cliente. Importes sinteticos.
+const HISTORICAL = JSON.parse(await readFile(path.resolve(HERE, "../fixtures/historical.json"), "utf8"));
+
 // Debe coincidir con DEFAULT_COMPANY de src/lib/auth/auth.ts: si no, el hook
 // databaseHooks.user.create.after crearia una SEGUNDA empresa y los datos
 // quedarian partidos entre dos company_id.
@@ -86,11 +90,19 @@ export async function seedApp(connectionString) {
       }
     }
 
+    for (const row of HISTORICAL.rows) {
+      await client.query(
+        `INSERT INTO historical_customer_sales (company_id, customer_name, record_year, amount_usd)
+         VALUES ($1, $2, $3, $4)`,
+        [company.id, HISTORICAL.customer, row.year, row.amount],
+      );
+    }
+
     await seedUser(client, company.id, USERS.approved, { approved: true });
     await seedUser(client, company.id, USERS.pending, { approved: false });
 
     await client.query("COMMIT");
-    console.log(`  app sembrada: 1 empresa, ${CATEGORIES.length} categorias, ${GROUPS.length} grupos, 2 usuarios`);
+    console.log(`  app sembrada: 1 empresa, ${CATEGORIES.length} categorias, ${GROUPS.length} grupos, 2 usuarios, ${HISTORICAL.rows.length} filas de historico`);
     return { companyId: company.id, categoryIds };
   } catch (err) {
     await client.query("ROLLBACK");
