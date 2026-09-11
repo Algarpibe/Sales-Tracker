@@ -17,6 +17,7 @@ import { monthlyTotals, historicalMatrix } from "@/lib/forecast-widget-data";
 import { buildTechServiceData } from "@/lib/tech-service";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { RecordTypeToggle } from "@/components/common/record-type-toggle";
+import { PeriodBar } from "@/components/common/period-bar";
 import type { Category } from "@/types/database";
 import { Sparkles, BarChart3, TrendingUp } from "lucide-react";
 import { motion } from "framer-motion";
@@ -355,24 +356,12 @@ function AnalyticsContent() {
           </TabsContent>
           <TabsContent value="comercial" className="outline-none">
             <div className="space-y-6">
-              {/* Controles: tipo de registro y año (contexto de periodo compartido). */}
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3">
-                <RecordTypeToggle
-                  value={recordType}
-                  onValueChange={(v) => setRecordType(v)}
-                />
-
-                <div className="flex gap-2 items-center bg-card/30 p-1 rounded-xl border border-white/5 backdrop-blur-sm">
-                  <Select value={String(yearA)} onValueChange={(v) => { if (v) setYearA(Number(v)); }}>
-                    <SelectTrigger className="w-[125px] border-none bg-transparent shadow-none h-8 font-semibold">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {getYearRange().map((y) => <SelectItem key={y} value={String(y)}>Año {y}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+              <PeriodBar
+                recordType={recordType}
+                onRecordTypeChange={setRecordType}
+                year={yearA}
+                onYearChange={setYearA}
+              />
 
               <BucketMixCard recordType={recordType} />
               <div className="grid gap-6 lg:grid-cols-2">
@@ -391,6 +380,12 @@ function AnalyticsContent() {
           </TabsContent>
           <TabsContent value="margen" className="outline-none">
             <div className="space-y-6">
+              <PeriodBar
+                recordType={recordType}
+                onRecordTypeChange={setRecordType}
+                year={yearA}
+                onYearChange={setYearA}
+              />
               <MarginKpiCard recordType={recordType} />
               <div className="grid gap-6 lg:grid-cols-2">
                 <MarginByItemCard recordType={recordType} year={yearA} />
