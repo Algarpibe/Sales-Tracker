@@ -63,7 +63,7 @@ Resultado esperado: 129 pasados + 1 saltado.
 
 ### E2E — `e2e/specs/customer-detail.spec.ts` (nuevo)
 Usa `test.use({ storageState: APPROVED_STATE })`: sin login.
-1. **"la ficha incluye el histórico en Cliente desde y en la evolución anual"**: `/clientes/Gamma%20Agro` con Facturas → el tile "Cliente desde" muestra `2017` y la tarjeta "Evolución anual" tiene la marca de eje `2017`. Hoy falla: muestra 2021 y el eje empieza en 2021.
+1. **"la ficha incluye el histórico en Cliente desde y en la evolución anual"**: `/clientes/Gamma%20Agro` con Facturas → el tile "Cliente desde" muestra `2017`, el tile "Ventas histórico" suma también las filas del histórico ficticio, y la tarjeta "Evolución anual" tiene la marca de eje `2017`. Hoy falla: muestra 2021, "Ventas histórico" no incluye el histórico y el eje empieza en 2021.
 2. **"Cliente desde no depende del conmutador OV/FAC"**: `/clientes/Alfa%20Industrial` → con Facturas el tile muestra `2020`; tras pasar a Órdenes (OV) sigue mostrando `2020`. Hoy falla: muestra 2021.
 
 ## Gates
