@@ -67,8 +67,8 @@ export function BucketMixCard({ recordType }: { recordType: "SALES_ORDER" | "INV
               <YAxis className="text-xs fill-muted-foreground" tickLine={false} axisLine={false} tickFormatter={formatCompactUSD} />
               <Tooltip content={<MixTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
               <Legend />
-              {/* fillOpacity 0.5: conserva el tono del antiguo gráfico de áreas.
-                  maxBarSize: con seis años a ancho completo, sin límite cada barra sería un bloque enorme. */}
+              {/* fillOpacity 0.5: tono suave de la paleta.
+                  maxBarSize: con pocos años a ancho completo, sin límite cada barra sería un bloque enorme. */}
               {SERIES.map((s) => (
                 <Bar key={s.key} dataKey={s.key} name={s.label} stackId="1" fill={s.color} fillOpacity={0.5} maxBarSize={64} />
               ))}
