@@ -46,7 +46,9 @@ export function CumulativeYoYChart({
 
   return (
     <Card className="flex h-full flex-col border-border/40 bg-card/30 backdrop-blur-sm">
-      <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0">
+      {/* flex-wrap: si el título no deja 260px al conmutador OV/FAC, este baja de
+          línea en lugar de acortarse a "OV/FAC". */}
+      <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-4 space-y-0">
         <CardTitle className="text-base font-semibold">
           <span className="inline-flex items-center gap-1.5">
             Acumulado {yearActual} vs {yearPrev}

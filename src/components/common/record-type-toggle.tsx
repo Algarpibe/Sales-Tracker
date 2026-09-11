@@ -34,12 +34,18 @@ export function RecordTypeToggle({
   className?: string;
 }) {
   return (
-    // Sin `shrink-0`: este conmutador es el que debe ceder espacio cuando la fila
-    // se estrecha; con `shrink-0` aplastaba a sus vecinos (el selector de
-    // resolución del Histórico). Pero `container-type: inline-size` anula el
-    // ancho mínimo por contenido, así que sin `min-w` se hundía hasta quedar
-    // ilegible. `min-w-[125px]` es el ancho medido de las etiquetas cortas.
-    <div className={cn("@container w-full max-w-[260px] min-w-[125px]", className)}>
+    // Tamaño, con tres trampas ya pagadas:
+    // - `w-[260px]` es el ancho PREFERIDO y `max-w-full` lo recorta al del padre.
+    //   No vale `w-full`: `container-type: inline-size` impide que el contenedor
+    //   aporte su contenido al ancho del padre, y en un grupo de controles que se
+    //   ajusta a lo que contiene el `w-full` no tenía de qué tirar. Se quedaba en
+    //   el mínimo y mostraba OV/FAC con sitio de sobra (cabecera de Agrupaciones).
+    // - `min-w-[125px]` es el ancho medido de las etiquetas cortas: sin él, en una
+    //   fila apretada se hundía hasta quedar ilegible.
+    // - Sin `shrink-0`: en una fila apretada debe ceder espacio, y la consulta de
+    //   contenedor lo adapta. Con `shrink-0` aplastaba a sus vecinos (el selector
+    //   de resolución del Histórico).
+    <div className={cn("@container w-[260px] max-w-full min-w-[125px]", className)}>
       <Tabs
         value={value}
         onValueChange={(v) => { if (v) onValueChange(v as RecordTypeValue); }}
