@@ -64,3 +64,24 @@ test("cambiar de año no rompe el renderizado de los gráficos", async ({ page }
 
   expect(crashes, `Excepciones al cambiar de año:\n${crashes.join("\n")}`).toEqual([]);
 });
+
+test("el Mix por macro-categoría se pinta con barras apiladas", async ({ page }) => {
+  await page.goto("/analytics");
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await page.getByRole("tab", { name: "Comercial", exact: true }).click();
+
+  // Tarjeta acotada por su título con `data-slot="card"`, como en el test del
+  // Histórico Anual, para no contar barras de otros gráficos de la pestaña.
+  const mixCard = page.locator('[data-slot="card"]', { hasText: "Mix por macro-categoría (evolución anual)" });
+  await expect(mixCard).toBeVisible();
+
+  // Primero se espera a que haya barras: garantiza que el gráfico ya se pintó.
+  // Con la semilla, todas las categorías caen en "Equipos", así que hay una
+  // barra de un solo tramo por año.
+  await expect(async () => {
+    expect(await mixCard.locator(".recharts-bar-rectangle").count()).toBeGreaterThan(0);
+  }).toPass({ timeout: 15_000 });
+
+  // Con el gráfico ya pintado, no puede quedar ninguna área apilada.
+  await expect(mixCard.locator(".recharts-area")).toHaveCount(0);
+});

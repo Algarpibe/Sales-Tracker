@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { InfoTooltip } from "@/components/common/info-tooltip";
 import { CHART_HELP } from "@/lib/chart-help";
 import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
 import type { ChartTooltipProps } from "@/lib/chart-types";
 
@@ -61,16 +61,18 @@ export function BucketMixCard({ recordType }: { recordType: "SALES_ORDER" | "INV
           <p className="text-sm text-muted-foreground py-10 text-center">Sin datos.</p>
         ) : (
           <ResponsiveContainer width="100%" height="100%" minHeight={340}>
-            <AreaChart data={rows} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
+            <BarChart data={rows} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-white/5" vertical={false} />
               <XAxis dataKey="year" className="text-xs fill-muted-foreground" tickLine={false} axisLine={false} />
               <YAxis className="text-xs fill-muted-foreground" tickLine={false} axisLine={false} tickFormatter={formatCompactUSD} />
-              <Tooltip content={<MixTooltip />} />
+              <Tooltip content={<MixTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
               <Legend />
+              {/* fillOpacity 0.5: tono suave de la paleta.
+                  maxBarSize: con pocos años a ancho completo, sin límite cada barra sería un bloque enorme. */}
               {SERIES.map((s) => (
-                <Area key={s.key} type="monotone" dataKey={s.key} name={s.label} stackId="1" stroke={s.color} fill={s.color} fillOpacity={0.5} />
+                <Bar key={s.key} dataKey={s.key} name={s.label} stackId="1" fill={s.color} fillOpacity={0.5} maxBarSize={64} />
               ))}
-            </AreaChart>
+            </BarChart>
           </ResponsiveContainer>
         )}
       </CardContent>

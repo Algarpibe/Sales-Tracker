@@ -16,7 +16,7 @@ export const CHART_HELP = {
   // --- Análisis: Comercial ---
   brandMix: "Reparto del importe por marca. Muestra de qué marcas depende la facturación.",
   bucketByClient: "Importe por cliente desglosado en las 4 macro-categorías, para ver el mix de cada cliente.",
-  bucketMixAnual: "Evolución anual del reparto entre las 4 macro-categorías (área apilada).",
+  bucketMixAnual: "Evolución anual del reparto entre las 4 macro-categorías (barras apiladas).",
   clientePareto: "Clientes ordenados por importe con su % acumulado (regla 80/20): cuántos clientes concentran la mayoría de las ventas.",
   monthHeatmap: "Intensidad de ventas por cliente y mes: colores más fuertes = más importe. Ayuda a detectar estacionalidad por cliente.",
   nuevosVsRecurrentes: "Importe de clientes nuevos (primera compra en el año) frente a recurrentes, mes a mes.",
