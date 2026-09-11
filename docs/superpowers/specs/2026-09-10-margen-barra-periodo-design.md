@@ -21,7 +21,7 @@
   - `RecordTypeToggle` con `value={recordType}` y `onValueChange={onRecordTypeChange}`.
   - Envoltorio del año: `flex gap-2 items-center bg-card/30 p-1 rounded-xl border border-white/5 backdrop-blur-sm`.
   - `Select` con `value={String(year)}` y `onValueChange={(v) => { if (v) onYearChange(Number(v)); }}`; trigger `w-[125px] border-none bg-transparent shadow-none h-8 font-semibold`; opciones de `getYearRange()` con la etiqueta `Año {y}`.
-- El comentario que hoy acompaña al bloque en Comercial pasa al componente.
+- El comentario del componente lo describe como controlado: el padre es dueño del tipo y del año y recibe los cambios.
 
 ## Página — `src/app/(dashboard)/analytics/page.tsx`
 - **Comercial:** el bloque de controles se sustituye por `<PeriodBar recordType={recordType} onRecordTypeChange={setRecordType} year={yearA} onYearChange={setYearA} />`. Sin cambio visual.
