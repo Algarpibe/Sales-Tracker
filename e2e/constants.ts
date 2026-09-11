@@ -1,4 +1,5 @@
 import users from "./fixtures/users.json";
+import historical from "./fixtures/historical.json";
 
 export const APPROVED_USER = users.approved;
 export const PENDING_USER = users.pending;
@@ -30,3 +31,18 @@ export const YEAR_BEFORE_FIRST_YEAR = 2020;
  */
 export const YEAR_WITH_GAPS = 2021;
 export const CATEGORY_MISSING_IN_GAP_YEAR = "Aire";
+
+/**
+ * Cliente con histórico ficticio previo al hub (tabla historical_customer_sales).
+ * Solo lo ven /clientes y la ficha de cliente.
+ */
+export const HISTORICAL_CUSTOMER = historical.customer;
+export const HISTORICAL_FIRST_YEAR = Math.min(...historical.rows.map((r) => r.year));
+
+/**
+ * Cliente cuyo documento más antiguo en el hub es una Orden de Venta de 2020,
+ * sin factura ese año (mes impar en e2e/db/seed-hub.mjs). Sirve para comprobar
+ * que "Cliente desde" no depende del conmutador OV/FAC.
+ */
+export const ORDER_FIRST_CUSTOMER = "Alfa Industrial";
+export const ORDER_FIRST_YEAR = 2020;
