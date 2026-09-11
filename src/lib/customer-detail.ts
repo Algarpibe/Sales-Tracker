@@ -16,6 +16,24 @@ export function customerFirstYear(rows: CustomerYearRow[], customer: string): nu
   return ys.length ? Math.min(...ys) : null;
 }
 
+/**
+ * Primer año con ventas del cliente mirando a la vez facturas y órdenes de
+ * venta, para que "Cliente desde" no dependa del conmutador OV/FAC.
+ *
+ * Requiere que `invoiceRows` venga de getCustomerSales con includeHistory y
+ * desdeAnio <= 2020; si no, nunca puede devolver un año previo al hub. Un
+ * cliente con factura de 2020 en Zoho, sin fila en el histórico y sin orden de
+ * venta de ese año, sigue saliendo como 2021: mergeWithHistory descarta las
+ * filas del hub de ese año.
+ */
+export function customerSinceYear(
+  invoiceRows: CustomerYearRow[],
+  orderRows: CustomerYearRow[],
+  customer: string
+): number | null {
+  return customerFirstYear([...invoiceRows, ...orderRows], customer);
+}
+
 export function customerTotalVentas(rows: CustomerYearRow[], customer: string): number {
   return rows.filter((r) => r.customer === customer).reduce((s, r) => s + r.ventas, 0);
 }
