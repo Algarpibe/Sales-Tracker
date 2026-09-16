@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
   splitNewExisting,
+  normalizeCustomerKey,
+  splitDealsNewExisting,
   periodTotals,
   attainment,
   kpiAverage,
@@ -143,5 +145,68 @@ describe("scoreboard", () => {
     ]);
     expect(r.coverage).toBe(50);
     expect(r.total).toBe(40);
+  });
+});
+
+describe("normalizeCustomerKey", () => {
+  it("ignora mayusculas y espacios", () => {
+    expect(normalizeCustomerKey("  Alfa Industrial ")).toBe(normalizeCustomerKey("ALFA INDUSTRIAL"));
+  });
+  it("ignora tildes", () => {
+    expect(normalizeCustomerKey("Compañia Energética")).toBe(normalizeCustomerKey("Compania Energetica"));
+  });
+  it("ignora la puntuacion", () => {
+    expect(normalizeCustomerKey("Beta, S.A.")).toBe(normalizeCustomerKey("Beta SA"));
+  });
+  it("no funde empresas distintas", () => {
+    expect(normalizeCustomerKey("Alfa Industrial")).not.toBe(normalizeCustomerKey("Alfa Industrias"));
+  });
+});
+
+describe("splitDealsNewExisting", () => {
+  const primerAnioCuentas = new Map<string, number>([
+    ["Alfa Industrial", 2023],
+    ["Beta Minera", 2026],
+  ]);
+
+  it("la cuenta que ya compraba antes va a existentes", () => {
+    const r = splitDealsNewExisting([{ account_name: "Alfa Industrial", mes: 1, tratos: 3 }], primerAnioCuentas, 2026);
+    expect(r.existentes[0]).toBe(3);
+    expect(r.nuevos[0]).toBe(0);
+  });
+
+  it("la cuenta cuya primera compra es el anio analizado va a nuevos", () => {
+    const r = splitDealsNewExisting([{ account_name: "Beta Minera", mes: 2, tratos: 1 }], primerAnioCuentas, 2026);
+    expect(r.nuevos[1]).toBe(1);
+  });
+
+  it("la cuenta que nunca compro va a nuevos", () => {
+    // La mitad de las cuentas con trato no existe en Books: son prospectos.
+    const r = splitDealsNewExisting([{ account_name: "Prospecto", mes: 3, tratos: 2 }], primerAnioCuentas, 2026);
+    expect(r.nuevos[2]).toBe(2);
+  });
+
+  it("cruza aunque la grafia no coincida", () => {
+    const r = splitDealsNewExisting([{ account_name: "ALFA INDUSTRIAL", mes: 4, tratos: 1 }], primerAnioCuentas, 2026);
+    expect(r.existentes[3]).toBe(1);
+  });
+
+  it("acumula los tratos del mismo mes", () => {
+    const rows = [
+      { account_name: "Alfa Industrial", mes: 5, tratos: 2 },
+      { account_name: "Alfa Industrial", mes: 5, tratos: 3 },
+    ];
+    expect(splitDealsNewExisting(rows, primerAnioCuentas, 2026).existentes[4]).toBe(5);
+  });
+
+  it("ignora los meses fuera de rango y devuelve doce posiciones", () => {
+    const rows = [
+      { account_name: "Alfa Industrial", mes: 0, tratos: 9 },
+      { account_name: "Alfa Industrial", mes: 13, tratos: 9 },
+    ];
+    const r = splitDealsNewExisting(rows, primerAnioCuentas, 2026);
+    expect(r.nuevos).toHaveLength(12);
+    expect(r.existentes).toHaveLength(12);
+    expect(r.existentes.reduce((a, b) => a + b, 0)).toBe(0);
   });
 });
