@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildTechServiceData, ST_CATEGORIES, CR_CATEGORIES } from "@/lib/tech-service";
+import { buildTechServiceData, stGrowthByQuarter, ST_CATEGORIES, CR_CATEGORIES } from "@/lib/tech-service";
 
 const rec = (record_month: number, amount_usd: number, category_id: string, record_type = "INVOICE") =>
   ({ record_month, amount_usd, category_id, record_type }) as never;
@@ -33,5 +33,40 @@ describe("buildTechServiceData", () => {
   });
   it("MONTHLY devuelve 12 slots", () => {
     expect(buildTechServiceData([], [], catMap, "INVOICE", "MONTHLY")).toHaveLength(12);
+  });
+});
+
+// recordsA es el anio analizado y recordsB el de referencia, igual que en
+// buildTechServiceData: la funcion no filtra por record_year, los separa el array.
+describe("stGrowthByQuarter", () => {
+  it("compara el acumulado de cada trimestre con el del anio anterior", () => {
+    const a = [rec(1, 120, "c1")];
+    const b = [rec(1, 100, "c1")];
+    // Acumulado T1: 120 frente a 100 = +20 %. El acumulado se arrastra, asi que
+    // los trimestres siguientes repiten mientras no entren mas ventas.
+    expect(stGrowthByQuarter(a, b, catMap, "INVOICE")).toEqual([20, 20, 20, 20]);
+  });
+
+  it("sin base con la que comparar no hay variacion", () => {
+    expect(stGrowthByQuarter([rec(1, 50, "c1")], [], catMap, "INVOICE")).toEqual([
+      null, null, null, null,
+    ]);
+  });
+
+  it("solo mira las categorias de Servicio Tecnico", () => {
+    const a = [rec(1, 1000, "c9")];
+    const b = [rec(1, 100, "c1")];
+    // Las mil de otra categoria no entran: el acumulado del anio A sigue a cero.
+    expect(stGrowthByQuarter(a, b, catMap, "INVOICE")[0]).toBe(-100);
+  });
+
+  it("respeta el tipo de registro pedido", () => {
+    const a = [rec(1, 200, "c1", "SALES_ORDER")];
+    const b = [rec(1, 100, "c1")];
+    expect(stGrowthByQuarter(a, b, catMap, "INVOICE")[0]).toBe(-100);
+  });
+
+  it("devuelve siempre cuatro trimestres", () => {
+    expect(stGrowthByQuarter([], [], catMap, "INVOICE")).toHaveLength(4);
   });
 });
