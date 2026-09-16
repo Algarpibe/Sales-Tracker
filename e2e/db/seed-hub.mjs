@@ -144,26 +144,51 @@ export async function seedHub(connectionString) {
       }
     }
 
-    // Tratos del anio en curso: uno de cliente existente y otro de cliente que
-    // no existe en Books, para que el reparto nuevo/existente tenga las dos ramas.
-    // El de agosto se escribe en mayusculas a proposito: prueba de punta a punta
-    // que la clave se normaliza antes de cruzar con Books.
+    // Cuatro tratos por mes: dos abiertos y dos cerrados. De los abiertos, uno es de
+    // cliente existente y otro de cliente que no existe en Books, para que el reparto
+    // nuevo/existente tenga las dos ramas. El de agosto se escribe en mayusculas a
+    // proposito: prueba de punta a punta que la clave se normaliza antes de cruzar con
+    // Books. De los cerrados, uno esta ganado y otro perdido, para el KPI de ganados.
     const CUENTA_EXISTENTE = CUSTOMERS[0];
     const CUENTA_NUEVA = "Prospecto Ficticio";
+    // Fase ganadora REAL de Zoho CRM: es el unico valor de produccion de esta semilla.
+    // Tiene que coincidir LETRA POR LETRA con WON_DEAL_STAGES[0] de
+    // src/lib/commercial-kpis.ts, porque la consulta de tratos ganados filtra por el.
+    // Este fichero es .mjs y no puede importar del TypeScript, asi que el literal esta
+    // repetido: quien lo cambie alli tiene que cambiarlo aqui. Con dos grafias distintas
+    // el conteo saldria cero y el test pasaria sin probar nada.
+    const FASE_GANADA = "Cerrado ganado";
+    // Fase de perdido INVENTADA, como 'Negociacion'. No necesita parecerse a ninguna fase
+    // real: existe para que el filtro por fase tenga algo que descartar en el mismo mes.
+    const FASE_PERDIDA = "Cerrado perdido ficticio";
     let deals = 0;
     for (let month = 1; month <= 12; month++) {
       const vendedor = VENDEDORES[Math.floor((month - 1) / 2) % VENDEDORES.length];
       const fecha = `${CURRENT_YEAR}-${String(month).padStart(2, "0")}-15T10:00:00Z`;
       const existente = month === 8 ? CUENTA_EXISTENTE.toUpperCase() : CUENTA_EXISTENTE;
-      await client.query(
-        `INSERT INTO crm.deals (id, deal_name, account_name, owner_name, stage, amount, created_time)
-         VALUES ($1,$2,$3,$4,'Negociacion',1000,$5), ($6,$7,$8,$9,'Negociacion',2000,$10)`,
-        [
-          `DEAL-E-${month}`, `Trato existente ${month}`, existente, vendedor, fecha,
-          `DEAL-N-${month}`, `Trato nuevo ${month}`, CUENTA_NUEVA, vendedor, fecha,
-        ],
-      );
-      deals += 2;
+      // Los dos tratos abiertos llevan fecha de cierre PREVISTA, en el futuro, igual que
+      // en produccion: es justo lo que contaminaria el conteo si no se filtrara por fase.
+      const previsto = `${CURRENT_YEAR + 1}-${String(month).padStart(2, "0")}-15`;
+      // Los dos cerrados llevan la fecha real del cierre, el dia 20 de su mes, y se
+      // crearon el anio anterior: un trato se abre antes de cerrarse, y asi las filas de
+      // generacion de tratos -que cuentan por created_time del anio en curso- siguen
+      // viendo exactamente un trato nuevo y uno existente por mes.
+      const cierre = `${CURRENT_YEAR}-${String(month).padStart(2, "0")}-20`;
+      const apertura = `${CURRENT_YEAR - 1}-${String(month).padStart(2, "0")}-15T10:00:00Z`;
+      const tratos = [
+        [`DEAL-E-${month}`, `Trato existente ${month}`, existente, "Negociacion", 1000, fecha, previsto],
+        [`DEAL-N-${month}`, `Trato nuevo ${month}`, CUENTA_NUEVA, "Negociacion", 2000, fecha, previsto],
+        [`DEAL-G-${month}`, `Trato ganado ${month}`, existente, FASE_GANADA, 3000, apertura, cierre],
+        [`DEAL-P-${month}`, `Trato perdido ${month}`, CUENTA_NUEVA, FASE_PERDIDA, 4000, apertura, cierre],
+      ];
+      for (const [id, nombre, cuenta, fase, importe, creado, cerrado] of tratos) {
+        await client.query(
+          `INSERT INTO crm.deals (id, deal_name, account_name, owner_name, stage, amount, created_time, closing_date)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+          [id, nombre, cuenta, vendedor, fase, importe, creado, cerrado],
+        );
+      }
+      deals += tratos.length;
     }
 
     await client.query("COMMIT");

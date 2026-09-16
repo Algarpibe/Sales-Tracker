@@ -59,5 +59,8 @@ CREATE TABLE crm.deals (
   owner_name   text,
   stage        text,
   amount       numeric,
-  created_time timestamptz
+  created_time timestamptz,
+  -- Fecha de negocio del cierre, la que cuenta para el KPI de tratos ganados.
+  -- Es date y no timestamptz: no arrastra zona horaria.
+  closing_date date
 );
