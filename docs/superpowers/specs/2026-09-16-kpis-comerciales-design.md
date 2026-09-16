@@ -59,7 +59,7 @@ Restricciones adicionales: `target_value > 0` y `weight_pct` entre 0 y 100. No h
 
 ### 4.1 Consultas al hub — `src/db/hub-kpi.ts` (nuevo)
 - `getHubSalespeople()`: nombres distintos de `raw->>'salesperson_name'` en órdenes y facturas no anuladas, ordenados. Alimenta los dos selectores: el de ámbito en Configuración y el de propietario en la tabla. **Entra en el primer PR**, porque la pantalla de metas ya lo necesita.
-- `getHubCustomerMonthByOwner({ tipo, anio, owner })`: igual que `getHubCustomerMonthSales` (mismo neto de descuento de cabecera y misma exclusión de `void`/`draft`), añadiendo `AND h.raw->>'salesperson_name' = $2` cuando llega `owner`. La tabla se elige en servidor por `tipo`, nunca por entrada del usuario.
+- `getHubCustomerMonthByOwner({ tipo, anio, owner })`: igual que `getHubCustomerMonthSales`, que vive en `src/db/hub-customer-month-sales.ts` (mismo neto de descuento de cabecera y misma exclusión de `void`/`draft`), añadiendo `AND h.raw->>'salesperson_name' = $2` cuando llega `owner`. La tabla se elige en servidor con la constante `SOURCES` a partir de `tipo`, nunca por entrada del usuario.
 
 ### 4.2 Helpers puros — `src/lib/kpi-score.ts` (nuevo)
 - `splitNewExisting(rows, firstYearByCustomer, year)`: reparte los importes mensuales en dos series de 12 según si el primer año del cliente es el año analizado.
@@ -70,9 +70,15 @@ Restricciones adicionales: `target_value > 0` y `weight_pct` entre 0 y 100. No h
 - `scoreboard(rows)`: total renormalizado sobre los KPIs con datos y `coverage` con el peso cubierto.
 
 ### 4.3 Antigüedad del cliente
+
+El reparto usa `firstYearByCustomer`, extraído de `buildNewVsRecurring` y exportado desde `src/lib/analytics-comercial.ts` en el segundo PR, en vez de duplicar ese cálculo.
+
 `firstYearByCustomer` sale de `getCustomerSales({ tipo: "INVOICE", desdeAnio: 2015, hastaAnio: thisYear, includeHistory: true })`, la misma clave que ya usan `/clientes` y la ficha, así que comparte caché. Es **de compañía y con histórico**: quien compró en 2018 no es nuevo aunque sea la primera vez que le vende ese comercial, y no depende del conmutador OV/FAC.
 
 ### 4.4 Incremento de Servicio Técnico
+
+**Ojo con la fuente:** estas líneas no salen del hub sino de la tabla local `sales_records`, clasificadas por *nombre* de categoría con un `Map<category_id, category_name>`. La tabla de KPIs mezcla por tanto dos orígenes, y reutiliza las cachés `["sales", {}]` y `["categories"]` que `analytics/page.tsx` ya carga.
+
 Variación acumulada del año frente al mismo periodo del año anterior, por trimestre, sobre las categorías de `ST_CATEGORIES`. Helper nuevo `stGrowthByQuarter(recordsA, recordsB, catMap, recordType)` en `src/lib/tech-service.ts`, que reutiliza esas listas sin tocar `buildTechServiceData`. Es un KPI **de compañía**: no se filtra por vendedor y la fila lo indica.
 
 ## 5. Tabla — `src/components/charts/comercial/commercial-kpi-table.tsx` (nuevo)
@@ -109,10 +115,11 @@ Cubre los helpers puros: reparto nuevo/existente (incluido el cliente con primer
 
 ## 8. Entrega
 - Rama `feat/kpis-comerciales`, spec y plan dentro de la rama.
-- **Dos PR encadenados**, porque juntos pasarían de 400 líneas y la revisión se resiente:
-  1. Migración, catálogo, consulta de vendedores, acciones y pantalla de Configuración.
-  2. Consultas al hub, helpers de cálculo y la tabla en Comercial.
-- La migración `0008` la ejecuta el usuario en el cliente Postgres antes de desplegar el segundo PR. El spec del reset de contraseña se renumera a `0009`.
+- **Tres PR encadenados**, partidos por la prueba que cubre cada mitad. Juntos pasan de 600 líneas, y además el cálculo se prueba con vitest mientras que el SQL solo se ejerce de verdad con Playwright:
+  1. Migración, catálogo, consulta de vendedores, acciones y pantalla de Configuración. *(fusionado en #6; las etiquetas de columna y unidad, en #7)*
+  2. Helpers puros: reparto nuevo/existente, cubos por periodicidad, cumplimiento, aporte, total renormalizado e incremento de Servicio Técnico. Solo vitest, sin cambios visibles.
+  3. Consulta al hub por vendedor, acción y tabla en Comercial, cubiertas por E2E.
+- La migración `0008` ya está ejecutada en producción. El spec del reset de contraseña se renumera a `0009`.
 
 ## 9. Fuera de alcance
 - Tratos de Zoho CRM, tickets de Zoho Desk e ingresos por proyectos: quedan como filas vacías hasta que el worker del hub replique esas fuentes o se defina una carga manual.
