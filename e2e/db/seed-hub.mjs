@@ -144,8 +144,30 @@ export async function seedHub(connectionString) {
       }
     }
 
+    // Tratos del anio en curso: uno de cliente existente y otro de cliente que
+    // no existe en Books, para que el reparto nuevo/existente tenga las dos ramas.
+    // El de agosto se escribe en mayusculas a proposito: prueba de punta a punta
+    // que la clave se normaliza antes de cruzar con Books.
+    const CUENTA_EXISTENTE = CUSTOMERS[0];
+    const CUENTA_NUEVA = "Prospecto Ficticio";
+    let deals = 0;
+    for (let month = 1; month <= 12; month++) {
+      const vendedor = VENDEDORES[Math.floor((month - 1) / 2) % VENDEDORES.length];
+      const fecha = `${CURRENT_YEAR}-${String(month).padStart(2, "0")}-15T10:00:00Z`;
+      const existente = month === 8 ? CUENTA_EXISTENTE.toUpperCase() : CUENTA_EXISTENTE;
+      await client.query(
+        `INSERT INTO crm.deals (id, deal_name, account_name, owner_name, stage, amount, created_time)
+         VALUES ($1,$2,$3,$4,'Negociacion',1000,$5), ($6,$7,$8,$9,'Negociacion',2000,$10)`,
+        [
+          `DEAL-E-${month}`, `Trato existente ${month}`, existente, vendedor, fecha,
+          `DEAL-N-${month}`, `Trato nuevo ${month}`, CUENTA_NUEVA, vendedor, fecha,
+        ],
+      );
+      deals += 2;
+    }
+
     await client.query("COMMIT");
-    console.log(`  hub sembrado: ${ITEMS.length} items, ${orders} pedidos, ${invoices} facturas`);
+    console.log(`  hub sembrado: ${ITEMS.length} items, ${orders} pedidos, ${invoices} facturas, ${deals} tratos`);
   } catch (err) {
     await client.query("ROLLBACK");
     throw err;
