@@ -43,3 +43,17 @@ const BY_KEY = new Map(COMMERCIAL_KPIS.map((k) => [k.key, k]));
 export function kpiDef(key: string): KpiDef | undefined {
   return BY_KEY.get(key);
 }
+
+// Los KPIs comerciales se implantaron en 2025: ofrecer años anteriores dejaría
+// elegir periodos que nunca se midieron. El resto de la app sigue con
+// getYearRange() de @/lib/constants, que arranca en 2021 porque ahí sí hay ventas.
+export const KPI_FIRST_YEAR = 2025;
+
+/** Años elegibles para las metas, del actual hacia atrás hasta KPI_FIRST_YEAR. */
+export function getKpiYearRange(): number[] {
+  // Math.max deja al menos un año aunque el reloj del sistema fuese anterior a 2025.
+  const desde = Math.max(new Date().getFullYear(), KPI_FIRST_YEAR);
+  const anios: number[] = [];
+  for (let y = desde; y >= KPI_FIRST_YEAR; y--) anios.push(y);
+  return anios;
+}

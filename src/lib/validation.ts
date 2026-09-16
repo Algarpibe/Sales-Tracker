@@ -6,7 +6,7 @@ import {
   billingCycle,
   subscriptionStatus,
 } from "@/db/schema";
-import { KPI_KEYS } from "@/lib/commercial-kpis";
+import { KPI_FIRST_YEAR, KPI_KEYS } from "@/lib/commercial-kpis";
 
 // Esquemas reutilizables para validar input de Server Actions en runtime
 // (TypeScript no valida en runtime). Los enums se derivan del schema Drizzle
@@ -88,7 +88,7 @@ export const subscriptionUpdateSchema = z.object({
 // aceptar más haría que lo guardado no cuadrase con lo validado.
 export const kpiTargetsSchema = z
   .object({
-    year: z.number().int().min(2021).max(currentYear + 1),
+    year: z.number().int().min(KPI_FIRST_YEAR).max(currentYear + 1),
     salesperson: z.string().trim().min(1, "El vendedor no puede ir vacío").max(120).nullable(),
     items: z
       .array(
