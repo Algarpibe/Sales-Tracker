@@ -41,5 +41,16 @@ test.describe("autenticación", () => {
       await page.goto("/analytics");
       await expect(page).toHaveURL(/\/waiting-approval$/);
     });
+
+    // La pantalla es un Server Component. Si el boton de recargar vuelve a pedirse
+    // con la prop `render` de base-ui, que es una funcion, React no puede serializarla
+    // hacia un componente de cliente y el servidor escupe un error en cada visita.
+    // Un enlace real con las clases de buttonVariants no cruza esa frontera.
+    test("la pantalla de espera ofrece recargar como enlace real", async ({ page }) => {
+      await page.goto("/waiting-approval");
+      const recargar = page.getByRole("link", { name: "Recargar Estado" });
+      await expect(recargar).toBeVisible();
+      await expect(recargar).toHaveAttribute("href", "/waiting-approval");
+    });
   });
 });

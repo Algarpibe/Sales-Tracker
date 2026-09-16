@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button-variants";
 import {
   Card,
   CardContent,
@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/card";
 import { Clock, XCircle, RefreshCw } from "lucide-react";
 import { getSessionUser } from "@/lib/auth/guards";
+import { cn } from "@/lib/utils";
 import { SignOutButton } from "./_components/sign-out-button";
 
 export default async function WaitingApprovalPage() {
@@ -61,17 +62,19 @@ export default async function WaitingApprovalPage() {
             <p className="text-secondary-foreground">
               {status === "rejected"
                 ? "No podrás acceder a los datos de la plataforma en este momento."
-                : "Hemos notificado a Alfonso García sobre tu solicitud. Recibirás acceso automáticamente una vez sea aprobada."}
+                : "Hemos notificado al administrador sobre tu solicitud. Recibirás acceso automáticamente una vez sea aprobada."}
             </p>
           </div>
         </CardContent>
         <CardFooter className="flex flex-col gap-3 pt-6">
-          <Button className="w-full h-11" render={(props) => (
-            <a href="/waiting-approval" {...props}>
-              <RefreshCw className="mr-2 h-4 w-4" />
-              Recargar Estado
-            </a>
-          )} />
+          {/* Enlace, no Button con `render`: esta pagina es un Server Component y la
+              prop `render` de base-ui es una funcion, que React no puede serializar
+              hacia un componente de cliente. buttonVariants le da el mismo aspecto
+              sin cruzar esa frontera. */}
+          <a href="/waiting-approval" className={cn(buttonVariants(), "w-full h-11")}>
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Recargar Estado
+          </a>
           <SignOutButton />
           <p className="text-xs text-center text-muted-foreground mt-2">
             ¿Necesitas ayuda? Contacta a comercial@ambientalia.com.co
