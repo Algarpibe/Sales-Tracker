@@ -27,9 +27,10 @@ test("la tabla muestra el TOTAL con su cobertura y los KPIs pendientes con su mo
   // La semilla pesa dos KPIs medibles al 60 y al 40.
   await expect(card.getByText(/cobertura: 100/)).toBeVisible();
 
-  // Los tres KPIs que siguen sin origen de datos dicen por que estan vacios.
-  await expect(card.getByText("Pendiente de Zoho CRM").first()).toBeVisible();
+  // Los dos KPIs que siguen sin origen de datos dicen por que estan vacios, cada
+  // uno con su motivo. Zoho CRM ya no aparece: sus tres KPIs se calculan.
   await expect(card.getByText("Pendiente de Zoho Desk").first()).toBeVisible();
+  await expect(card.getByText("Pendiente de carga manual").first()).toBeVisible();
 });
 
 test("el selector de propietario filtra los importes", async ({ page }) => {
@@ -71,4 +72,16 @@ test("las filas de generacion de tratos muestran numeros y ya no dicen que estan
   // Enero tiene trato nuevo y trato existente; el indice 1 es el primer mes.
   await expect(nuevos.getByRole("cell").nth(1)).toHaveText("1");
   await expect(existentes.getByRole("cell").nth(1)).toHaveText("1");
+});
+
+test("la fila de tratos cerrados ganados cuenta solo los ganados", async ({ page }) => {
+  const card = await abrirComercial(page);
+
+  const fila = card.getByRole("row", { name: /Tratos cerrados ganados/ });
+  await expect(fila).toBeVisible();
+  await expect(fila).not.toContainText("Pendiente de Zoho CRM");
+
+  // La semilla cierra un trato ganado y otro perdido cada mes: si el filtro por
+  // fase no funcionara, aqui saldria 2.
+  await expect(fila.getByRole("cell").nth(1)).toHaveText("1");
 });

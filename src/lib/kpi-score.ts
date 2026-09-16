@@ -86,6 +86,23 @@ export function splitDealsNewExisting(
   return out;
 }
 
+/** Conteos de una fase por mes, tal y como los agrupa el hub. */
+export interface MonthCountRow {
+  mes: number;
+  tratos: number;
+}
+
+/** Reparte conteos mensuales en las doce posiciones del año. */
+export function toMonthlySeries(rows: MonthCountRow[]): number[] {
+  const out = doceCeros();
+  for (const r of rows) {
+    const idx = r.mes - 1;
+    if (idx < 0 || idx >= MESES) continue;
+    out[idx] += r.tratos;
+  }
+  return out;
+}
+
 const MESES_POR_CUBO: Record<KpiPeriod, number> = {
   mensual: 1,
   trimestral: 3,

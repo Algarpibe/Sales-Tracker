@@ -1,6 +1,6 @@
 import { getHubPool } from "@/db/hub";
-import { isExcludedSalesperson, parseExcludedSalespeople } from "@/lib/commercial-kpis";
-import type { DealMonthRow } from "@/lib/kpi-score";
+import { isExcludedSalesperson, parseExcludedSalespeople, WON_DEAL_STAGES } from "@/lib/commercial-kpis";
+import type { DealMonthRow, MonthCountRow } from "@/lib/kpi-score";
 import type { CustomerMonthRow, RecordType } from "@/types/database";
 
 // Vendedores que aparecen en el hub. Zoho los guarda dentro del JSON de la
@@ -89,4 +89,24 @@ export async function getHubDealsMonth(f: {
     mes: Number(r.mes),
     tratos: Number(r.tratos),
   }));
+}
+
+// Tratos ganados por mes. Se cuenta por closing_date y no por created_time: es la
+// fecha de negocio del cierre, y al ser date no arrastra zona horaria. El filtro por
+// fase es imprescindible: las fases abiertas llevan fecha de cierre PREVISTA, que cae
+// en el futuro, y sin filtrar contaminarian el conteo.
+export async function getHubWonDealsMonth(f: {
+  anio: number;
+  owner: string | null;
+}): Promise<MonthCountRow[]> {
+  const sql = `
+    SELECT extract(month from d.closing_date)::int AS mes,
+           count(*)::int AS tratos
+    FROM crm.deals d
+    WHERE extract(year from d.closing_date) = $1
+      AND d.stage = ANY($2::text[])
+      AND ($3::text IS NULL OR d.owner_name = $3)
+    GROUP BY extract(month from d.closing_date)`;
+  const { rows } = await getHubPool().query(sql, [f.anio, [...WON_DEAL_STAGES], f.owner]);
+  return rows.map((r) => ({ mes: Number(r.mes), tratos: Number(r.tratos) }));
 }

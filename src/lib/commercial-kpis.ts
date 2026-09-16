@@ -22,7 +22,7 @@ export const COMMERCIAL_KPIS: KpiDef[] = [
   { key: "ventas_existentes", label: "Ventas clientes existentes", period: "trimestral", unit: "usd", source: "auto" },
   { key: "tratos_nuevos", label: "Generación de tratos · clientes nuevos", period: "mensual", unit: "conteo", source: "auto" },
   { key: "tratos_existentes", label: "Generación de tratos · clientes existentes", period: "mensual", unit: "conteo", source: "auto" },
-  { key: "tratos_ganados", label: "Tratos cerrados ganados", period: "mensual", unit: "conteo", source: "pendiente", pendingReason: "Pendiente de Zoho CRM" },
+  { key: "tratos_ganados", label: "Tratos cerrados ganados", period: "mensual", unit: "conteo", source: "auto" },
   { key: "tickets_st", label: "Tickets de Servicio Técnico en plazo", period: "mensual", unit: "pct", source: "pendiente", pendingReason: "Pendiente de Zoho Desk" },
   { key: "incremento_st", label: "Incremento de ventas de Servicio Técnico", period: "trimestral", unit: "pct", source: "auto" },
   { key: "ingresos_proyectos", label: "Ingresos por proyectos", period: "semestral", unit: "usd", source: "pendiente", pendingReason: "Pendiente de carga manual" },
@@ -37,6 +37,17 @@ export const KPI_UNIT_LABEL: Record<KpiUnit, string> = {
   conteo: "nº",
   pct: "%",
 };
+
+/**
+ * Fases de Zoho CRM que cuentan como trato ganado. Va en código y no en una variable
+ * de entorno porque una etiqueta de fase no expone nada del negocio, y aquí queda
+ * visible y cubierta por un test. Si se renombra la fase en Zoho, este KPI se iría a
+ * cero: es el precio de tenerlo fijo, y la alternativa sería configurarlo.
+ *
+ * El mismo literal está repetido en e2e/db/seed-hub.mjs, que no puede importar de aquí
+ * por ser .mjs: si se cambia aquí, hay que cambiarlo allí.
+ */
+export const WON_DEAL_STAGES = ["Cerrado ganado"] as const;
 
 const BY_KEY = new Map(COMMERCIAL_KPIS.map((k) => [k.key, k]));
 

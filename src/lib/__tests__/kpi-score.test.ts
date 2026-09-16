@@ -3,6 +3,7 @@ import {
   splitNewExisting,
   normalizeCustomerKey,
   splitDealsNewExisting,
+  toMonthlySeries,
   periodTotals,
   attainment,
   kpiAverage,
@@ -208,5 +209,26 @@ describe("splitDealsNewExisting", () => {
     expect(r.nuevos).toHaveLength(12);
     expect(r.existentes).toHaveLength(12);
     expect(r.existentes.reduce((a, b) => a + b, 0)).toBe(0);
+  });
+});
+
+describe("toMonthlySeries", () => {
+  it("coloca cada conteo en su mes", () => {
+    const s = toMonthlySeries([{ mes: 1, tratos: 4 }, { mes: 12, tratos: 7 }]);
+    expect(s[0]).toBe(4);
+    expect(s[11]).toBe(7);
+  });
+  it("acumula los que caen en el mismo mes", () => {
+    expect(toMonthlySeries([{ mes: 3, tratos: 2 }, { mes: 3, tratos: 5 }])[2]).toBe(7);
+  });
+  it("los meses sin datos quedan a cero", () => {
+    expect(toMonthlySeries([{ mes: 5, tratos: 1 }])[0]).toBe(0);
+  });
+  it("ignora los meses fuera de rango", () => {
+    const s = toMonthlySeries([{ mes: 0, tratos: 9 }, { mes: 13, tratos: 9 }]);
+    expect(s.reduce((a, b) => a + b, 0)).toBe(0);
+  });
+  it("devuelve siempre doce posiciones", () => {
+    expect(toMonthlySeries([])).toHaveLength(12);
   });
 });
