@@ -9,6 +9,7 @@ import {
   getKpiDealsMonthly,
   getKpiMonthlySales,
   getKpiTargets,
+  getKpiWonDealsMonthly,
   getSalespeople,
   type KpiScope,
   type KpiTargetRow,
@@ -18,7 +19,7 @@ import { firstYearByCustomer } from "@/lib/analytics-comercial";
 import { COMMERCIAL_KPIS, KPI_UNIT_LABEL, type KpiDef, type KpiUnit } from "@/lib/commercial-kpis";
 import {
   attainment, kpiAverage, kpiContribution, periodTotals, scoreboard,
-  splitDealsNewExisting, splitNewExisting,
+  splitDealsNewExisting, splitNewExisting, toMonthlySeries,
 } from "@/lib/kpi-score";
 import { stGrowthByQuarter } from "@/lib/tech-service";
 import { CHART_HELP } from "@/lib/chart-help";
@@ -123,7 +124,7 @@ export function CommercialKpiTable({
     queryFn: () => getSalespeople(),
   });
 
-  // keepPreviousData en las tres consultas que dependen del ámbito: cambiar de
+  // keepPreviousData en las cuatro consultas que dependen del ámbito: cambiar de
   // comercial es un filtro, no una pantalla nueva, y desmontar la tabla en cada
   // cambio la haría parpadear entera.
   const metasQ = useQuery({
@@ -142,6 +143,13 @@ export function CommercialKpiTable({
     queryFn: () => getKpiDealsMonthly(year, salesperson),
     placeholderData: keepPreviousData,
   });
+  // Los ganados van aparte de los generados: se cuentan por fecha de cierre y
+  // filtrando por la fase ganadora, asi que no se pueden deducir de los de arriba.
+  const ganadosQ = useQuery({
+    queryKey: ["kpi-won-deals", year, owner],
+    queryFn: () => getKpiWonDealsMonthly(year, salesperson),
+    placeholderData: keepPreviousData,
+  });
 
   // Misma clave exacta que /clientes y la ficha de cliente, para compartir su caché.
   const historicoQ = useQuery({
@@ -157,6 +165,7 @@ export function CommercialKpiTable({
   const metas = useMemo<KpiTargetRow[]>(() => metasQ.data ?? [], [metasQ.data]);
   const mensuales = useMemo(() => mensualesQ.data ?? [], [mensualesQ.data]);
   const tratos = useMemo(() => tratosQ.data ?? [], [tratosQ.data]);
+  const ganados = useMemo(() => ganadosQ.data ?? [], [ganadosQ.data]);
   const historico = useMemo(() => historicoQ.data ?? [], [historicoQ.data]);
   const registros = useMemo<SalesRecord[]>(() => ventasQ.data ?? [], [ventasQ.data]);
   const categorias = useMemo<Category[]>(() => (categoriasQ.data as Category[]) ?? [], [categoriasQ.data]);
@@ -192,10 +201,14 @@ export function CommercialKpiTable({
         const serie = tratosSplit.existentes;
         return construirFila(def, periodTotals(serie, def.period), meta, serie);
       }
+      if (def.key === "tratos_ganados") {
+        const serie = toMonthlySeries(ganados);
+        return construirFila(def, periodTotals(serie, def.period), meta, serie);
+      }
       if (def.key === "incremento_st") return construirFila(def, st, meta, null);
       return construirFila(def, new Array(cubosDe(def)).fill(null), meta, null);
     });
-  }, [metas, mensuales, tratos, historico, registros, categorias, recordType, year]);
+  }, [metas, mensuales, tratos, ganados, historico, registros, categorias, recordType, year]);
 
   const marcador = useMemo(
     () => scoreboard(filas.map((f) => ({ average: f.promedio, weight: f.peso }))),
@@ -204,10 +217,11 @@ export function CommercialKpiTable({
   const aporteTotal = useMemo(() => filas.reduce((s, f) => s + (f.aporte ?? 0), 0), [filas]);
 
   const cargando =
-    metasQ.isPending || mensualesQ.isPending || tratosQ.isPending || historicoQ.isPending ||
-    ventasQ.isPending || categoriasQ.isPending;
+    metasQ.isPending || mensualesQ.isPending || tratosQ.isPending || ganadosQ.isPending ||
+    historicoQ.isPending || ventasQ.isPending || categoriasQ.isPending;
   const refrescando =
-    metasQ.isPlaceholderData || mensualesQ.isPlaceholderData || tratosQ.isPlaceholderData;
+    metasQ.isPlaceholderData || mensualesQ.isPlaceholderData || tratosQ.isPlaceholderData ||
+    ganadosQ.isPlaceholderData;
   // Sin ventas del ámbito y sin metas, la tabla solo enseñaría guiones.
   const sinDatos = mensuales.length === 0 && metas.length === 0;
   const sinMetas = !metas.some((m) => m.weight_pct > 0);
