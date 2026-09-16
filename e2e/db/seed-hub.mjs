@@ -24,7 +24,16 @@ const CUSTOMERS = [
 const VENDEDORES = ["Vendedora Ficticia", "Vendedor Ficticio"];
 
 const FIRST_SEEDED_YEAR = 2020;
-const YEARS = [2020, 2021, 2022, 2023, 2024];
+
+// Los anios se derivan del actual y no se escriben a mano. La app abre por defecto
+// en el anio en curso (period-provider) y la semilla de la app siembra ahi las metas,
+// asi que una lista fija dejaba la vista por defecto sin ventas y la desviacion crecia
+// sola cada enero.
+const CURRENT_YEAR = new Date().getFullYear();
+const YEARS = Array.from(
+  { length: CURRENT_YEAR - FIRST_SEEDED_YEAR + 1 },
+  (_, i) => FIRST_SEEDED_YEAR + i
+);
 
 /**
  * 2020 es PARCIAL a proposito, con ventas solo en los meses 10, 11 y 12. Asi
