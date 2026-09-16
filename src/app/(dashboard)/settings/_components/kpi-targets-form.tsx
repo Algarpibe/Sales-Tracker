@@ -11,7 +11,7 @@ import {
   type KpiScope,
   type KpiTargetRow,
 } from "@/actions/kpi-actions";
-import { COMMERCIAL_KPIS } from "@/lib/commercial-kpis";
+import { COMMERCIAL_KPIS, KPI_UNIT_LABEL } from "@/lib/commercial-kpis";
 import { useAuth } from "@/components/providers/auth-provider";
 import { getYearRange } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,16 @@ const TOTAL = "__total__";
 const TOTAL_LABEL = "Total compañía";
 
 type Draft = Record<string, { target: string; weight: string }>;
+
+// Las tres columnas de cada fila. La cabecera y los campos comparten la rejilla
+// para que caigan alineados.
+const FILA = "grid grid-cols-1 gap-2 sm:grid-cols-[1fr_140px_120px] sm:items-center";
+
+/** "mensual" -> "Mensual". Se capitaliza aquí y no con CSS: `capitalize` tocaría
+ *  también la unidad y dejaría "nº" como "Nº". */
+function conMayuscula(texto: string): string {
+  return texto.charAt(0).toUpperCase() + texto.slice(1);
+}
 
 /** Lo guardado, como texto editable. Los KPIs sin fila en ese ámbito van vacíos. */
 function toDraft(rows: KpiTargetRow[]): Draft {
@@ -98,20 +108,31 @@ function KpiTargetsFields({
   return (
     <>
       <div className="space-y-3">
+        {/* En movil la rejilla se apila y la cabecera no ayudaria: ahi orientan los
+            marcadores de cada campo. */}
+        <div className={`${FILA} hidden sm:grid px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground`}>
+          <span>KPI</span>
+          <span>Meta</span>
+          <span>Peso %</span>
+        </div>
         {COMMERCIAL_KPIS.map((k) => (
-          <div key={k.key} className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_140px_120px] sm:items-center">
+          <div key={k.key} className={FILA}>
             <div>
               <div className="text-sm font-medium">{k.label}</div>
-              <div className="text-xs text-muted-foreground capitalize">{k.period}</div>
+              <div className="text-xs text-muted-foreground">
+                {conMayuscula(k.period)} · {KPI_UNIT_LABEL[k.unit]}
+              </div>
             </div>
             <Input
               aria-label={`Meta de ${k.label}`}
+              placeholder={KPI_UNIT_LABEL[k.unit]}
               inputMode="decimal"
               value={draft[k.key]?.target ?? ""}
               onChange={(e) => editar(k.key, "target", e.target.value)}
             />
             <Input
               aria-label={`Peso de ${k.label}`}
+              placeholder="%"
               inputMode="decimal"
               value={draft[k.key]?.weight ?? ""}
               onChange={(e) => editar(k.key, "weight", e.target.value)}

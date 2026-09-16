@@ -30,6 +30,14 @@ export const COMMERCIAL_KPIS: KpiDef[] = [
 
 export const KPI_KEYS: string[] = COMMERCIAL_KPIS.map((k) => k.key);
 
+// Etiqueta corta de cada unidad. No todas las metas son importes: las de tratos
+// se cuentan y las de tickets y crecimiento van en porcentaje.
+export const KPI_UNIT_LABEL: Record<KpiUnit, string> = {
+  usd: "USD",
+  conteo: "nº",
+  pct: "%",
+};
+
 const BY_KEY = new Map(COMMERCIAL_KPIS.map((k) => [k.key, k]));
 
 export function kpiDef(key: string): KpiDef | undefined {
