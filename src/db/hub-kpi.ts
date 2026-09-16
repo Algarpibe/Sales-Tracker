@@ -1,5 +1,6 @@
 import { getHubPool } from "@/db/hub";
 import { isExcludedSalesperson, parseExcludedSalespeople } from "@/lib/commercial-kpis";
+import type { DealMonthRow } from "@/lib/kpi-score";
 import type { CustomerMonthRow, RecordType } from "@/types/database";
 
 // Vendedores que aparecen en el hub. Zoho los guarda dentro del JSON de la
@@ -63,5 +64,29 @@ export async function getHubCustomerMonthByOwner(f: {
     customer: String(r.customer),
     mes: Number(r.mes),
     importe: Number(r.importe),
+  }));
+}
+
+// Tratos por cuenta y mes. Zoho CRM se replica en el esquema crm del hub, y
+// owner_name usa las mismas cadenas que el vendedor de Books, asi que el filtro
+// por comercial vale para las dos fuentes sin traducir nada.
+export async function getHubDealsMonth(f: {
+  anio: number;
+  owner: string | null;
+}): Promise<DealMonthRow[]> {
+  const sql = `
+    SELECT d.account_name,
+           extract(month from d.created_time)::int AS mes,
+           count(*)::int AS tratos
+    FROM crm.deals d
+    WHERE extract(year from d.created_time) = $1
+      AND d.account_name IS NOT NULL
+      AND ($2::text IS NULL OR d.owner_name = $2)
+    GROUP BY d.account_name, extract(month from d.created_time)`;
+  const { rows } = await getHubPool().query(sql, [f.anio, f.owner]);
+  return rows.map((r) => ({
+    account_name: String(r.account_name),
+    mes: Number(r.mes),
+    tratos: Number(r.tratos),
   }));
 }
