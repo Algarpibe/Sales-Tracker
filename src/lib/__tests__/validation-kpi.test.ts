@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { kpiTargetsSchema } from "@/lib/validation";
+import { KPI_FIRST_YEAR } from "@/lib/commercial-kpis";
 
 const year = new Date().getFullYear();
 const dos = [
@@ -49,5 +50,18 @@ describe("kpiTargetsSchema", () => {
   });
   it("rechaza una lista vacia", () => {
     expect(kpiTargetsSchema.safeParse({ year, salesperson: null, items: [] }).success).toBe(false);
+  });
+
+  // La pantalla ya no ofrece esos anios, pero la accion es la que protege el dato:
+  // sin este limite se podrian guardar metas de un anio en el que los KPIs no existian.
+  it("rechaza un anio anterior al primero con KPIs", () => {
+    expect(
+      kpiTargetsSchema.safeParse({ year: KPI_FIRST_YEAR - 1, salesperson: null, items: dos }).success
+    ).toBe(false);
+  });
+  it("acepta el primer anio con KPIs", () => {
+    expect(
+      kpiTargetsSchema.safeParse({ year: KPI_FIRST_YEAR, salesperson: null, items: dos }).success
+    ).toBe(true);
   });
 });
