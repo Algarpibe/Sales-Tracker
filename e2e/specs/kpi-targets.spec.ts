@@ -38,3 +38,22 @@ test("cada vendedor tiene sus propias metas", async ({ page }) => {
   await expect(card.getByText("Suma de pesos: 0%")).toBeVisible();
   await expect(card.getByRole("button", { name: "Guardar metas" })).toBeDisabled();
 });
+
+test("la tabla dice qué es cada columna y en qué unidad va la meta", async ({ page }) => {
+  await page.goto("/settings");
+  const card = page.locator('[data-slot="card"]', { hasText: "Metas de KPIs comerciales" });
+  await expect(card).toBeVisible();
+
+  // Sin cabeceras, los dos campos de cada fila son indistinguibles.
+  await expect(card.getByText("Meta", { exact: true })).toBeVisible();
+  await expect(card.getByText("Peso %", { exact: true })).toBeVisible();
+
+  // Cada fila declara su unidad: no todas las metas son importes.
+  await expect(card.getByText("Trimestral · USD").first()).toBeVisible();
+  await expect(card.getByText("Mensual · nº").first()).toBeVisible();
+  await expect(card.getByText("Mensual · %").first()).toBeVisible();
+
+  // Y el propio campo la repite, que es donde mira quien está tecleando.
+  await expect(card.getByLabel("Meta de Ventas clientes nuevos")).toHaveAttribute("placeholder", "USD");
+  await expect(card.getByLabel("Meta de Tratos cerrados ganados")).toHaveAttribute("placeholder", "nº");
+});
