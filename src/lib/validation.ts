@@ -6,6 +6,7 @@ import {
   billingCycle,
   subscriptionStatus,
 } from "@/db/schema";
+import { KPI_KEYS } from "@/lib/commercial-kpis";
 
 // Esquemas reutilizables para validar input de Server Actions en runtime
 // (TypeScript no valida en runtime). Los enums se derivan del schema Drizzle
@@ -80,3 +81,26 @@ export const subscriptionUpdateSchema = z.object({
   cancel_date: z.string().optional(),
   url: z.string().max(2000).optional(),
 });
+
+// Metas y pesos de un ámbito: el total de la compañía (salesperson nulo) o un
+// vendedor. Solo se envían los KPIs que se miden ese año en ese ámbito, y sus
+// pesos suman 100. Los dos decimales son los que admite la columna numeric:
+// aceptar más haría que lo guardado no cuadrase con lo validado.
+export const kpiTargetsSchema = z
+  .object({
+    year: z.number().int().min(2021).max(currentYear + 1),
+    salesperson: z.string().trim().min(1, "El vendedor no puede ir vacío").max(120).nullable(),
+    items: z
+      .array(
+        z.object({
+          kpi_key: z.string().refine((k) => KPI_KEYS.includes(k), "KPI desconocido"),
+          target_value: z.number().positive("La meta debe ser mayor que cero").multipleOf(0.01, "La meta admite dos decimales como mucho"),
+          weight_pct: z.number().min(0).max(100).multipleOf(0.01, "El peso admite dos decimales como mucho"),
+        })
+      )
+      .min(1, "Hay que enviar al menos un KPI"),
+  })
+  .refine(
+    (v) => Math.round(v.items.reduce((s, i) => s + i.weight_pct, 0) * 100) === 10000,
+    { message: "Los pesos deben sumar 100", path: ["items"] }
+  );
