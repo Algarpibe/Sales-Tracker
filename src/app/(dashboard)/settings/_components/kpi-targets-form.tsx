@@ -11,9 +11,8 @@ import {
   type KpiScope,
   type KpiTargetRow,
 } from "@/actions/kpi-actions";
-import { COMMERCIAL_KPIS, KPI_UNIT_LABEL } from "@/lib/commercial-kpis";
+import { COMMERCIAL_KPIS, KPI_UNIT_LABEL, getKpiYearRange } from "@/lib/commercial-kpis";
 import { useAuth } from "@/components/providers/auth-provider";
-import { getYearRange } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -192,7 +191,7 @@ export function KpiTargetsForm() {
           <Select value={String(year)} onValueChange={(v) => { if (v) setYear(Number(v)); }}>
             <SelectTrigger className="w-[110px]" aria-label="Año"><SelectValue /></SelectTrigger>
             <SelectContent>
-              {getYearRange().map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
+              {getKpiYearRange().map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={scope} onValueChange={(v) => { if (v) setScope(v); }}>

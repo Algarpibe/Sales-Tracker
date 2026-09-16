@@ -1,4 +1,5 @@
 import { getHubPool } from "@/db/hub";
+import { isExcludedSalesperson, parseExcludedSalespeople } from "@/lib/commercial-kpis";
 import type { CustomerMonthRow, RecordType } from "@/types/database";
 
 // Vendedores que aparecen en el hub. Zoho los guarda dentro del JSON de la
@@ -18,7 +19,14 @@ export async function getHubSalespeople(): Promise<string[]> {
     WHERE nombre IS NOT NULL AND nombre <> ''
     ORDER BY nombre`;
   const { rows } = await getHubPool().query(sql);
-  return rows.map((r) => String(r.nombre));
+  // El filtro va en JavaScript y no en el SQL para poder ignorar mayúsculas y
+  // tildes: el mismo nombre llega de Zoho escrito de las dos maneras. Solo se
+  // quita del selector de propietario; sus ventas siguen contando en el total
+  // de la compañía, que es lo que se quiere.
+  const excluidos = parseExcludedSalespeople(process.env.KPI_EXCLUDED_SALESPEOPLE);
+  return rows
+    .map((r) => String(r.nombre))
+    .filter((nombre) => !isExcludedSalesperson(nombre, excluidos));
 }
 
 // Misma agregación que getHubCustomerMonthSales, con el vendedor como filtro

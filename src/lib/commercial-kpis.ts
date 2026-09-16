@@ -43,3 +43,38 @@ const BY_KEY = new Map(COMMERCIAL_KPIS.map((k) => [k.key, k]));
 export function kpiDef(key: string): KpiDef | undefined {
   return BY_KEY.get(key);
 }
+
+// Los KPIs comerciales se implantaron en 2025: ofrecer años anteriores dejaría
+// elegir periodos que nunca se midieron. El resto de la app sigue con
+// getYearRange() de @/lib/constants, que arranca en 2021 porque ahí sí hay ventas.
+export const KPI_FIRST_YEAR = 2025;
+
+/** Años elegibles para las metas, del actual hacia atrás hasta KPI_FIRST_YEAR. */
+export function getKpiYearRange(): number[] {
+  // Math.max deja al menos un año aunque el reloj del sistema fuese anterior a 2025.
+  const desde = Math.max(new Date().getFullYear(), KPI_FIRST_YEAR);
+  const anios: number[] = [];
+  for (let y = desde; y >= KPI_FIRST_YEAR; y--) anios.push(y);
+  return anios;
+}
+
+// Entradas de raw->>'salesperson_name' que no son comerciales y no deben poder
+// elegirse como propietario. Los nombres viven en KPI_EXCLUDED_SALESPEOPLE y no
+// en el código porque este repositorio es público.
+
+/** "Uno, Dos" -> ["Uno", "Dos"]. Sin valor o con la cadena vacía, nadie queda excluido. */
+export function parseExcludedSalespeople(raw: string | undefined): string[] {
+  if (!raw) return [];
+  return raw
+    .split(",")
+    .map((nombre) => nombre.trim())
+    .filter((nombre) => nombre !== "");
+}
+
+/** Zoho devuelve el nombre con tilde o sin ella según quien lo escribiera, así que
+ *  la comparación ignora mayúsculas y acentos. */
+export function isExcludedSalesperson(nombre: string, excluidos: string[]): boolean {
+  return excluidos.some(
+    (excluido) => nombre.localeCompare(excluido, undefined, { sensitivity: "base" }) === 0
+  );
+}
