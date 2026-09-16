@@ -65,6 +65,10 @@ const PredictiveRunRateCard = dynamic(
   () => import("@/components/charts/premium/predictive-run-rate").then((m) => m.PredictiveRunRateCard),
   { ssr: false, loading: chartSkeleton }
 );
+const CommercialKpiTable = dynamic(
+  () => import("@/components/charts/comercial/commercial-kpi-table").then((m) => m.CommercialKpiTable),
+  { ssr: false, loading: chartSkeleton }
+);
 const BucketMixCard = dynamic(
   () => import("@/components/charts/comercial/bucket-mix-card").then((m) => m.BucketMixCard),
   { ssr: false, loading: chartSkeleton }
@@ -362,6 +366,8 @@ function AnalyticsContent() {
                 year={yearA}
                 onYearChange={setYearA}
               />
+
+              <CommercialKpiTable recordType={recordType} year={yearA} />
 
               <BucketMixCard recordType={recordType} />
               <div className="grid gap-6 lg:grid-cols-2">

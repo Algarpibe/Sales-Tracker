@@ -9,8 +9,11 @@ import {
 
 // Suma de "Ventas histórico" para HISTORICAL_CUSTOMER incluyendo las filas del
 // histórico ficticio (2015-2020) más las facturas del hub. Determinista por la
-// semilla.
-const VENTAS_HISTORICO = "$14,754";
+// semilla, pero ACOPLADA a ella: seed-hub.mjs siembra hasta el año en curso, así
+// que este total sube cuando entra un año nuevo. Si el test falla por este valor,
+// recalcularlo con la consulta de facturas del cliente en lugar de relajar el aserto:
+// la igualdad exacta es lo que prueba que el histórico entra en la suma.
+const VENTAS_HISTORICO = "$24,134";
 
 test.use({ storageState: APPROVED_STATE });
 
