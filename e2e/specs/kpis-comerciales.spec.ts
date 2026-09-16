@@ -72,3 +72,15 @@ test("las filas de generacion de tratos muestran numeros y ya no dicen que estan
   await expect(nuevos.getByRole("cell").nth(1)).toHaveText("1");
   await expect(existentes.getByRole("cell").nth(1)).toHaveText("1");
 });
+
+test("la fila de tratos cerrados ganados cuenta solo los ganados", async ({ page }) => {
+  const card = await abrirComercial(page);
+
+  const fila = card.getByRole("row", { name: /Tratos cerrados ganados/ });
+  await expect(fila).toBeVisible();
+  await expect(fila).not.toContainText("Pendiente de Zoho CRM");
+
+  // La semilla cierra un trato ganado y otro perdido cada mes: si el filtro por
+  // fase no funcionara, aqui saldria 2.
+  await expect(fila.getByRole("cell").nth(1)).toHaveText("1");
+});
