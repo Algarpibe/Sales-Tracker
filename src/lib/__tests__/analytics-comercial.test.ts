@@ -7,6 +7,7 @@ import {
   buildBrandMix,
   buildBucketByClient,
   buildNewVsRecurring,
+  firstYearByCustomer,
   buildMonthHeatmap,
   buildBucketSeason,
 } from "@/lib/analytics-comercial";
@@ -157,5 +158,30 @@ describe("buildBucketSeason", () => {
     expect(s[0]).toEqual({ mes: 1, mano_obra: 100, cr: 50, equipos: 0, operacion: 0 });
     expect(s[1]).toEqual({ mes: 2, mano_obra: 0, cr: 0, equipos: 0, operacion: 0 });
     expect(s[2]).toEqual({ mes: 3, mano_obra: 0, cr: 0, equipos: 200, operacion: 0 });
+  });
+});
+
+describe("firstYearByCustomer", () => {
+  it("devuelve el primer anio con ventas de cada cliente", () => {
+    const rows = [
+      { customer: "Alfa", year: 2022, ventas: 100 },
+      { customer: "Alfa", year: 2021, ventas: 50 },
+      { customer: "Beta", year: 2023, ventas: 200 },
+    ];
+    const m = firstYearByCustomer(rows);
+    expect(m.get("Alfa")).toBe(2021);
+    expect(m.get("Beta")).toBe(2023);
+  });
+
+  it("ignora los anios sin ventas", () => {
+    const rows = [
+      { customer: "Alfa", year: 2021, ventas: 0 },
+      { customer: "Alfa", year: 2022, ventas: 100 },
+    ];
+    expect(firstYearByCustomer(rows).get("Alfa")).toBe(2022);
+  });
+
+  it("no inventa clientes", () => {
+    expect(firstYearByCustomer([]).size).toBe(0);
   });
 });

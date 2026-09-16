@@ -116,8 +116,13 @@ export interface NewVsRecurringRow {
   countNuevos: number;
 }
 
-export function buildNewVsRecurring(rows: CustomerYearRow[]): NewVsRecurringRow[] {
-  // firstYear por cliente (mínimo año con ventas > 0)
+/**
+ * Primer año con ventas de cada cliente, **dentro de las filas recibidas**. Quién es
+ * "nuevo" depende por tanto de la ventana consultada: la tabla de KPIs la pide de
+ * compañía y con histórico, mientras que el gráfico de nuevos vs recurrentes arranca
+ * en 2021 y por eso ese primer año sale entero como nuevo.
+ */
+export function firstYearByCustomer(rows: CustomerYearRow[]): Map<string, number> {
   const firstYear = new Map<string, number>();
   for (const r of rows) {
     if (r.ventas > 0) {
@@ -125,6 +130,11 @@ export function buildNewVsRecurring(rows: CustomerYearRow[]): NewVsRecurringRow[
       if (cur === undefined || r.year < cur) firstYear.set(r.customer, r.year);
     }
   }
+  return firstYear;
+}
+
+export function buildNewVsRecurring(rows: CustomerYearRow[]): NewVsRecurringRow[] {
+  const firstYear = firstYearByCustomer(rows);
   const byYear = new Map<number, NewVsRecurringRow>();
   for (const r of rows) {
     if (r.ventas <= 0) continue;
