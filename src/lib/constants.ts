@@ -75,6 +75,11 @@ export function formatCompactUSD(value: number): string {
   return formatUSD(value);
 }
 
+/** Porcentaje con un decimal. Existía repetido a mano en media docena de sitios. */
+export function formatPct(value: number, decimals = 1): string {
+  return `${value.toFixed(decimals)}%`;
+}
+
 export function getYearRange(): number[] {
   const currentYear = new Date().getFullYear();
   const years: number[] = [];
