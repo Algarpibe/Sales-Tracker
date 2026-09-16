@@ -27,7 +27,7 @@ test("la tabla muestra el TOTAL con su cobertura y los KPIs pendientes con su mo
   // La semilla pesa dos KPIs medibles al 60 y al 40.
   await expect(card.getByText(/cobertura: 100/)).toBeVisible();
 
-  // Los cinco KPIs sin origen de datos dicen por que estan vacios.
+  // Los tres KPIs que siguen sin origen de datos dicen por que estan vacios.
   await expect(card.getByText("Pendiente de Zoho CRM").first()).toBeVisible();
   await expect(card.getByText("Pendiente de Zoho Desk").first()).toBeVisible();
 });

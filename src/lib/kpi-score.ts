@@ -141,7 +141,7 @@ export interface Scoreboard {
 
 /**
  * Puntuación total sobre los KPIs que hoy tienen datos. Se renormaliza en vez de
- * repartir sobre los 100 puntos completos: con cinco de ocho KPIs esperando a que
+ * repartir sobre los 100 puntos completos: con tres de ocho KPIs esperando a que
  * el hub replique CRM y Desk, el reparto plano daría siempre un suspenso que no
  * describe nada. `coverage` dice cuánto del peso respalda esa nota.
  */
