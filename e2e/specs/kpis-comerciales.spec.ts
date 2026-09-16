@@ -27,7 +27,7 @@ test("la tabla muestra el TOTAL con su cobertura y los KPIs pendientes con su mo
   // La semilla pesa dos KPIs medibles al 60 y al 40.
   await expect(card.getByText(/cobertura: 100/)).toBeVisible();
 
-  // Los cinco KPIs sin origen de datos dicen por que estan vacios.
+  // Los tres KPIs que siguen sin origen de datos dicen por que estan vacios.
   await expect(card.getByText("Pendiente de Zoho CRM").first()).toBeVisible();
   await expect(card.getByText("Pendiente de Zoho Desk").first()).toBeVisible();
 });
@@ -54,4 +54,21 @@ test("un ambito sin metas configuradas lo dice en vez de fingir cumplimiento", a
 
   // La semilla deja los ambitos por vendedor sin metas a proposito.
   await expect(card.getByText(/Configura las metas/)).toBeVisible();
+});
+
+test("las filas de generacion de tratos muestran numeros y ya no dicen que estan pendientes", async ({ page }) => {
+  const card = await abrirComercial(page);
+
+  const nuevos = card.getByRole("row", { name: /Generación de tratos · clientes nuevos/ });
+  const existentes = card.getByRole("row", { name: /Generación de tratos · clientes existentes/ });
+
+  // La semilla deja un trato de cada clase en cada mes del anio en curso.
+  await expect(nuevos).toBeVisible();
+  await expect(existentes).toBeVisible();
+  await expect(nuevos).not.toContainText("Pendiente de Zoho CRM");
+  await expect(existentes).not.toContainText("Pendiente de Zoho CRM");
+
+  // Enero tiene trato nuevo y trato existente; el indice 1 es el primer mes.
+  await expect(nuevos.getByRole("cell").nth(1)).toHaveText("1");
+  await expect(existentes.getByRole("cell").nth(1)).toHaveText("1");
 });

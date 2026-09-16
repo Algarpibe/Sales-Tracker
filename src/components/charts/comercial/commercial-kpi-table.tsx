@@ -6,6 +6,7 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { getCategories } from "@/actions/category-actions";
 import { getCustomerSales } from "@/actions/customer-sales-actions";
 import {
+  getKpiDealsMonthly,
   getKpiMonthlySales,
   getKpiTargets,
   getSalespeople,
@@ -16,7 +17,8 @@ import { getSalesData } from "@/actions/sales-actions";
 import { firstYearByCustomer } from "@/lib/analytics-comercial";
 import { COMMERCIAL_KPIS, KPI_UNIT_LABEL, type KpiDef, type KpiUnit } from "@/lib/commercial-kpis";
 import {
-  attainment, kpiAverage, kpiContribution, periodTotals, scoreboard, splitNewExisting,
+  attainment, kpiAverage, kpiContribution, periodTotals, scoreboard,
+  splitDealsNewExisting, splitNewExisting,
 } from "@/lib/kpi-score";
 import { stGrowthByQuarter } from "@/lib/tech-service";
 import { CHART_HELP } from "@/lib/chart-help";
@@ -121,7 +123,7 @@ export function CommercialKpiTable({
     queryFn: () => getSalespeople(),
   });
 
-  // keepPreviousData en las dos consultas que dependen del ámbito: cambiar de
+  // keepPreviousData en las tres consultas que dependen del ámbito: cambiar de
   // comercial es un filtro, no una pantalla nueva, y desmontar la tabla en cada
   // cambio la haría parpadear entera.
   const metasQ = useQuery({
@@ -132,6 +134,12 @@ export function CommercialKpiTable({
   const mensualesQ = useQuery({
     queryKey: ["kpi-monthly", recordType, year, owner],
     queryFn: () => getKpiMonthlySales(recordType, year, salesperson),
+    placeholderData: keepPreviousData,
+  });
+  // Los tratos no dependen del conmutador OV/FAC: en CRM no hay tal cosa.
+  const tratosQ = useQuery({
+    queryKey: ["kpi-deals", year, owner],
+    queryFn: () => getKpiDealsMonthly(year, salesperson),
     placeholderData: keepPreviousData,
   });
 
@@ -148,13 +156,17 @@ export function CommercialKpiTable({
 
   const metas = useMemo<KpiTargetRow[]>(() => metasQ.data ?? [], [metasQ.data]);
   const mensuales = useMemo(() => mensualesQ.data ?? [], [mensualesQ.data]);
+  const tratos = useMemo(() => tratosQ.data ?? [], [tratosQ.data]);
   const historico = useMemo(() => historicoQ.data ?? [], [historicoQ.data]);
   const registros = useMemo<SalesRecord[]>(() => ventasQ.data ?? [], [ventasQ.data]);
   const categorias = useMemo<Category[]>(() => (categoriasQ.data as Category[]) ?? [], [categoriasQ.data]);
 
   const filas = useMemo<FilaKpi[]>(() => {
     const porClave = new Map(metas.map((m) => [m.kpi_key, m]));
-    const split = splitNewExisting(mensuales, firstYearByCustomer(historico), year);
+    // Un solo mapa de primer año para los dos repartos: el de ventas y el de tratos.
+    const primerAnio = firstYearByCustomer(historico);
+    const split = splitNewExisting(mensuales, primerAnio, year);
+    const tratosSplit = splitDealsNewExisting(tratos, primerAnio, year);
     const catMap = new Map<string, string>(categorias.map((c) => [String(c.id), String(c.name)]));
     // De compañía a propósito: las líneas de Servicio Técnico no llevan comercial asignado.
     const st = stGrowthByQuarter(
@@ -172,10 +184,18 @@ export function CommercialKpiTable({
       if (def.key === "ventas_existentes") {
         return construirFila(def, periodTotals(split.existentes, def.period), meta, split.existentes);
       }
+      if (def.key === "tratos_nuevos") {
+        const serie = tratosSplit.nuevos;
+        return construirFila(def, periodTotals(serie, def.period), meta, serie);
+      }
+      if (def.key === "tratos_existentes") {
+        const serie = tratosSplit.existentes;
+        return construirFila(def, periodTotals(serie, def.period), meta, serie);
+      }
       if (def.key === "incremento_st") return construirFila(def, st, meta, null);
       return construirFila(def, new Array(cubosDe(def)).fill(null), meta, null);
     });
-  }, [metas, mensuales, historico, registros, categorias, recordType, year]);
+  }, [metas, mensuales, tratos, historico, registros, categorias, recordType, year]);
 
   const marcador = useMemo(
     () => scoreboard(filas.map((f) => ({ average: f.promedio, weight: f.peso }))),
@@ -184,9 +204,10 @@ export function CommercialKpiTable({
   const aporteTotal = useMemo(() => filas.reduce((s, f) => s + (f.aporte ?? 0), 0), [filas]);
 
   const cargando =
-    metasQ.isPending || mensualesQ.isPending || historicoQ.isPending ||
+    metasQ.isPending || mensualesQ.isPending || tratosQ.isPending || historicoQ.isPending ||
     ventasQ.isPending || categoriasQ.isPending;
-  const refrescando = metasQ.isPlaceholderData || mensualesQ.isPlaceholderData;
+  const refrescando =
+    metasQ.isPlaceholderData || mensualesQ.isPlaceholderData || tratosQ.isPlaceholderData;
   // Sin ventas del ámbito y sin metas, la tabla solo enseñaría guiones.
   const sinDatos = mensuales.length === 0 && metas.length === 0;
   const sinMetas = !metas.some((m) => m.weight_pct > 0);

@@ -47,3 +47,17 @@ CREATE TABLE books.invoice_line_items (
   bcy_rate     numeric,
   quantity     numeric
 );
+
+-- El hub real replica tambien Zoho CRM. Aqui solo van las columnas que consulta
+-- src/db/hub-kpi.ts, igual que con books.
+CREATE SCHEMA IF NOT EXISTS crm;
+
+CREATE TABLE crm.deals (
+  id           text PRIMARY KEY,
+  deal_name    text,
+  account_name text,
+  owner_name   text,
+  stage        text,
+  amount       numeric,
+  created_time timestamptz
+);

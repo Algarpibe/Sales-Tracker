@@ -4,10 +4,11 @@ import { revalidatePath } from "next/cache";
 import { and, eq, notInArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { kpiTargets } from "@/db/schema";
-import { getHubCustomerMonthByOwner, getHubSalespeople } from "@/db/hub-kpi";
+import { getHubCustomerMonthByOwner, getHubDealsMonth, getHubSalespeople } from "@/db/hub-kpi";
 import { requireApproved, requireRole } from "@/lib/auth/guards";
 import { kpiTargetsSchema } from "@/lib/validation";
 import { runAction, type ActionResult } from "@/lib/errors";
+import type { DealMonthRow } from "@/lib/kpi-score";
 import type { CustomerMonthRow, RecordType } from "@/types/database";
 
 export interface KpiTargetRow {
@@ -105,4 +106,10 @@ export async function getKpiMonthlySales(
 ): Promise<CustomerMonthRow[]> {
   await requireApproved();
   return getHubCustomerMonthByOwner({ tipo, anio, owner });
+}
+
+/** Tratos por cuenta y mes del año, opcionalmente de un solo comercial. Lectura: lanza en error. */
+export async function getKpiDealsMonthly(anio: number, owner: KpiScope): Promise<DealMonthRow[]> {
+  await requireApproved();
+  return getHubDealsMonth({ anio, owner });
 }
