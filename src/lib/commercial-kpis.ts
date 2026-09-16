@@ -57,3 +57,24 @@ export function getKpiYearRange(): number[] {
   for (let y = desde; y >= KPI_FIRST_YEAR; y--) anios.push(y);
   return anios;
 }
+
+// Entradas de raw->>'salesperson_name' que no son comerciales y no deben poder
+// elegirse como propietario. Los nombres viven en KPI_EXCLUDED_SALESPEOPLE y no
+// en el código porque este repositorio es público.
+
+/** "Uno, Dos" -> ["Uno", "Dos"]. Sin valor o con la cadena vacía, nadie queda excluido. */
+export function parseExcludedSalespeople(raw: string | undefined): string[] {
+  if (!raw) return [];
+  return raw
+    .split(",")
+    .map((nombre) => nombre.trim())
+    .filter((nombre) => nombre !== "");
+}
+
+/** Zoho devuelve el nombre con tilde o sin ella según quien lo escribiera, así que
+ *  la comparación ignora mayúsculas y acentos. */
+export function isExcludedSalesperson(nombre: string, excluidos: string[]): boolean {
+  return excluidos.some(
+    (excluido) => nombre.localeCompare(excluido, undefined, { sensitivity: "base" }) === 0
+  );
+}
