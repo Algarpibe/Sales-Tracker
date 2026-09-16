@@ -98,6 +98,21 @@ export async function seedApp(connectionString) {
       );
     }
 
+    // Metas sinteticas del total de compania para el anio en curso: dos KPIs con
+    // pesos que suman 100. Los ambitos por vendedor se dejan vacios a proposito.
+    const anio = new Date().getFullYear();
+    const METAS = [
+      { key: "ventas_nuevos", target: 1000, weight: 60 },
+      { key: "ventas_existentes", target: 2000, weight: 40 },
+    ];
+    for (const m of METAS) {
+      await client.query(
+        `INSERT INTO kpi_targets (company_id, record_year, kpi_key, target_value, weight_pct)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [company.id, anio, m.key, m.target, m.weight],
+      );
+    }
+
     await seedUser(client, company.id, USERS.approved, { approved: true });
     await seedUser(client, company.id, USERS.pending, { approved: false });
 
