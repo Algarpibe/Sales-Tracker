@@ -46,3 +46,6 @@ export const HISTORICAL_FIRST_YEAR = Math.min(...historical.rows.map((r) => r.ye
  */
 export const ORDER_FIRST_CUSTOMER = "Alfa Industrial";
 export const ORDER_FIRST_YEAR = 2020;
+
+/** Vendedores ficticios que siembra e2e/db/seed-hub.mjs en raw.salesperson_name, en el orden alfabético que devuelve la consulta. */
+export const SALESPEOPLE = ["Vendedor Ficticio", "Vendedora Ficticia"] as const;
