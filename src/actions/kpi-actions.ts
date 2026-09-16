@@ -1,0 +1,97 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { and, eq, notInArray, sql } from "drizzle-orm";
+import { db } from "@/db";
+import { kpiTargets } from "@/db/schema";
+import { getHubSalespeople } from "@/db/hub-kpi";
+import { requireApproved, requireRole } from "@/lib/auth/guards";
+import { kpiTargetsSchema } from "@/lib/validation";
+import { runAction, type ActionResult } from "@/lib/errors";
+
+export interface KpiTargetRow {
+  kpi_key: string;
+  target_value: number;
+  weight_pct: number;
+}
+
+/** Ámbito de las metas: null es el total de la compañía. */
+export type KpiScope = string | null;
+
+export async function getSalespeople(): Promise<string[]> {
+  await requireApproved();
+  return getHubSalespeople();
+}
+
+export async function getKpiTargets(year: number, salesperson: KpiScope): Promise<KpiTargetRow[]> {
+  const { profile } = await requireApproved();
+  const rows = await db
+    .select({
+      kpi_key: kpiTargets.kpi_key,
+      target_value: kpiTargets.target_value,
+      weight_pct: kpiTargets.weight_pct,
+    })
+    .from(kpiTargets)
+    .where(
+      and(
+        eq(kpiTargets.company_id, profile.company_id),
+        eq(kpiTargets.record_year, year),
+        // eq(col, null) genera "= NULL" y no casa nunca: hace falta IS NOT DISTINCT FROM.
+        sql`${kpiTargets.salesperson} IS NOT DISTINCT FROM ${salesperson}`
+      )
+    );
+
+  // numeric llega como string desde Drizzle.
+  return rows.map((r) => ({
+    kpi_key: r.kpi_key,
+    target_value: Number(r.target_value),
+    weight_pct: Number(r.weight_pct),
+  }));
+}
+
+export async function saveKpiTargets(
+  year: number,
+  salesperson: KpiScope,
+  items: KpiTargetRow[]
+): Promise<ActionResult> {
+  return runAction(async () => {
+    const { profile } = await requireRole("admin");
+    const data = kpiTargetsSchema.parse({ year, salesperson, items });
+    const keys = data.items.map((i) => i.kpi_key);
+
+    await db.transaction(async (tx) => {
+      for (const it of data.items) {
+        await tx
+          .insert(kpiTargets)
+          .values({
+            company_id: profile.company_id,
+            record_year: data.year,
+            kpi_key: it.kpi_key,
+            salesperson: data.salesperson,
+            target_value: String(it.target_value),
+            weight_pct: String(it.weight_pct),
+          })
+          .onConflictDoUpdate({
+            target: [kpiTargets.company_id, kpiTargets.record_year, kpiTargets.kpi_key, kpiTargets.salesperson],
+            set: {
+              target_value: String(it.target_value),
+              weight_pct: String(it.weight_pct),
+              updated_at: new Date().toISOString(),
+            },
+          });
+      }
+
+      // Un KPI que ya no se envía deja de medirse en ESE ámbito.
+      await tx.delete(kpiTargets).where(
+        and(
+          eq(kpiTargets.company_id, profile.company_id),
+          eq(kpiTargets.record_year, data.year),
+          sql`${kpiTargets.salesperson} IS NOT DISTINCT FROM ${data.salesperson}`,
+          notInArray(kpiTargets.kpi_key, keys)
+        )
+      );
+    });
+
+    revalidatePath("/settings");
+  });
+}

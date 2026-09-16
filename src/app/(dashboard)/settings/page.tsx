@@ -3,6 +3,7 @@
 import { useAuth } from "@/components/providers/auth-provider";
 import { Hexagon, History } from "lucide-react";
 import { AccountSettingsForm } from "./_components/account-settings-form";
+import { KpiTargetsForm } from "./_components/kpi-targets-form";
 import { SecurityForm } from "./_components/security-form";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -52,6 +53,8 @@ export default function SettingsPage() {
           </Card>
         </div>
       </div>
+
+      <KpiTargetsForm />
     </div>
   );
 }

@@ -218,3 +218,23 @@ export const historicalCustomerSales = pgTable("historical_customer_sales", {
   unique("historical_customer_sales_unique").on(t.company_id, t.customer_name, t.record_year),
   index("idx_hist_customer_company_year").on(t.company_id, t.record_year),
 ]);
+
+// Metas y pesos de los KPIs comerciales, por empresa, año y ámbito. El catálogo
+// de KPIs (clave, etiqueta, periodicidad) vive en src/lib/commercial-kpis.ts:
+// aquí solo se guarda lo que configura cada empresa. El ámbito nulo es la meta
+// del total de la compañía.
+export const kpiTargets = pgTable("kpi_targets", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  company_id: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+  record_year: integer("record_year").notNull(),
+  kpi_key: text("kpi_key").notNull(),
+  // Nulo = meta del total de la compañía; con nombre, la de ese comercial.
+  salesperson: text("salesperson"),
+  target_value: numeric("target_value", { precision: 15, scale: 2 }).notNull(),
+  weight_pct: numeric("weight_pct", { precision: 5, scale: 2 }).notNull(),
+  updated_at: timestamp("updated_at", tsString).notNull().defaultNow(),
+}, (t) => [
+  unique("kpi_targets_unique").on(t.company_id, t.record_year, t.kpi_key, t.salesperson).nullsNotDistinct(),
+  check("kpi_targets_target_check", sql`${t.target_value} > 0`),
+  check("kpi_targets_weight_check", sql`${t.weight_pct} >= 0 AND ${t.weight_pct} <= 100`),
+]);

@@ -18,6 +18,11 @@ const CUSTOMERS = [
   "Epsilon Energia",
 ];
 
+// Vendedores ficticios: el hub real guarda el nombre en raw.salesperson_name.
+// Rotan cada dos meses, no cada mes: las facturas solo existen en meses pares,
+// asi que alternar por mes dejaria un unico vendedor en books.invoices.
+const VENDEDORES = ["Vendedora Ficticia", "Vendedor Ficticio"];
+
 const FIRST_SEEDED_YEAR = 2020;
 const YEARS = [2020, 2021, 2022, 2023, 2024];
 
@@ -80,6 +85,7 @@ export async function seedHub(connectionString) {
         const soId = `SO-${year}-${String(month).padStart(2, "0")}`;
         // Meses pares llevan factura; los impares quedan sin facturar (alimenta BACKLOG).
         const hasInvoice = month % 2 === 0;
+        const vendedor = VENDEDORES[Math.floor((month - 1) / 2) % VENDEDORES.length];
 
         const lines = items.map((item, idx) => ({
           line_item_id: `${soId}-L${idx}`,
@@ -96,6 +102,7 @@ export async function seedHub(connectionString) {
            JSON.stringify({
              invoiced_status: hasInvoice ? "invoiced" : "not_invoiced",
              bcy_discount_total: "0",
+             salesperson_name: vendedor,
            })],
         );
         orders++;
@@ -114,7 +121,7 @@ export async function seedHub(connectionString) {
         await client.query(
           `INSERT INTO books.invoices (invoice_id, salesorder_id, date, status, customer_name, bcy_sub_total, raw)
            VALUES ($1, $2, $3, 'paid', $4, $5, $6::jsonb)`,
-          [invId, soId, date, customer, subTotal, JSON.stringify({ bcy_discount_total: "0" })],
+          [invId, soId, date, customer, subTotal, JSON.stringify({ bcy_discount_total: "0", salesperson_name: vendedor })],
         );
         invoices++;
 
