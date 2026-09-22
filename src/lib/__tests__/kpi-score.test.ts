@@ -45,11 +45,13 @@ describe("splitNewExisting", () => {
     expect(splitNewExisting(rows, primerAnio, 2026).existentes[4]).toBe(25);
   });
 
-  it("trata como existente al cliente que no esta en el mapa", () => {
-    // Si no aparece en la ventana consultada, no es su primer anio: no puede ser nuevo.
+  it("trata como nuevo al cliente sin ninguna factura, aunque tenga importe este anio", () => {
+    // Antes se trataba como existente por descarte, y clasificaba mal a quien nunca
+    // ha comprado: una orden de venta sin ninguna factura previa (caso real detectado
+    // en produccion, con nombres inventados aqui) solo puede ser una primera compra.
     const s = splitNewExisting([{ customer: "Gamma", mes: 1, importe: 40 }], primerAnio, 2026);
-    expect(s.nuevos[0]).toBe(0);
-    expect(s.existentes[0]).toBe(40);
+    expect(s.nuevos[0]).toBe(40);
+    expect(s.existentes[0]).toBe(0);
   });
 
   it("ignora los meses fuera de rango", () => {
@@ -244,9 +246,11 @@ describe("esVentaDeClienteNuevo", () => {
   it("no es nuevo quien ya compraba antes", () => {
     expect(esVentaDeClienteNuevo("Alfa", primerAnio, 2026)).toBe(false);
   });
-  it("quien no esta en el mapa no es nuevo por esta via", () => {
-    // Para ventas, si no hay fila de ventas tampoco hay importe que repartir.
-    expect(esVentaDeClienteNuevo("Gamma", primerAnio, 2026)).toBe(false);
+  it("es nuevo quien no aparece en el historico de facturas", () => {
+    // Sin factura nunca, no puede tener un primer anio de factura. Si ademas
+    // tiene importe este anio (una orden de venta sin factura, por ejemplo),
+    // solo puede ser porque es la primera vez que compra.
+    expect(esVentaDeClienteNuevo("Gamma", primerAnio, 2026)).toBe(true);
   });
 });
 

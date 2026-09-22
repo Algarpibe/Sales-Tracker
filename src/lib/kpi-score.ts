@@ -16,13 +16,20 @@ function doceCeros(): number[] {
 /**
  * ¿La venta de este cliente cuenta como de cliente nuevo ese año? Compara por el
  * nombre crudo de Books, que es la clave del mapa de antigüedad.
+ *
+ * Quien no aparece en el mapa nunca ha tenido una factura: no puede tener un
+ * primer año de factura, pero eso no lo hace "existente" por descarte. Si aun
+ * así tiene importe este año (por ejemplo una orden de venta todavía sin
+ * facturar), solo puede tratarse de su primera compra. Bug real detectado en
+ * producción: un cliente sin ninguna factura salía como cliente existente.
  */
 export function esVentaDeClienteNuevo(
   customer: string,
   firstYear: Map<string, number>,
   year: number
 ): boolean {
-  return firstYear.get(customer) === year;
+  const primero = firstYear.get(customer);
+  return primero === undefined || primero >= year;
 }
 
 /**
