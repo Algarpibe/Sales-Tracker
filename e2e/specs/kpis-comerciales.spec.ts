@@ -100,5 +100,8 @@ test("pulsar la cifra de un mes abre el detalle de esa celda", async ({ page }) 
   await expect(dialogo).toBeVisible();
   await expect(dialogo).toContainText("Febrero");
   // El pie repite el total, que es la autocomprobacion de que el detalle cuadra.
-  await expect(dialogo.getByText("Total")).toBeVisible();
+  // El selector busca "Total:" y no "Total" a secas porque el ambito por defecto
+  // del dialogo es "Total compania" (sin filtrar por comercial), que tambien
+  // contendria la palabra suelta y volveria el selector ambiguo.
+  await expect(dialogo.getByText("Total:")).toBeVisible();
 });
