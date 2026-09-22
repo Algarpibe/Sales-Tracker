@@ -122,7 +122,8 @@ type Serie = "nuevos" | "existentes";
 function breakdownSourceFor(
   key: string,
   mensualesBreakdown: BreakdownInput[],
-  tratosBreakdown: BreakdownInput[]
+  tratosBreakdown: BreakdownInput[],
+  ganadosBreakdown: BreakdownInput[]
 ): { rows: BreakdownInput[]; serie: Serie } | null {
   switch (key) {
     case "ventas_nuevos":
@@ -133,6 +134,8 @@ function breakdownSourceFor(
       return { rows: tratosBreakdown, serie: "nuevos" };
     case "tratos_existentes":
       return { rows: tratosBreakdown, serie: "existentes" };
+    case "tratos_ganados":
+      return { rows: ganadosBreakdown, serie: "nuevos" };
     default:
       return null;
   }
@@ -212,7 +215,7 @@ export function CommercialKpiTable({
   const registros = useMemo<SalesRecord[]>(() => ventasQ.data ?? [], [ventasQ.data]);
   const categorias = useMemo<Category[]>(() => (categoriasQ.data as Category[]) ?? [], [categoriasQ.data]);
 
-  const { filas, mensualesBreakdown, tratosBreakdown } = useMemo(() => {
+  const { filas, mensualesBreakdown, tratosBreakdown, ganadosBreakdown } = useMemo(() => {
     const porClave = new Map(metas.map((m) => [m.kpi_key, m]));
     // Un solo mapa de primer año para los dos repartos: el de ventas y el de
     // tratos, y para el desglose de sus celdas, que usa los mismos predicados.
@@ -242,6 +245,15 @@ export function CommercialKpiTable({
       valor: r.tratos,
       nuevo: esTratoDeClienteNuevo(r.account_name, primerAnio, year),
     }));
+    // tratos_ganados no reparte nuevo/existente: es una sola serie. nuevo: true es
+    // una convencion, no un cliente nuevo de verdad, para poder reutilizar
+    // monthBreakdown pidiendo siempre la serie "nuevos" y que devuelva todas las filas.
+    const ganadosBreakdown: BreakdownInput[] = ganados.map((r) => ({
+      nombre: r.account_name,
+      mes: r.mes,
+      valor: r.tratos,
+      nuevo: true,
+    }));
 
     const filas = COMMERCIAL_KPIS.map((def) => {
       const meta = porClave.get(def.key);
@@ -267,7 +279,7 @@ export function CommercialKpiTable({
       return construirFila(def, new Array(cubosDe(def)).fill(null), meta, null);
     });
 
-    return { filas, mensualesBreakdown, tratosBreakdown };
+    return { filas, mensualesBreakdown, tratosBreakdown, ganadosBreakdown };
   }, [metas, mensuales, tratos, ganados, historico, registros, categorias, recordType, year]);
 
   const marcador = useMemo(
@@ -351,7 +363,7 @@ export function CommercialKpiTable({
                     {filas.map((f) => {
                       // Solo ventas y generación de tratos, nuevos y existentes, tienen
                       // fila a fila que desglosar; el resto de KPIs son agregados.
-                      const origen = breakdownSourceFor(f.def.key, mensualesBreakdown, tratosBreakdown);
+                      const origen = breakdownSourceFor(f.def.key, mensualesBreakdown, tratosBreakdown, ganadosBreakdown);
                       return (
                         <tr key={f.def.key} className="border-b border-white/5">
                           <td className="sticky left-0 z-10 bg-card py-2 pr-3 align-top">

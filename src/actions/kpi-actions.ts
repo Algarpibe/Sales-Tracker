@@ -13,7 +13,7 @@ import {
 import { requireApproved, requireRole } from "@/lib/auth/guards";
 import { kpiTargetsSchema } from "@/lib/validation";
 import { runAction, type ActionResult } from "@/lib/errors";
-import type { DealMonthRow, MonthCountRow } from "@/lib/kpi-score";
+import type { DealMonthRow } from "@/lib/kpi-score";
 import type { CustomerMonthRow, RecordType } from "@/types/database";
 
 export interface KpiTargetRow {
@@ -119,8 +119,8 @@ export async function getKpiDealsMonthly(anio: number, owner: KpiScope): Promise
   return getHubDealsMonth({ anio, owner });
 }
 
-/** Tratos ganados por mes del año, opcionalmente de un solo comercial. Lectura: lanza en error. */
-export async function getKpiWonDealsMonthly(anio: number, owner: KpiScope): Promise<MonthCountRow[]> {
+/** Tratos ganados por cuenta y mes del año, opcionalmente de un solo comercial. Lectura: lanza en error. */
+export async function getKpiWonDealsMonthly(anio: number, owner: KpiScope): Promise<DealMonthRow[]> {
   await requireApproved();
   return getHubWonDealsMonth({ anio, owner });
 }
