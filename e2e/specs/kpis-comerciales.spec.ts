@@ -85,3 +85,20 @@ test("la fila de tratos cerrados ganados cuenta solo los ganados", async ({ page
   // fase no funcionara, aqui saldria 2.
   await expect(fila.getByRole("cell").nth(1)).toHaveText("1");
 });
+
+test("pulsar la cifra de un mes abre el detalle de esa celda", async ({ page }) => {
+  const card = await abrirComercial(page);
+
+  const fila = card.getByRole("row", { name: /Ventas clientes existentes/ });
+  // Las facturas de la semilla solo existen en meses pares, y ningun cliente
+  // ficticio es nuevo en el anio en curso (todos compran desde 2020 o 2021), asi
+  // que la fila de existentes solo tiene boton en feb/abr/jun/ago/oct/dic. El
+  // primer boton es por tanto febrero.
+  await fila.getByRole("button").nth(0).click();
+
+  const dialogo = page.getByRole("dialog");
+  await expect(dialogo).toBeVisible();
+  await expect(dialogo).toContainText("Febrero");
+  // El pie repite el total, que es la autocomprobacion de que el detalle cuadra.
+  await expect(dialogo.getByText("Total")).toBeVisible();
+});
