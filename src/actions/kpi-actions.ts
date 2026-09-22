@@ -2,13 +2,17 @@
 
 import { revalidatePath } from "next/cache";
 import { and, eq, notInArray, sql } from "drizzle-orm";
+import { z } from "zod";
 import { db } from "@/db";
-import { kpiTargets } from "@/db/schema";
+import { kpiTargets, kpiProjectOrders } from "@/db/schema";
 import {
   getHubCustomerMonthByOwner,
   getHubDealsMonth,
   getHubSalespeople,
   getHubWonDealsMonth,
+  searchHubSalesOrders,
+  getHubOrdersByIds,
+  type HubOrderRow,
 } from "@/db/hub-kpi";
 import { requireApproved, requireRole } from "@/lib/auth/guards";
 import { kpiTargetsSchema } from "@/lib/validation";
@@ -123,4 +127,48 @@ export async function getKpiDealsMonthly(anio: number, owner: KpiScope): Promise
 export async function getKpiWonDealsMonthly(anio: number, owner: KpiScope): Promise<DealMonthRow[]> {
   await requireApproved();
   return getHubWonDealsMonth({ anio, owner });
+}
+
+/** Busca ordenes de venta para marcarlas como ingresos de proyecto. Lectura: cualquier
+ *  usuario aprobado puede buscar, no expone nada que no vea ya en el resto de la app. */
+export async function searchSalesOrdersForProjects(query: string): Promise<HubOrderRow[]> {
+  await requireApproved();
+  const q = query.trim();
+  if (q.length < 2) return [];
+  return searchHubSalesOrders(q);
+}
+
+/** Ordenes ya marcadas como ingresos de proyecto de la empresa, con su importe en vivo. */
+export async function getKpiProjectOrders(): Promise<HubOrderRow[]> {
+  const { profile } = await requireApproved();
+  const marcadas = await db
+    .select({ hub_order_id: kpiProjectOrders.hub_order_id })
+    .from(kpiProjectOrders)
+    .where(eq(kpiProjectOrders.company_id, profile.company_id));
+  return getHubOrdersByIds(marcadas.map((m) => m.hub_order_id));
+}
+
+/** Marca una orden de venta como ingreso de proyecto. Idempotente: marcarla dos veces
+ *  no falla ni duplica. Solo administradores. */
+export async function addProjectOrder(hubOrderId: string): Promise<ActionResult> {
+  return runAction(async () => {
+    const { profile } = await requireRole("admin");
+    const id = z.string().trim().min(1).parse(hubOrderId);
+    await db
+      .insert(kpiProjectOrders)
+      .values({ company_id: profile.company_id, hub_order_id: id, tagged_by: profile.id })
+      .onConflictDoNothing();
+    revalidatePath("/analytics");
+  });
+}
+
+/** Quita la marca de ingreso de proyecto de una orden. Solo administradores. */
+export async function removeProjectOrder(hubOrderId: string): Promise<ActionResult> {
+  return runAction(async () => {
+    const { profile } = await requireRole("admin");
+    await db
+      .delete(kpiProjectOrders)
+      .where(and(eq(kpiProjectOrders.company_id, profile.company_id), eq(kpiProjectOrders.hub_order_id, hubOrderId)));
+    revalidatePath("/analytics");
+  });
 }
