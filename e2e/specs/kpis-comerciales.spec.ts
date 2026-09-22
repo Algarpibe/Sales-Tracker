@@ -105,3 +105,18 @@ test("pulsar la cifra de un mes abre el detalle de esa celda", async ({ page }) 
   // contendria la palabra suelta y volveria el selector ambiguo.
   await expect(dialogo.getByText("Total:")).toBeVisible();
 });
+
+test("pulsar la cifra de tratos ganados abre su detalle", async ({ page }) => {
+  const card = await abrirComercial(page);
+
+  const fila = card.getByRole("row", { name: /Tratos cerrados ganados/ });
+  // Enero: la semilla gana un trato cada mes, siempre de la misma cuenta salvo
+  // agosto, que la escribe en mayusculas. Enero evita esa variante.
+  await fila.getByRole("button").nth(0).click();
+
+  const dialogo = page.getByRole("dialog");
+  await expect(dialogo).toBeVisible();
+  await expect(dialogo).toContainText("Enero");
+  await expect(dialogo.getByText("1 cliente")).toBeVisible();
+  await expect(dialogo.getByText("Total: 1")).toBeVisible();
+});
