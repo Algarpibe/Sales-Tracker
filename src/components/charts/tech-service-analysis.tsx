@@ -19,6 +19,7 @@ import { InfoTooltip } from "@/components/common/info-tooltip";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RecordTypeToggle } from "@/components/common/record-type-toggle";
 import { CHART_HELP } from "@/lib/chart-help";
+import { yoy } from "@/lib/tech-service";
 
 export interface TechServiceDataPoint {
   label: string; // T1, Ene, 2024, etc.
@@ -44,11 +45,10 @@ interface TechServiceAnalysisProps {
   onRecordTypeChange: (tipo: "SALES_ORDER" | "INVOICE") => void;
 }
 
-// Utilidad para calcular el YoY Growth percentage
-function getYoY(current: number, prev: number): number | null {
-  if (prev === 0) return current > 0 ? 100 : null;
-  return ((current - prev) / prev) * 100;
-}
+// La formula vive en @/lib/tech-service para que el KPI "Incremento de ventas de
+// Servicio Tecnico" de la tabla comercial no pueda divergir de esta tabla: usan la
+// misma funcion, aqui bajo el nombre que ya usaba este componente.
+const getYoY = yoy;
 
 // Función para formatear el %
 function formatYoY(value: number | null): React.ReactNode {

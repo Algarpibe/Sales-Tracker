@@ -79,7 +79,7 @@ El reparto usa `firstYearByCustomer`, extraído de `buildNewVsRecurring` y expor
 
 **Ojo con la fuente:** estas líneas no salen del hub sino de la tabla local `sales_records`, clasificadas por *nombre* de categoría con un `Map<category_id, category_name>`. La tabla de KPIs mezcla por tanto dos orígenes, y reutiliza las cachés `["sales", {}]` y `["categories"]` que `analytics/page.tsx` ya carga.
 
-Variación acumulada del año frente al mismo periodo del año anterior, por trimestre, sobre las categorías de `ST_CATEGORIES`. Helper nuevo `stGrowthByQuarter(recordsA, recordsB, catMap, recordType)` en `src/lib/tech-service.ts`, que reutiliza esas listas sin tocar `buildTechServiceData`. Es un KPI **de compañía**: no se filtra por vendedor y la fila lo indica.
+Variación acumulada del año frente al mismo periodo del año anterior, por trimestre, sobre `ST_CATEGORIES` **y** `CR_CATEGORIES` combinadas (el mismo total que "ACUMULADO ANUAL (YTD)" del Análisis de Servicio Técnico). `stGrowthByQuarter(recordsA, recordsB, catMap, recordType)` en `src/lib/tech-service.ts` reutiliza esas listas sin tocar `buildTechServiceData`, y comparte con ese componente la función `yoy()` que calcula el porcentaje, para que las dos tablas no puedan volver a divergir. Es un KPI **de compañía**: no se filtra por vendedor y la fila lo indica.
 
 ## 5. Tabla — `src/components/charts/comercial/commercial-kpi-table.tsx` (nuevo)
 
