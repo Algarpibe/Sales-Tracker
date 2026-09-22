@@ -4,6 +4,7 @@ import {
   normalizeCustomerKey,
   splitDealsNewExisting,
   toMonthlySeries,
+  sumByMonth,
   periodTotals,
   attainment,
   kpiAverage,
@@ -235,6 +236,27 @@ describe("toMonthlySeries", () => {
   });
   it("devuelve siempre doce posiciones", () => {
     expect(toMonthlySeries([])).toHaveLength(12);
+  });
+});
+
+describe("sumByMonth", () => {
+  it("coloca cada importe en su mes", () => {
+    const s = sumByMonth([{ mes: 1, importe: 100 }, { mes: 12, importe: 50 }]);
+    expect(s[0]).toBe(100);
+    expect(s[11]).toBe(50);
+  });
+  it("acumula los que caen en el mismo mes", () => {
+    expect(sumByMonth([{ mes: 3, importe: 20 }, { mes: 3, importe: 5 }])[2]).toBe(25);
+  });
+  it("los meses sin datos quedan a cero", () => {
+    expect(sumByMonth([{ mes: 5, importe: 1 }])[0]).toBe(0);
+  });
+  it("ignora los meses fuera de rango", () => {
+    const s = sumByMonth([{ mes: 0, importe: 9 }, { mes: 13, importe: 9 }]);
+    expect(s.reduce((a, b) => a + b, 0)).toBe(0);
+  });
+  it("devuelve siempre doce posiciones", () => {
+    expect(sumByMonth([])).toHaveLength(12);
   });
 });
 

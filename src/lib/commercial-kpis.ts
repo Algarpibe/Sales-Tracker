@@ -25,7 +25,7 @@ export const COMMERCIAL_KPIS: KpiDef[] = [
   { key: "tratos_ganados", label: "Tratos cerrados ganados", period: "mensual", unit: "conteo", source: "auto" },
   { key: "tickets_st", label: "Tickets de Servicio Técnico en plazo", period: "mensual", unit: "pct", source: "pendiente", pendingReason: "Pendiente de Zoho Desk" },
   { key: "incremento_st", label: "Incremento de ventas de Servicio Técnico", period: "trimestral", unit: "pct", source: "auto" },
-  { key: "ingresos_proyectos", label: "Ingresos por proyectos", period: "semestral", unit: "usd", source: "pendiente", pendingReason: "Pendiente de carga manual" },
+  { key: "ingresos_proyectos", label: "Ingresos por proyectos", period: "semestral", unit: "usd", source: "auto" },
 ];
 
 export const KPI_KEYS: string[] = COMMERCIAL_KPIS.map((k) => k.key);
