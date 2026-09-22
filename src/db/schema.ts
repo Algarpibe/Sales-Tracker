@@ -238,3 +238,13 @@ export const kpiTargets = pgTable("kpi_targets", {
   check("kpi_targets_target_check", sql`${t.target_value} > 0`),
   check("kpi_targets_weight_check", sql`${t.weight_pct} >= 0 AND ${t.weight_pct} <= 100`),
 ]);
+
+export const kpiProjectOrders = pgTable("kpi_project_orders", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  company_id: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+  hub_order_id: text("hub_order_id").notNull(),
+  tagged_by: uuid("tagged_by").references(() => profiles.id, { onDelete: "set null" }),
+  tagged_at: timestamp("tagged_at", tsString).notNull().defaultNow(),
+}, (t) => [
+  unique("kpi_project_orders_unique").on(t.company_id, t.hub_order_id),
+]);
