@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { APPROVED_STATE, SALESPEOPLE } from "../constants";
+import { APPROVED_STATE, LECTOR_STATE, SALESPEOPLE } from "../constants";
 
 test.use({ storageState: APPROVED_STATE });
 
@@ -119,4 +119,42 @@ test("pulsar la cifra de tratos ganados abre su detalle", async ({ page }) => {
   await expect(dialogo).toContainText("Enero");
   await expect(dialogo.getByText("1 cliente")).toBeVisible();
   await expect(dialogo.getByText("Total: 1")).toBeVisible();
+});
+
+/**
+ * Orden identificable para el dialogo de gestion de ingresos por proyectos:
+ * "Alfa Industrial" (ver e2e/db/seed-hub.mjs) tiene ordenes de venta en los
+ * meses 1, 6 y 11 de CADA anio sembrado, incluido el anio en curso. La
+ * busqueda del dialogo ordena por fecha descendente, asi que el primer
+ * resultado para este cliente es siempre su orden mas reciente en el tiempo:
+ * la de noviembre (mes 11) del anio en curso. Ningun otro cliente de la
+ * semilla comparte fragmento de nombre con "Alfa Industrial", asi que la
+ * busqueda no es ambigua. No hizo falta sembrar ninguna orden nueva.
+ */
+const CLIENTE_ORDEN = "Alfa Industrial";
+const CELDA_ORDEN_MARCADA = 11;
+
+test.describe("usuario lector", () => {
+  test.use({ storageState: LECTOR_STATE });
+
+  test("sin permisos de administrador no hay boton para gestionar ingresos por proyectos", async ({ page }) => {
+    const card = await abrirComercial(page);
+    const fila = card.getByRole("row", { name: /Ingresos por proyectos/ });
+    await expect(fila).toBeVisible();
+    await expect(fila.getByRole("button", { name: /Gestionar/ })).toHaveCount(0);
+  });
+});
+
+test("un administrador marca una orden y su importe entra en la fila de ingresos por proyectos", async ({ page }) => {
+  const card = await abrirComercial(page);
+  const fila = card.getByRole("row", { name: /Ingresos por proyectos/ });
+  await fila.getByRole("button", { name: /Gestionar/ }).click();
+
+  const dialogo = page.getByRole("dialog", { name: /Gestionar/ });
+  await expect(dialogo).toBeVisible();
+  await dialogo.getByRole("combobox").fill(CLIENTE_ORDEN);
+  await dialogo.getByRole("option").first().click();
+  await dialogo.getByRole("button", { name: "Cerrar" }).click();
+
+  await expect(fila.getByRole("cell").nth(CELDA_ORDEN_MARCADA)).not.toHaveText("$0");
 });

@@ -1,11 +1,11 @@
 import { test as setup, expect, type Page } from "@playwright/test";
-import { APPROVED_USER, PENDING_USER, APPROVED_STATE, PENDING_STATE } from "./constants";
+import { APPROVED_USER, PENDING_USER, LECTOR_USER, APPROVED_STATE, PENDING_STATE, LECTOR_STATE } from "./constants";
 
 /**
  * Login real por formulario. NO se falsifica la cookie: src/middleware.ts consulta
  * la tabla profiles en cada request, así que la sesión tiene que existir de verdad.
  *
- * Consume 1 del presupuesto de 5 logins/minuto. Este fichero gasta 2.
+ * Consume 1 del presupuesto de 5 logins/minuto. Este fichero gasta 3.
  */
 async function login(page: Page, email: string, password: string) {
   await page.goto("/login");
@@ -30,4 +30,13 @@ setup("autenticar al usuario pendiente de aprobación", async ({ page }) => {
   await page.waitForURL("**/waiting-approval");
 
   await page.context().storageState({ path: PENDING_STATE });
+});
+
+setup("autenticar al usuario lector", async ({ page }) => {
+  await login(page, LECTOR_USER.email, LECTOR_USER.password);
+
+  await page.waitForURL("**/home");
+  await expect(page.getByRole("heading", { level: 1, name: "Dashboard General" })).toBeVisible();
+
+  await page.context().storageState({ path: LECTOR_STATE });
 });

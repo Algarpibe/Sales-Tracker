@@ -8,5 +8,10 @@
     "email": "e2e-pendiente@example.test",
     "password": "E2ePassw0rd!2026",
     "name": "E2E Pendiente"
+  },
+  "lector": {
+    "email": "e2e-lector@example.test",
+    "password": "E2ePassw0rd!2026",
+    "name": "E2E Lector"
   }
 }
