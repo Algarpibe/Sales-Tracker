@@ -9,6 +9,9 @@ import {
   kpiAverage,
   kpiContribution,
   scoreboard,
+  esVentaDeClienteNuevo,
+  esTratoDeClienteNuevo,
+  monthBreakdown,
 } from "@/lib/kpi-score";
 
 const primerAnio = new Map<string, number>([
@@ -230,5 +233,89 @@ describe("toMonthlySeries", () => {
   });
   it("devuelve siempre doce posiciones", () => {
     expect(toMonthlySeries([])).toHaveLength(12);
+  });
+});
+
+describe("esVentaDeClienteNuevo", () => {
+  const primerAnio = new Map<string, number>([["Alfa", 2023], ["Beta", 2026]]);
+  it("es nuevo quien compra por primera vez el anio analizado", () => {
+    expect(esVentaDeClienteNuevo("Beta", primerAnio, 2026)).toBe(true);
+  });
+  it("no es nuevo quien ya compraba antes", () => {
+    expect(esVentaDeClienteNuevo("Alfa", primerAnio, 2026)).toBe(false);
+  });
+  it("quien no esta en el mapa no es nuevo por esta via", () => {
+    // Para ventas, si no hay fila de ventas tampoco hay importe que repartir.
+    expect(esVentaDeClienteNuevo("Gamma", primerAnio, 2026)).toBe(false);
+  });
+});
+
+describe("esTratoDeClienteNuevo", () => {
+  const primerAnio = new Map<string, number>([["Alfa Industrial", 2023], ["Beta", 2026]]);
+  it("no es nuevo quien ya compraba en un anio anterior", () => {
+    expect(esTratoDeClienteNuevo("Alfa Industrial", primerAnio, 2026)).toBe(false);
+  });
+  it("es nuevo quien compro por primera vez este anio", () => {
+    expect(esTratoDeClienteNuevo("Beta", primerAnio, 2026)).toBe(true);
+  });
+  it("es nuevo quien nunca compro", () => {
+    expect(esTratoDeClienteNuevo("Prospecto", primerAnio, 2026)).toBe(true);
+  });
+  it("cruza aunque la grafia no coincida", () => {
+    expect(esTratoDeClienteNuevo("ALFA INDUSTRIAL", primerAnio, 2026)).toBe(false);
+  });
+});
+
+describe("monthBreakdown", () => {
+  const filas = [
+    { nombre: "Alfa", mes: 3, valor: 100, nuevo: false },
+    { nombre: "Beta", mes: 3, valor: 300, nuevo: true },
+    { nombre: "Alfa", mes: 3, valor: 50, nuevo: false },
+    { nombre: "Alfa", mes: 4, valor: 999, nuevo: false },
+  ];
+
+  it("solo devuelve la serie pedida", () => {
+    expect(monthBreakdown(filas, 3, "nuevos").map((r) => r.nombre)).toEqual(["Beta"]);
+  });
+  it("agrupa por nombre y suma", () => {
+    const r = monthBreakdown(filas, 3, "existentes");
+    expect(r).toHaveLength(1);
+    expect(r[0]).toEqual({ nombre: "Alfa", valor: 150 });
+  });
+  it("ordena de mayor a menor", () => {
+    const rows = [
+      { nombre: "Pequeno", mes: 1, valor: 10, nuevo: true },
+      { nombre: "Grande", mes: 1, valor: 90, nuevo: true },
+    ];
+    expect(monthBreakdown(rows, 1, "nuevos").map((r) => r.nombre)).toEqual(["Grande", "Pequeno"]);
+  });
+  it("un mes sin filas devuelve la lista vacia", () => {
+    expect(monthBreakdown(filas, 12, "nuevos")).toEqual([]);
+  });
+});
+
+describe("el desglose cuadra con la celda", () => {
+  // Es la garantia que justifica extraer los predicados: si el reparto y el
+  // desglose usaran criterios distintos, el detalle mostraria otra cosa que la
+  // cifra sin que nada fallase.
+  const primerAnio = new Map<string, number>([["Alfa", 2023], ["Beta", 2026]]);
+  const ventas = [
+    { customer: "Alfa", mes: 2, importe: 100 },
+    { customer: "Beta", mes: 2, importe: 300 },
+    { customer: "Beta", mes: 2, importe: 50 },
+  ];
+
+  it("la suma del desglose es el valor de ese mes en la serie", () => {
+    const split = splitNewExisting(ventas, primerAnio, 2026);
+    const entrada = ventas.map((v) => ({
+      nombre: v.customer,
+      mes: v.mes,
+      valor: v.importe,
+      nuevo: esVentaDeClienteNuevo(v.customer, primerAnio, 2026),
+    }));
+    for (const serie of ["nuevos", "existentes"] as const) {
+      const suma = monthBreakdown(entrada, 2, serie).reduce((s, r) => s + r.valor, 0);
+      expect(suma).toBe(split[serie][1]);
+    }
   });
 });
