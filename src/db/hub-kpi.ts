@@ -116,3 +116,64 @@ export async function getHubWonDealsMonth(f: {
     tratos: Number(r.tratos),
   }));
 }
+
+export interface HubOrderRow {
+  hub_order_id: string;
+  customer_name: string;
+  date: string;
+  importe: number;
+}
+
+// Importe neto de una orden de venta: misma formula que getHubCustomerMonthSales,
+// agrupada por orden en vez de por cliente y mes, para poder mostrarla en el
+// buscador y en la lista de ordenes ya marcadas como ingresos de proyecto.
+const IMPORTE_ORDEN = `
+  round(sum(l.bcy_rate * l.quantity *
+    COALESCE(1 - COALESCE((s.raw->>'bcy_discount_total')::numeric, 0) / NULLIF(s.bcy_sub_total, 0), 1)
+  )::numeric, 2)::float8`;
+
+// Busca ordenes de venta por cliente o por id interno de Zoho. NO busca por
+// salesorder_number: esa clave no existe en raw del hub (comprobado contra el
+// hub falso de test).
+export async function searchHubSalesOrders(query: string): Promise<HubOrderRow[]> {
+  const like = `%${query}%`;
+  // s.date::text: sin el cast, pg devuelve un objeto Date (parser por defecto de
+  // node-postgres para el tipo date) y String(...) lo serializa en la zona horaria
+  // local del proceso, NO en 'YYYY-MM-DD'. El cast a texto evita esa conversion:
+  // devuelve el mismo literal ISO que hay en la columna, sin ambiguedad horaria.
+  const sql = `
+    SELECT s.salesorder_id AS hub_order_id, s.customer_name, s.date::text AS date, ${IMPORTE_ORDEN} AS importe
+    FROM books.salesorder_line_items l
+    JOIN books.sales_orders s ON s.salesorder_id = l.salesorder_id
+    WHERE s.status NOT IN ('void','draft')
+      AND (s.customer_name ILIKE $1 OR s.salesorder_id ILIKE $1)
+    GROUP BY s.salesorder_id, s.customer_name, s.date
+    ORDER BY s.date DESC
+    LIMIT 25`;
+  const { rows } = await getHubPool().query(sql, [like]);
+  return rows.map((r) => ({
+    hub_order_id: String(r.hub_order_id),
+    customer_name: String(r.customer_name),
+    date: String(r.date),
+    importe: Number(r.importe),
+  }));
+}
+
+// Resuelve ordenes ya marcadas por su id, para calcular su importe siempre en
+// vivo contra el hub. Con ids vacio no consulta el hub.
+export async function getHubOrdersByIds(ids: string[]): Promise<HubOrderRow[]> {
+  if (ids.length === 0) return [];
+  const sql = `
+    SELECT s.salesorder_id AS hub_order_id, s.customer_name, s.date::text AS date, ${IMPORTE_ORDEN} AS importe
+    FROM books.salesorder_line_items l
+    JOIN books.sales_orders s ON s.salesorder_id = l.salesorder_id
+    WHERE s.salesorder_id = ANY($1::text[])
+    GROUP BY s.salesorder_id, s.customer_name, s.date`;
+  const { rows } = await getHubPool().query(sql, [ids]);
+  return rows.map((r) => ({
+    hub_order_id: String(r.hub_order_id),
+    customer_name: String(r.customer_name),
+    date: String(r.date),
+    importe: Number(r.importe),
+  }));
+}
