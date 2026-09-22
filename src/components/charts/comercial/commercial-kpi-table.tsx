@@ -18,14 +18,17 @@ import { getSalesData } from "@/actions/sales-actions";
 import { firstYearByCustomer } from "@/lib/analytics-comercial";
 import { COMMERCIAL_KPIS, KPI_UNIT_LABEL, type KpiDef, type KpiUnit } from "@/lib/commercial-kpis";
 import {
-  attainment, kpiAverage, kpiContribution, periodTotals, scoreboard,
-  splitDealsNewExisting, splitNewExisting, toMonthlySeries,
+  attainment, esTratoDeClienteNuevo, esVentaDeClienteNuevo, kpiAverage, kpiContribution,
+  monthBreakdown, periodTotals, scoreboard, splitDealsNewExisting, splitNewExisting, toMonthlySeries,
+  type BreakdownInput,
 } from "@/lib/kpi-score";
+import { customerHref } from "@/lib/customer-detail";
 import { stGrowthByQuarter } from "@/lib/tech-service";
 import { CHART_HELP } from "@/lib/chart-help";
-import { MONTHS, formatPct, formatUSD } from "@/lib/constants";
+import { MONTHS, RECORD_TYPES, formatPct, formatUSD } from "@/lib/constants";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { InfoTooltip } from "@/components/common/info-tooltip";
 import {
@@ -107,6 +110,44 @@ function construirFila(
   };
 }
 
+/** Serie de un desglose: los mismos dos nombres que ya usan `monthBreakdown` y los
+ *  `split*` de kpi-score. */
+type Serie = "nuevos" | "existentes";
+
+/**
+ * De qué lista y serie tira el desglose de cada fila pulsable. Solo ventas y
+ * generación de tratos traen la venta o el trato fila a fila; el resto de KPIs son
+ * agregados (conteos por fase, porcentajes) y no tienen nada que desglosar.
+ */
+function breakdownSourceFor(
+  key: string,
+  mensualesBreakdown: BreakdownInput[],
+  tratosBreakdown: BreakdownInput[]
+): { rows: BreakdownInput[]; serie: Serie } | null {
+  switch (key) {
+    case "ventas_nuevos":
+      return { rows: mensualesBreakdown, serie: "nuevos" };
+    case "ventas_existentes":
+      return { rows: mensualesBreakdown, serie: "existentes" };
+    case "tratos_nuevos":
+      return { rows: tratosBreakdown, serie: "nuevos" };
+    case "tratos_existentes":
+      return { rows: tratosBreakdown, serie: "existentes" };
+    default:
+      return null;
+  }
+}
+
+/** Celda de mes que el usuario ha pulsado: el KPI, el mes (0-indexado) y de dónde
+ *  sacar su desglose. Lo suficiente para que el diálogo recalcule `monthBreakdown`
+ *  y no pueda mostrar algo distinto que la cifra de la celda. */
+interface CeldaSeleccionada {
+  def: KpiDef;
+  mesIndex: number;
+  rows: BreakdownInput[];
+  serie: Serie;
+}
+
 export function CommercialKpiTable({
   recordType,
   year,
@@ -118,6 +159,7 @@ export function CommercialKpiTable({
   const thisYear = new Date().getFullYear();
   const [owner, setOwner] = useState<string>(TOTAL);
   const salesperson: KpiScope = owner === TOTAL ? null : owner;
+  const [celda, setCelda] = useState<CeldaSeleccionada | null>(null);
 
   const vendedoresQ = useQuery({
     queryKey: ["kpi-salespeople"],
@@ -170,9 +212,10 @@ export function CommercialKpiTable({
   const registros = useMemo<SalesRecord[]>(() => ventasQ.data ?? [], [ventasQ.data]);
   const categorias = useMemo<Category[]>(() => (categoriasQ.data as Category[]) ?? [], [categoriasQ.data]);
 
-  const filas = useMemo<FilaKpi[]>(() => {
+  const { filas, mensualesBreakdown, tratosBreakdown } = useMemo(() => {
     const porClave = new Map(metas.map((m) => [m.kpi_key, m]));
-    // Un solo mapa de primer año para los dos repartos: el de ventas y el de tratos.
+    // Un solo mapa de primer año para los dos repartos: el de ventas y el de
+    // tratos, y para el desglose de sus celdas, que usa los mismos predicados.
     const primerAnio = firstYearByCustomer(historico);
     const split = splitNewExisting(mensuales, primerAnio, year);
     const tratosSplit = splitDealsNewExisting(tratos, primerAnio, year);
@@ -185,7 +228,22 @@ export function CommercialKpiTable({
       recordType
     );
 
-    return COMMERCIAL_KPIS.map((def) => {
+    // Filas de origen ya clasificadas con los mismos predicados que usa el reparto,
+    // para que el diálogo de detalle no pueda decir algo distinto que la celda.
+    const mensualesBreakdown: BreakdownInput[] = mensuales.map((r) => ({
+      nombre: r.customer,
+      mes: r.mes,
+      valor: r.importe,
+      nuevo: esVentaDeClienteNuevo(r.customer, primerAnio, year),
+    }));
+    const tratosBreakdown: BreakdownInput[] = tratos.map((r) => ({
+      nombre: r.account_name,
+      mes: r.mes,
+      valor: r.tratos,
+      nuevo: esTratoDeClienteNuevo(r.account_name, primerAnio, year),
+    }));
+
+    const filas = COMMERCIAL_KPIS.map((def) => {
       const meta = porClave.get(def.key);
       if (def.key === "ventas_nuevos") {
         return construirFila(def, periodTotals(split.nuevos, def.period), meta, split.nuevos);
@@ -208,6 +266,8 @@ export function CommercialKpiTable({
       if (def.key === "incremento_st") return construirFila(def, st, meta, null);
       return construirFila(def, new Array(cubosDe(def)).fill(null), meta, null);
     });
+
+    return { filas, mensualesBreakdown, tratosBreakdown };
   }, [metas, mensuales, tratos, ganados, historico, registros, categorias, recordType, year]);
 
   const marcador = useMemo(
@@ -227,114 +287,179 @@ export function CommercialKpiTable({
   const sinMetas = !metas.some((m) => m.weight_pct > 0);
   const ambito = owner === TOTAL ? TOTAL_LABEL : owner;
 
+  // Contenido del diálogo de detalle: se recalcula con `monthBreakdown`, la misma
+  // función que ya prueba que su suma cuadra con la celda, para que el detalle no
+  // pueda decir algo distinto que la cifra pulsada.
+  const detalle = celda ? monthBreakdown(celda.rows, celda.mesIndex + 1, celda.serie) : [];
+  const detalleEnlaza = celda ? celda.def.key === "ventas_nuevos" || celda.def.key === "ventas_existentes" : false;
+  const detalleTotal = detalle.reduce((s, r) => s + r.valor, 0);
+  const tipoRegistroLabel = RECORD_TYPES.find((t) => t.value === recordType)?.label ?? recordType;
+
   return (
-    <Card className="flex h-full flex-col border-border/40 bg-card/30 backdrop-blur-sm">
-      <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between space-y-0">
-        <div className="space-y-1">
-          <span className="inline-flex items-center gap-1.5">
-            <CardTitle className="text-base font-semibold">KPIs comerciales {year}</CardTitle>
-            <InfoTooltip text={CHART_HELP.kpisComerciales} />
-          </span>
-          <p className="text-xs text-muted-foreground">
-            Valor de cada KPI mes a mes y, bajo el mes que cierra cada periodo, su cumplimiento frente a la meta.
-          </p>
-        </div>
-        <Select value={owner} onValueChange={(v) => { if (v) setOwner(v); }}>
-          <SelectTrigger className="w-[200px]" aria-label="Propietario">
-            {/* Sin esto, el trigger mostraría el valor centinela en crudo. */}
-            <SelectValue>{(v: string | null) => (v === TOTAL ? TOTAL_LABEL : v)}</SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={TOTAL}>{TOTAL_LABEL}</SelectItem>
-            {(vendedoresQ.data ?? []).map((v) => <SelectItem key={v} value={v}>{v}</SelectItem>)}
-          </SelectContent>
-        </Select>
-      </CardHeader>
-      <CardContent className="min-h-0 flex-1 space-y-3">
-        {cargando ? (
-          <Skeleton className="h-full min-h-[420px] w-full" />
-        ) : sinDatos ? (
-          <p className="text-sm text-muted-foreground py-10 text-center">Sin datos.</p>
-        ) : (
-          <>
-            {sinMetas && (
-              <p className="text-xs text-muted-foreground">
-                Configura las metas de {ambito} para {year} en{" "}
-                {profile?.role === "admin"
-                  ? <Link href="/settings" className="underline hover:text-primary">Configuración</Link>
-                  : "Configuración"}
-                . Sin metas se enseñan los valores, pero no el cumplimiento.
-              </p>
-            )}
-            <div className={`overflow-auto ${refrescando ? "opacity-60 transition-opacity" : ""}`}>
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="border-b border-white/10">
-                    <th className="sticky left-0 z-10 bg-card py-1.5 pr-3 text-left font-medium text-muted-foreground min-w-[240px]">KPI</th>
-                    {MONTHS.map((m) => (
-                      <th key={m.value} className="px-1.5 py-1.5 text-right font-medium text-muted-foreground min-w-[72px]">{m.label}</th>
-                    ))}
-                    <th className="px-1.5 py-1.5 text-right font-medium text-muted-foreground min-w-[80px]">Promedio</th>
-                    <th className="px-1.5 py-1.5 text-right font-medium text-muted-foreground min-w-[72px]">Aporte</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filas.map((f) => (
-                    <tr key={f.def.key} className="border-b border-white/5">
-                      <td className="sticky left-0 z-10 bg-card py-2 pr-3 align-top">
-                        <div className="font-medium">{f.def.label}</div>
-                        <div className="text-muted-foreground">
-                          {conMayuscula(f.def.period)} · {KPI_UNIT_LABEL[f.def.unit]}
-                          {f.peso > 0 ? ` · peso ${formatPct(f.peso)}` : ""}
-                        </div>
-                        {f.def.pendingReason && (
-                          <div className="text-muted-foreground">{f.def.pendingReason}</div>
-                        )}
-                        {f.def.key === "incremento_st" && (
-                          <div className="text-muted-foreground">De compañía: no se filtra por comercial.</div>
-                        )}
-                      </td>
-                      {f.meses.map((v, i) => (
-                        <td key={MONTHS[i].value} className="px-1.5 py-2 text-right tabular-nums align-top">
-                          <div className={v === null ? "text-muted-foreground" : ""}>
-                            {v === null ? "—" : formatValor(v, f.def.unit)}
-                          </div>
-                          {f.cierres[i] !== null && (
-                            <div className="text-muted-foreground">{formatPct(f.cierres[i] as number)}</div>
-                          )}
-                        </td>
+    <>
+      <Card className="flex h-full flex-col border-border/40 bg-card/30 backdrop-blur-sm">
+        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between space-y-0">
+          <div className="space-y-1">
+            <span className="inline-flex items-center gap-1.5">
+              <CardTitle className="text-base font-semibold">KPIs comerciales {year}</CardTitle>
+              <InfoTooltip text={CHART_HELP.kpisComerciales} />
+            </span>
+            <p className="text-xs text-muted-foreground">
+              Valor de cada KPI mes a mes y, bajo el mes que cierra cada periodo, su cumplimiento frente a la meta.
+            </p>
+          </div>
+          <Select value={owner} onValueChange={(v) => { if (v) setOwner(v); }}>
+            <SelectTrigger className="w-[200px]" aria-label="Propietario">
+              {/* Sin esto, el trigger mostraría el valor centinela en crudo. */}
+              <SelectValue>{(v: string | null) => (v === TOTAL ? TOTAL_LABEL : v)}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={TOTAL}>{TOTAL_LABEL}</SelectItem>
+              {(vendedoresQ.data ?? []).map((v) => <SelectItem key={v} value={v}>{v}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </CardHeader>
+        <CardContent className="min-h-0 flex-1 space-y-3">
+          {cargando ? (
+            <Skeleton className="h-full min-h-[420px] w-full" />
+          ) : sinDatos ? (
+            <p className="text-sm text-muted-foreground py-10 text-center">Sin datos.</p>
+          ) : (
+            <>
+              {sinMetas && (
+                <p className="text-xs text-muted-foreground">
+                  Configura las metas de {ambito} para {year} en{" "}
+                  {profile?.role === "admin"
+                    ? <Link href="/settings" className="underline hover:text-primary">Configuración</Link>
+                    : "Configuración"}
+                  . Sin metas se enseñan los valores, pero no el cumplimiento.
+                </p>
+              )}
+              <div className={`overflow-auto ${refrescando ? "opacity-60 transition-opacity" : ""}`}>
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-white/10">
+                      <th className="sticky left-0 z-10 bg-card py-1.5 pr-3 text-left font-medium text-muted-foreground min-w-[240px]">KPI</th>
+                      {MONTHS.map((m) => (
+                        <th key={m.value} className="px-1.5 py-1.5 text-right font-medium text-muted-foreground min-w-[72px]">{m.label}</th>
                       ))}
-                      <td className="px-1.5 py-2 text-right tabular-nums align-top">
-                        {f.promedio === null ? "—" : formatPct(f.promedio)}
+                      <th className="px-1.5 py-1.5 text-right font-medium text-muted-foreground min-w-[80px]">Promedio</th>
+                      <th className="px-1.5 py-1.5 text-right font-medium text-muted-foreground min-w-[72px]">Aporte</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filas.map((f) => {
+                      // Solo ventas y generación de tratos, nuevos y existentes, tienen
+                      // fila a fila que desglosar; el resto de KPIs son agregados.
+                      const origen = breakdownSourceFor(f.def.key, mensualesBreakdown, tratosBreakdown);
+                      return (
+                        <tr key={f.def.key} className="border-b border-white/5">
+                          <td className="sticky left-0 z-10 bg-card py-2 pr-3 align-top">
+                            <div className="font-medium">{f.def.label}</div>
+                            <div className="text-muted-foreground">
+                              {conMayuscula(f.def.period)} · {KPI_UNIT_LABEL[f.def.unit]}
+                              {f.peso > 0 ? ` · peso ${formatPct(f.peso)}` : ""}
+                            </div>
+                            {f.def.pendingReason && (
+                              <div className="text-muted-foreground">{f.def.pendingReason}</div>
+                            )}
+                            {f.def.key === "incremento_st" && (
+                              <div className="text-muted-foreground">De compañía: no se filtra por comercial.</div>
+                            )}
+                          </td>
+                          {f.meses.map((v, i) => (
+                            <td key={MONTHS[i].value} className="px-1.5 py-2 text-right tabular-nums align-top">
+                              {origen !== null && v !== null && v > 0 ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setCelda({ def: f.def, mesIndex: i, rows: origen.rows, serie: origen.serie })}
+                                  className="underline decoration-dotted underline-offset-2 hover:text-primary hover:decoration-solid"
+                                >
+                                  {formatValor(v, f.def.unit)}
+                                </button>
+                              ) : (
+                                <div className={v === null ? "text-muted-foreground" : ""}>
+                                  {v === null ? "—" : formatValor(v, f.def.unit)}
+                                </div>
+                              )}
+                              {f.cierres[i] !== null && (
+                                <div className="text-muted-foreground">{formatPct(f.cierres[i] as number)}</div>
+                              )}
+                            </td>
+                          ))}
+                          <td className="px-1.5 py-2 text-right tabular-nums align-top">
+                            {f.promedio === null ? "—" : formatPct(f.promedio)}
+                          </td>
+                          <td className="px-1.5 py-2 text-right tabular-nums align-top">
+                            {f.aporte === null ? "—" : formatPct(f.aporte)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t border-white/10">
+                      <td className="sticky left-0 z-10 bg-card py-2 pr-3 align-top">
+                        <span className="font-semibold">TOTAL</span>
+                        <span className="block text-muted-foreground">
+                          cobertura: {formatPct(marcador.coverage)} del peso
+                        </span>
                       </td>
-                      <td className="px-1.5 py-2 text-right tabular-nums align-top">
-                        {f.aporte === null ? "—" : formatPct(f.aporte)}
+                      <td colSpan={MESES} />
+                      <td className="px-1.5 py-2 text-right font-semibold tabular-nums align-top">
+                        {marcador.total === null ? "—" : formatPct(marcador.total)}
+                      </td>
+                      <td className="px-1.5 py-2 text-right font-semibold tabular-nums align-top">
+                        {formatPct(aporteTotal)}
                       </td>
                     </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr className="border-t border-white/10">
-                    <td className="sticky left-0 z-10 bg-card py-2 pr-3 align-top">
-                      <span className="font-semibold">TOTAL</span>
-                      <span className="block text-muted-foreground">
-                        cobertura: {formatPct(marcador.coverage)} del peso
-                      </span>
-                    </td>
-                    <td colSpan={MESES} />
-                    <td className="px-1.5 py-2 text-right font-semibold tabular-nums align-top">
-                      {marcador.total === null ? "—" : formatPct(marcador.total)}
-                    </td>
-                    <td className="px-1.5 py-2 text-right font-semibold tabular-nums align-top">
-                      {formatPct(aporteTotal)}
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-          </>
-        )}
-      </CardContent>
-    </Card>
+                  </tfoot>
+                </table>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+      <Dialog open={celda !== null} onOpenChange={(open) => { if (!open) setCelda(null); }}>
+        <DialogContent className="max-h-[70vh] overflow-auto sm:max-w-md">
+          {celda && (
+            <>
+              <DialogHeader>
+                <DialogTitle>
+                  {celda.def.label} · {MONTHS[celda.mesIndex].full} {year}
+                </DialogTitle>
+                <p className="text-xs text-muted-foreground">{ambito} · {tipoRegistroLabel}</p>
+              </DialogHeader>
+              {detalle.length === 0 ? (
+                <p className="py-4 text-sm text-muted-foreground">
+                  Sin clientes que desglosar en {MONTHS[celda.mesIndex].full.toLowerCase()}.
+                </p>
+              ) : (
+                <>
+                  <ul className="max-h-72 space-y-1 overflow-auto">
+                    {detalle.map((r) => (
+                      <li key={r.nombre} className="flex items-center justify-between gap-3">
+                        {detalleEnlaza ? (
+                          <Link href={customerHref(r.nombre)} className="truncate hover:text-primary hover:underline">
+                            {r.nombre}
+                          </Link>
+                        ) : (
+                          <span className="truncate">{r.nombre}</span>
+                        )}
+                        <span className="shrink-0 tabular-nums">{formatValor(r.valor, celda.def.unit)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="flex items-center justify-between border-t border-border/40 pt-2 font-semibold">
+                    <span>{detalle.length} {detalle.length === 1 ? "cliente" : "clientes"}</span>
+                    <span className="tabular-nums">Total: {formatValor(detalleTotal, celda.def.unit)}</span>
+                  </div>
+                </>
+              )}
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

@@ -14,6 +14,18 @@ function doceCeros(): number[] {
 }
 
 /**
+ * ¿La venta de este cliente cuenta como de cliente nuevo ese año? Compara por el
+ * nombre crudo de Books, que es la clave del mapa de antigüedad.
+ */
+export function esVentaDeClienteNuevo(
+  customer: string,
+  firstYear: Map<string, number>,
+  year: number
+): boolean {
+  return firstYear.get(customer) === year;
+}
+
+/**
  * Reparte los importes mensuales en clientes nuevos y existentes. Es nuevo quien
  * tiene su primer año con ventas en el año analizado; el mapa se calcula aparte,
  * de compañía y con histórico, para que no dependa del comercial ni del
@@ -28,7 +40,7 @@ export function splitNewExisting(
   for (const r of rows) {
     const idx = r.mes - 1;
     if (idx < 0 || idx >= MESES) continue;
-    const serie = firstYear.get(r.customer) === year ? out.nuevos : out.existentes;
+    const serie = esVentaDeClienteNuevo(r.customer, firstYear, year) ? out.nuevos : out.existentes;
     serie[idx] += r.importe;
   }
   return out;
@@ -61,29 +73,84 @@ export interface DealMonthRow {
  * quien nunca compró como quien compró por primera vez este año. Mientras no haya
  * compra previa, el trato sigue siendo esfuerzo de captación.
  */
-export function splitDealsNewExisting(
-  rows: DealMonthRow[],
-  firstYear: Map<string, number>,
-  year: number
-): MonthlySplit {
-  // El mapa llega con el nombre crudo de Books: se normaliza aquí para que los dos
-  // lados del cruce usen exactamente la misma clave.
+/**
+ * Primer año de compra por clave normalizada. El mapa llega con el nombre crudo de
+ * Books: se normaliza aquí para que el cruce con las cuentas de CRM use exactamente
+ * la misma clave. Si dos nombres crudos normalizan a la misma clave, se queda con
+ * el año más antiguo.
+ */
+function firstYearPorClave(firstYear: Map<string, number>): Map<string, number> {
   const porClave = new Map<string, number>();
   for (const [nombre, anio] of firstYear) {
     const k = normalizeCustomerKey(nombre);
     const actual = porClave.get(k);
     if (actual === undefined || anio < actual) porClave.set(k, anio);
   }
+  return porClave;
+}
 
+/**
+ * ¿El trato de esta cuenta cuenta como de cliente nuevo ese año? Criterio distinto
+ * al de ventas a propósito: aquí es existente **solo** si compró en un año anterior,
+ * y quien nunca compró es nuevo. Además cruza por clave normalizada, porque el
+ * nombre viene de CRM y no de Books.
+ */
+export function esTratoDeClienteNuevo(
+  account: string,
+  firstYear: Map<string, number>,
+  year: number
+): boolean {
+  const porClave = firstYearPorClave(firstYear);
+  const primero = porClave.get(normalizeCustomerKey(account));
+  return primero === undefined || primero >= year;
+}
+
+export function splitDealsNewExisting(
+  rows: DealMonthRow[],
+  firstYear: Map<string, number>,
+  year: number
+): MonthlySplit {
   const out: MonthlySplit = { nuevos: doceCeros(), existentes: doceCeros() };
   for (const r of rows) {
     const idx = r.mes - 1;
     if (idx < 0 || idx >= MESES) continue;
-    const primero = porClave.get(normalizeCustomerKey(r.account_name));
-    const serie = primero !== undefined && primero < year ? out.existentes : out.nuevos;
+    const serie = esTratoDeClienteNuevo(r.account_name, firstYear, year) ? out.nuevos : out.existentes;
     serie[idx] += r.tratos;
   }
   return out;
+}
+
+/** Una línea del detalle de una celda. */
+export interface BreakdownRow {
+  nombre: string;
+  valor: number;
+}
+
+/** Fila de origen ya clasificada, tal y como la arma la tabla. */
+export interface BreakdownInput extends BreakdownRow {
+  mes: number;
+  nuevo: boolean;
+}
+
+/**
+ * Qué compone la cifra de un mes: agrupa por nombre, suma y ordena de mayor a
+ * menor. La clasificación llega hecha, con los mismos predicados que usa el
+ * reparto, para que el detalle no pueda decir algo distinto que la celda.
+ */
+export function monthBreakdown(
+  rows: BreakdownInput[],
+  mes: number,
+  serie: "nuevos" | "existentes"
+): BreakdownRow[] {
+  const quiero = serie === "nuevos";
+  const porNombre = new Map<string, number>();
+  for (const r of rows) {
+    if (r.mes !== mes || r.nuevo !== quiero) continue;
+    porNombre.set(r.nombre, (porNombre.get(r.nombre) ?? 0) + r.valor);
+  }
+  return [...porNombre.entries()]
+    .map(([nombre, valor]) => ({ nombre, valor }))
+    .sort((a, b) => b.valor - a.valor);
 }
 
 /** Conteos de una fase por mes, tal y como los agrupa el hub. */
