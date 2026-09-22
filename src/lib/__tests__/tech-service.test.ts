@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildTechServiceData, stGrowthByQuarter, ST_CATEGORIES, CR_CATEGORIES } from "@/lib/tech-service";
+import { buildTechServiceData, stGrowthByQuarter, yoy, ST_CATEGORIES, CR_CATEGORIES } from "@/lib/tech-service";
 
 const rec = (record_month: number, amount_usd: number, category_id: string, record_type = "INVOICE") =>
   ({ record_month, amount_usd, category_id, record_type }) as never;
@@ -47,17 +47,31 @@ describe("stGrowthByQuarter", () => {
     expect(stGrowthByQuarter(a, b, catMap, "INVOICE")).toEqual([20, 20, 20, 20]);
   });
 
-  it("sin base con la que comparar no hay variacion", () => {
+  it("si el anio de referencia no tiene ventas pero el analizado si, es +100%", () => {
+    // Mismo convenio que getYoY() en el Analisis de Servicio Tecnico: sin base
+    // pero con ventas nuevas no es "sin datos", es un crecimiento del 100%.
     expect(stGrowthByQuarter([rec(1, 50, "c1")], [], catMap, "INVOICE")).toEqual([
-      null, null, null, null,
+      100, 100, 100, 100,
     ]);
   });
 
-  it("solo mira las categorias de Servicio Tecnico", () => {
+  it("sin ventas en ninguno de los dos anios no hay variacion que calcular", () => {
+    expect(stGrowthByQuarter([], [], catMap, "INVOICE")).toEqual([null, null, null, null]);
+  });
+
+  it("ignora categorias que no son ni ST ni C&R", () => {
     const a = [rec(1, 1000, "c9")];
     const b = [rec(1, 100, "c1")];
-    // Las mil de otra categoria no entran: el acumulado del anio A sigue a cero.
+    // Las mil de la categoria desconocida no entran: el acumulado del anio A sigue a cero.
     expect(stGrowthByQuarter(a, b, catMap, "INVOICE")[0]).toBe(-100);
+  });
+
+  it("cuenta tambien las ventas de C&R, igual que el Analisis de Servicio Tecnico", () => {
+    // c1 es ST, c2 es C&R: el acumulado combina las dos, igual que buildTechServiceData.
+    const a = [rec(1, 100, "c1"), rec(1, 50, "c2")];
+    const b = [rec(1, 100, "c1"), rec(1, 25, "c2")];
+    // 150 frente a 125 = +20 %.
+    expect(stGrowthByQuarter(a, b, catMap, "INVOICE")[0]).toBe(20);
   });
 
   it("respeta el tipo de registro pedido", () => {
@@ -68,5 +82,31 @@ describe("stGrowthByQuarter", () => {
 
   it("devuelve siempre cuatro trimestres", () => {
     expect(stGrowthByQuarter([], [], catMap, "INVOICE")).toHaveLength(4);
+  });
+});
+
+describe("yoy", () => {
+  it("variacion normal", () => {
+    expect(yoy(120, 100)).toBe(20);
+  });
+  it("sin base pero con valor actual es +100%", () => {
+    expect(yoy(50, 0)).toBe(100);
+  });
+  it("sin base y sin valor actual no hay variacion", () => {
+    expect(yoy(0, 0)).toBeNull();
+  });
+});
+
+describe("stGrowthByQuarter coincide con VAR. ACUMULADA de Analisis de Servicio Tecnico", () => {
+  // Es la garantia de que las dos tablas nunca puedan volver a divergir: la misma
+  // funcion yoy() sobre el mismo acumulado de buildTechServiceData.
+  it("el KPI trimestral es exactamente el yoy del acumulado ST+C&R", () => {
+    const a = [rec(1, 100, "c1"), rec(2, 50, "c2"), rec(5, 30, "c1"), rec(8, 20, "c2")];
+    const b = [rec(1, 80, "c1"), rec(4, 40, "c2")];
+    const trimestres = buildTechServiceData(a, b, catMap, "INVOICE", "QUARTERLY");
+    const kpi = stGrowthByQuarter(a, b, catMap, "INVOICE");
+    trimestres.forEach((t, i) => {
+      expect(kpi[i]).toBe(yoy(t.acum, t.acum_prev));
+    });
   });
 });

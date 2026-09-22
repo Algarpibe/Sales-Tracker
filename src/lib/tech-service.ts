@@ -81,7 +81,24 @@ const TRIMESTRES = [
   [10, 11, 12],
 ];
 
-function acumuladoSt(
+/**
+ * Variación interanual en porcentaje. Misma fórmula y mismo convenio que usa el
+ * Análisis de Servicio Técnico para "VAR. ACUMULADA VS AÑO ANTERIOR": sin base con la
+ * que comparar pero con valor este año es un crecimiento del 100 %, no una división
+ * por cero; sin valor en ninguno de los dos años no hay variación que calcular.
+ */
+export function yoy(actual: number, anterior: number): number | null {
+  if (anterior === 0) return actual > 0 ? 100 : null;
+  return ((actual - anterior) / anterior) * 100;
+}
+
+/**
+ * Ventas de Servicio Técnico en un periodo: ST (mano de obra) más C&R (consumibles),
+ * el mismo total que suma buildTechServiceData. Antes solo contaba ST_CATEGORIES, y el
+ * KPI de la tabla comercial no coincidía con "ACUMULADO ANUAL (YTD)" del Análisis de
+ * Servicio Técnico, que siempre suma las dos.
+ */
+function acumuladoServicioTecnico(
   records: SalesRecord[],
   meses: number[],
   catMap: Map<string, string>,
@@ -92,18 +109,18 @@ function acumuladoSt(
     if (r.record_type !== recordType) continue;
     if (!meses.includes(Number(r.record_month))) continue;
     const cat = catMap.get(r.category_id);
-    if (cat && ST_CATEGORIES.includes(cat)) total += Number(r.amount_usd);
+    if (cat && (ST_CATEGORIES.includes(cat) || CR_CATEGORIES.includes(cat))) total += Number(r.amount_usd);
   }
   return total;
 }
 
 /**
- * Variación acumulada de las ventas de Servicio Técnico frente al mismo periodo del
- * año anterior, trimestre a trimestre. Es un KPI de compañía: estas líneas no llevan
- * comercial asignado, así que no se filtra por vendedor.
- *
- * Devuelve null en el trimestre donde el año de referencia no tiene ventas: dividir
- * por cero no es un 0 % de crecimiento, es la ausencia de una base con la que comparar.
+ * Variación acumulada de las ventas de Servicio Técnico (ST + C&R) frente al mismo
+ * periodo del año anterior, trimestre a trimestre. Es la misma cifra que la fila
+ * "VAR. ACUMULADA VS AÑO ANTERIOR" del Análisis de Servicio Técnico para el mismo tipo
+ * de registro y los mismos dos años: comparten yoy() y las mismas categorías. Es un KPI
+ * de compañía: estas líneas no llevan comercial asignado, así que no se filtra por
+ * vendedor.
  */
 export function stGrowthByQuarter(
   recordsA: SalesRecord[],
@@ -115,9 +132,9 @@ export function stGrowthByQuarter(
   let acumMeses: number[] = [];
   for (const trimestre of TRIMESTRES) {
     acumMeses = [...acumMeses, ...trimestre];
-    const a = acumuladoSt(recordsA, acumMeses, catMap, recordType);
-    const b = acumuladoSt(recordsB, acumMeses, catMap, recordType);
-    out.push(b === 0 ? null : ((a - b) / b) * 100);
+    const a = acumuladoServicioTecnico(recordsA, acumMeses, catMap, recordType);
+    const b = acumuladoServicioTecnico(recordsB, acumMeses, catMap, recordType);
+    out.push(yoy(a, b));
   }
   return out;
 }
