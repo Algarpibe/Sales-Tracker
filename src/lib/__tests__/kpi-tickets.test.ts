@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { festivosColombia, horasLaborables } from "@/lib/kpi-tickets";
+import {
+  FASE_NOTIFICACION_COMERCIAL,
+  episodiosNotificacionComercial,
+  festivosColombia,
+  horasLaborables,
+  type CambioFase,
+} from "@/lib/kpi-tickets";
 
 describe("festivosColombia", () => {
   it("2025 coincide con la lista oficial completa", () => {
@@ -77,5 +83,85 @@ describe("horasLaborables", () => {
     // Lunes 21 sep 16:00 en Bogota son las 21:00 UTC; hasta el martes 22 a las 9:00
     // de Bogota (14:00 UTC) hay 1 h + 1 h.
     expect(horasLaborables(bog(2026, 9, 21, 16), bog(2026, 9, 22, 9))).toBe(2);
+  });
+});
+
+const NC = FASE_NOTIFICACION_COMERCIAL;
+const cambio = (ticketId: string, instante: number, desde: string | null, hacia: string | null): CambioFase =>
+  ({ ticketId, instante, desde, hacia });
+
+describe("episodiosNotificacionComercial", () => {
+  it("una entrada y su salida a Notificacion cliente es un episodio medible", () => {
+    const e = episodiosNotificacionComercial([
+      cambio("T-FICT-1", 100, "Notificado", NC),
+      cambio("T-FICT-1", 200, NC, "Notificación cliente"),
+    ]);
+    expect(e).toEqual([{ ticketId: "T-FICT-1", inicio: 100, fin: 200, estado: "medible" }]);
+  });
+
+  it("la salida a En espera de SKU inventario tambien es medible", () => {
+    const e = episodiosNotificacionComercial([
+      cambio("T-FICT-1", 100, "Notificado", NC),
+      cambio("T-FICT-1", 200, NC, "En espera de SKU inventario"),
+    ]);
+    expect(e[0].estado).toBe("medible");
+  });
+
+  it("la salida a cualquier otra fase es excluida", () => {
+    const e = episodiosNotificacionComercial([
+      cambio("T-FICT-1", 100, "Notificado", NC),
+      cambio("T-FICT-1", 200, NC, "Por Facturar"),
+    ]);
+    expect(e).toEqual([{ ticketId: "T-FICT-1", inicio: 100, fin: 200, estado: "excluido" }]);
+  });
+
+  it("sin salida el episodio queda abierto", () => {
+    const e = episodiosNotificacionComercial([cambio("T-FICT-1", 100, "Notificado", NC)]);
+    expect(e).toEqual([{ ticketId: "T-FICT-1", inicio: 100, fin: null, estado: "abierto" }]);
+  });
+
+  it("cada re-entrada abre un episodio nuevo", () => {
+    const e = episodiosNotificacionComercial([
+      cambio("T-FICT-1", 100, "Notificado", NC),
+      cambio("T-FICT-1", 200, NC, "Notificación cliente"),
+      cambio("T-FICT-1", 300, "Continuación del proceso", NC),
+      cambio("T-FICT-1", 400, NC, "Notificación cliente"),
+    ]);
+    expect(e.map((x) => [x.inicio, x.fin])).toEqual([[100, 200], [300, 400]]);
+  });
+
+  it("una entrada repetida con el episodio abierto no reinicia el reloj", () => {
+    const e = episodiosNotificacionComercial([
+      cambio("T-FICT-1", 100, "Notificado", NC),
+      cambio("T-FICT-1", 150, "Notificación a Compras", NC),
+      cambio("T-FICT-1", 200, NC, "Notificación cliente"),
+    ]);
+    expect(e).toEqual([{ ticketId: "T-FICT-1", inicio: 100, fin: 200, estado: "medible" }]);
+  });
+
+  it("una salida sin entrada previa se ignora", () => {
+    // Episodio que entro antes de la ventana consultada: su salida llega sola.
+    const e = episodiosNotificacionComercial([cambio("T-FICT-1", 100, NC, "Notificación cliente")]);
+    expect(e).toEqual([]);
+  });
+
+  it("ordena por instante aunque los cambios lleguen desordenados", () => {
+    const e = episodiosNotificacionComercial([
+      cambio("T-FICT-1", 200, NC, "Notificación cliente"),
+      cambio("T-FICT-1", 100, "Notificado", NC),
+    ]);
+    expect(e).toEqual([{ ticketId: "T-FICT-1", inicio: 100, fin: 200, estado: "medible" }]);
+  });
+
+  it("no mezcla los cambios de tickets distintos", () => {
+    const e = episodiosNotificacionComercial([
+      cambio("T-FICT-1", 100, "Notificado", NC),
+      cambio("T-FICT-2", 150, NC, "Notificación cliente"),
+      cambio("T-FICT-2", 120, "Notificado", NC),
+    ]);
+    expect(e).toEqual([
+      { ticketId: "T-FICT-1", inicio: 100, fin: null, estado: "abierto" },
+      { ticketId: "T-FICT-2", inicio: 120, fin: 150, estado: "medible" },
+    ]);
   });
 });

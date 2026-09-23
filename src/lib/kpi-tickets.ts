@@ -108,3 +108,53 @@ export function horasLaborables(desde: number, hasta: number): number {
   }
   return total / MS_HORA;
 }
+
+/** Un cambio de fase de un ticket, tal y como lo lee el hub. */
+export interface CambioFase {
+  ticketId: string;
+  /** Milisegundos desde epoch. Sin Date para no reinterpretar la zona horaria. */
+  instante: number;
+  desde: string | null;
+  hacia: string | null;
+}
+
+export interface Episodio {
+  ticketId: string;
+  inicio: number;
+  /** null si sigue abierto. */
+  fin: number | null;
+  /** "medible": salió a una fase de FASES_FIN_RELOJ; "excluido": salió a otra; "abierto": no ha salido. */
+  estado: "medible" | "excluido" | "abierto";
+}
+
+/**
+ * Cada entrada en "Notificación Comercial" abre un episodio y la primera salida lo
+ * cierra. Una entrada con un episodio ya abierto no reinicia el reloj, y una salida
+ * sin entrada previa (un episodio que empezó antes de la ventana consultada) se ignora.
+ */
+export function episodiosNotificacionComercial(cambios: CambioFase[]): Episodio[] {
+  const porTicket = new Map<string, CambioFase[]>();
+  for (const c of cambios) {
+    const lista = porTicket.get(c.ticketId);
+    if (lista) lista.push(c);
+    else porTicket.set(c.ticketId, [c]);
+  }
+
+  const episodios: Episodio[] = [];
+  for (const [ticketId, lista] of porTicket) {
+    const ordenados = [...lista].sort((a, b) => a.instante - b.instante);
+    let abierto: number | null = null;
+    for (const c of ordenados) {
+      if (c.desde === FASE_NOTIFICACION_COMERCIAL) {
+        if (abierto === null) continue;
+        const medible = c.hacia !== null && FASES_FIN_RELOJ.includes(c.hacia);
+        episodios.push({ ticketId, inicio: abierto, fin: c.instante, estado: medible ? "medible" : "excluido" });
+        abierto = null;
+      } else if (c.hacia === FASE_NOTIFICACION_COMERCIAL && abierto === null) {
+        abierto = c.instante;
+      }
+    }
+    if (abierto !== null) episodios.push({ ticketId, inicio: abierto, fin: null, estado: "abierto" });
+  }
+  return episodios;
+}
