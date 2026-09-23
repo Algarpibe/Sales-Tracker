@@ -153,7 +153,20 @@ test("un administrador marca una orden y su importe entra en la fila de ingresos
   const dialogo = page.getByRole("dialog", { name: /Gestionar/ });
   await expect(dialogo).toBeVisible();
   await dialogo.getByRole("combobox").fill(CLIENTE_ORDEN);
-  await dialogo.getByRole("option").first().click();
+
+  // El buscador solo ofrece ordenes del anio seleccionado en la pestana. La
+  // semilla tiene ordenes de este cliente en todos los anios desde 2020, asi que
+  // sin el filtro aparecerian tambien las del anio anterior.
+  const anio = new Date().getFullYear();
+  const opciones = dialogo.getByRole("option");
+  await expect(opciones.first()).toBeVisible();
+  const textos = await opciones.allInnerTexts();
+  for (const t of textos) expect(t).toContain(`${anio}-`);
+  expect(textos.some((t) => t.includes(`${anio - 1}-`))).toBe(false);
+
+  await opciones.first().click();
+  // Una vez marcada, esa orden no se puede volver a agregar.
+  await expect(opciones.first().getByRole("button", { name: "Agregada" })).toBeDisabled();
   await dialogo.getByRole("button", { name: "Cerrar" }).click();
 
   await expect(fila.getByRole("cell").nth(CELDA_ORDEN_MARCADA)).not.toHaveText("$0");
