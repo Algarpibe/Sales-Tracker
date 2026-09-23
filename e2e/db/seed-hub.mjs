@@ -156,6 +156,34 @@ const TICKETS_FICTICIOS = [
   { id: "T-FICT-006", number: 9006, account_id: "ACC-FICT-B" },
 ];
 
+/**
+ * Trato de CRM al que apunta cada orden de venta, para el KPI de tratos cerrados
+ * ganados: cuenta cada trato una sola vez, en el mes de su PRIMERA orden valida de
+ * todo el historico. Ids INVENTADOS. El resto de ordenes no llevan trato, como las
+ * internas de produccion, y no cuentan. Con esto el anio en curso queda asi:
+ * - enero: DEAL-FICT-001, primera orden -> cuenta 1.
+ * - febrero: DEAL-FICT-002, cuya primera orden fue en diciembre del anio anterior -> 0.
+ * - marzo: segunda orden de DEAL-FICT-001 -> 0.
+ * - abril: DEAL-FICT-003, primera orden -> cuenta 1 (cliente de abril, no el de enero).
+ * - mayo: solo la orden anulada de DEAL-FICT-004 (ver ORDEN_ANULADA) -> 0.
+ */
+function tratoDeOrden(year, month) {
+  if (year === CURRENT_YEAR - 1 && month === 12) return "DEAL-FICT-002";
+  if (year !== CURRENT_YEAR) return null;
+  return { 1: "DEAL-FICT-001", 2: "DEAL-FICT-002", 3: "DEAL-FICT-001", 4: "DEAL-FICT-003" }[month] ?? null;
+}
+
+// Orden anulada con trato y sin lineas: su trato no tiene ninguna otra orden, asi que
+// solo contaria si la consulta no descartara las anuladas. Sin lineas no toca ningun
+// importe, y las demas consultas ya excluyen void.
+const ORDEN_ANULADA = {
+  salesorder_id: `SO-${CURRENT_YEAR}-05-ANULADA`,
+  date: `${CURRENT_YEAR}-05-10`,
+  customer_name: CUSTOMERS[4],
+  trato: "DEAL-FICT-004",
+  vendedor: VENDEDORES[0],
+};
+
 export async function seedHub(connectionString) {
   const client = new pg.Client({ connectionString });
   await client.connect();
@@ -183,6 +211,7 @@ export async function seedHub(connectionString) {
         // Meses pares llevan factura; los impares quedan sin facturar (alimenta BACKLOG).
         const hasInvoice = month % 2 === 0;
         const vendedor = VENDEDORES[Math.floor((month - 1) / 2) % VENDEDORES.length];
+        const trato = tratoDeOrden(year, month);
 
         const lines = items.map((item, idx) => ({
           line_item_id: `${soId}-L${idx}`,
@@ -200,6 +229,7 @@ export async function seedHub(connectionString) {
              invoiced_status: hasInvoice ? "invoiced" : "not_invoiced",
              bcy_discount_total: "0",
              salesperson_name: vendedor,
+             ...(trato ? { zcrm_potential_id: trato } : {}),
            })],
         );
         orders++;
@@ -231,6 +261,19 @@ export async function seedHub(connectionString) {
         }
       }
     }
+
+    await client.query(
+      `INSERT INTO books.sales_orders (salesorder_id, date, status, customer_name, bcy_sub_total, raw)
+       VALUES ($1, $2, 'void', $3, 0, $4::jsonb)`,
+      [ORDEN_ANULADA.salesorder_id, ORDEN_ANULADA.date, ORDEN_ANULADA.customer_name,
+       JSON.stringify({
+         invoiced_status: "not_invoiced",
+         bcy_discount_total: "0",
+         salesperson_name: ORDEN_ANULADA.vendedor,
+         zcrm_potential_id: ORDEN_ANULADA.trato,
+       })],
+    );
+    orders++;
 
     // Cuatro tratos por mes: dos abiertos y dos cerrados. De los abiertos, uno es de
     // cliente existente y otro de cliente que no existe en Books, para que el reparto

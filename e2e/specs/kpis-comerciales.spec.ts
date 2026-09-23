@@ -74,16 +74,45 @@ test("las filas de generacion de tratos muestran numeros y ya no dicen que estan
   await expect(existentes.getByRole("cell").nth(1)).toHaveText("1");
 });
 
-test("la fila de tratos cerrados ganados cuenta solo los ganados", async ({ page }) => {
+/**
+ * Tratos cerrados ganados por mes del anio en curso, segun tratoDeOrden y
+ * ORDEN_ANULADA de e2e/db/seed-hub.mjs. Cada trato cuenta una vez, en el mes de su
+ * primera orden de venta valida de todo el historico. La semilla sigue ganando un
+ * trato de CRM cada mes: si la fila siguiera la fase y la fecha de cierre de CRM,
+ * todos los meses saldrian 1.
+ */
+const GANADOS_POR_MES: [mes: number, esperado: string, motivo: string][] = [
+  [1, "1", "primera orden de DEAL-FICT-001"],
+  [2, "0", "DEAL-FICT-002 ya tuvo su primera orden el anio anterior"],
+  [3, "0", "segunda orden de DEAL-FICT-001"],
+  [4, "1", "primera orden de DEAL-FICT-003"],
+  [5, "0", "la unica orden de DEAL-FICT-004 esta anulada"],
+  [6, "0", "orden sin trato"],
+];
+
+test("la fila de tratos cerrados ganados cuenta cada trato una vez, en el mes de su primera orden", async ({ page }) => {
   const card = await abrirComercial(page);
 
   const fila = card.getByRole("row", { name: /Tratos cerrados ganados/ });
   await expect(fila).toBeVisible();
   await expect(fila).not.toContainText("Pendiente de Zoho CRM");
 
-  // La semilla cierra un trato ganado y otro perdido cada mes: si el filtro por
-  // fase no funcionara, aqui saldria 2.
-  await expect(fila.getByRole("cell").nth(1)).toHaveText("1");
+  // El indice de celda coincide con el mes: la primera es la etiqueta del KPI.
+  for (const [mes, esperado, motivo] of GANADOS_POR_MES) {
+    await expect(fila.getByRole("cell").nth(mes), `mes ${mes}: ${motivo}`).toHaveText(esperado);
+  }
+});
+
+test("la fila de tratos cerrados ganados filtra por el comercial de la primera orden", async ({ page }) => {
+  const card = await abrirComercial(page);
+  const fila = card.getByRole("row", { name: /Tratos cerrados ganados/ });
+
+  await card.getByLabel("Propietario").click();
+  await page.getByRole("option", { name: SALESPEOPLE[0] }).click();
+
+  // La orden de enero es de la otra comercial; la de abril, de este comercial.
+  await expect(fila.getByRole("cell").nth(1)).toHaveText("0");
+  await expect(fila.getByRole("cell").nth(4)).toHaveText("1");
 });
 
 test("pulsar la cifra de un mes abre el detalle de esa celda", async ({ page }) => {
@@ -110,13 +139,15 @@ test("pulsar la cifra de tratos ganados abre su detalle", async ({ page }) => {
   const card = await abrirComercial(page);
 
   const fila = card.getByRole("row", { name: /Tratos cerrados ganados/ });
-  // Enero: la semilla gana un trato cada mes, siempre de la misma cuenta salvo
-  // agosto, que la escribe en mayusculas. Enero evita esa variante.
-  await fila.getByRole("button").nth(0).click();
+  // Solo enero y abril tienen tratos ganados, asi que el segundo boton es abril. Su
+  // cliente sale de la orden de venta, no de la cuenta del trato de CRM, que en la
+  // semilla es siempre la de enero.
+  await fila.getByRole("button").nth(1).click();
 
   const dialogo = page.getByRole("dialog");
   await expect(dialogo).toBeVisible();
-  await expect(dialogo).toContainText("Enero");
+  await expect(dialogo).toContainText("Abril");
+  await expect(dialogo).toContainText("Delta Textil");
   await expect(dialogo.getByText("1 cliente")).toBeVisible();
   await expect(dialogo.getByText("Total: 1")).toBeVisible();
 });
