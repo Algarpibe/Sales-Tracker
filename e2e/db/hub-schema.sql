@@ -79,3 +79,18 @@ CREATE TABLE desk.ticket_history (
   -- { propertyName: 'Status', propertyValue: { previousValue, updatedValue } } en eventInfo.
   raw        jsonb
 );
+
+-- Tickets y cuentas de Desk: solo las columnas que une src/db/hub-kpi.ts para poner
+-- numero y cliente al detalle del KPI de tickets en plazo. Tipos del esquema real.
+-- Sin FOREIGN KEY a proposito: en el hub real un ticket puede apuntar a una cuenta
+-- que todavia no se ha replicado, y la consulta usa LEFT JOIN por eso mismo.
+CREATE TABLE desk.accounts (
+  id   text PRIMARY KEY,
+  name text NOT NULL
+);
+
+CREATE TABLE desk.tickets (
+  id         text PRIMARY KEY,
+  number     integer UNIQUE NOT NULL,
+  account_id text
+);

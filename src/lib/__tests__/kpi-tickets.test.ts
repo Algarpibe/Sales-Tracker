@@ -1,9 +1,12 @@
 import { describe, it, expect } from "vitest";
 import {
   FASE_NOTIFICACION_COMERCIAL,
+  clasificarEpisodio,
   contarTicketsEnPlazo,
+  detalleTicketsMes,
   episodiosNotificacionComercial,
   festivosColombia,
+  formatoInstanteBogota,
   horasLaborables,
   normalizarFase,
   ticketsEnPlazoPorMes,
@@ -92,7 +95,16 @@ describe("horasLaborables", () => {
 
 const NC = FASE_NOTIFICACION_COMERCIAL;
 const cambio = (ticketId: string, instante: number, desde: string | null, hacia: string | null): CambioFase =>
-  ({ ticketId, instante, desde, hacia });
+  ({ ticketId, instante, desde, hacia, numero: null, cliente: null });
+
+/** Episodio esperado de un ticket sin número ni cliente, que es lo que construye `cambio`. */
+const esperado = (
+  inicio: number,
+  fin: number | null,
+  estado: Episodio["estado"],
+  faseSalida: string | null,
+  ticketId = "T-FICT-1"
+): Episodio => ({ ticketId, numero: null, cliente: null, inicio, fin, faseSalida, estado });
 
 describe("normalizarFase", () => {
   it("colapsa espacios, espacios duros y extremos, y respeta tildes y mayusculas", () => {
@@ -114,7 +126,7 @@ describe("episodiosNotificacionComercial", () => {
       cambio("T-FICT-1", 100, "Notificado", NC),
       cambio("T-FICT-1", 200, NC, "Notificación cliente"),
     ]);
-    expect(e).toEqual([{ ticketId: "T-FICT-1", inicio: 100, fin: 200, estado: "medible" }]);
+    expect(e).toEqual([esperado(100, 200, "medible", "Notificación cliente")]);
   });
 
   it("la salida a En espera de SKU inventario tambien es medible", () => {
@@ -130,7 +142,7 @@ describe("episodiosNotificacionComercial", () => {
       cambio("T-FICT-1", 100, "Notificado", NC),
       cambio("T-FICT-1", 200, NC, "Por Facturar"),
     ]);
-    expect(e).toEqual([{ ticketId: "T-FICT-1", inicio: 100, fin: 200, estado: "excluido" }]);
+    expect(e).toEqual([esperado(100, 200, "excluido", "Por Facturar")]);
   });
 
   // En Zoho la fase se llama "Notificación  Comercial", con dos espacios: el nombre que
@@ -141,7 +153,7 @@ describe("episodiosNotificacionComercial", () => {
       cambio("T-FICT-1", 100, "Notificado", "Notificación  Comercial"),
       cambio("T-FICT-1", 200, "Notificación  Comercial", "Notificación cliente "),
     ]);
-    expect(e).toEqual([{ ticketId: "T-FICT-1", inicio: 100, fin: 200, estado: "medible" }]);
+    expect(e).toEqual([esperado(100, 200, "medible", "Notificación cliente")]);
   });
 
   // Zoho puede fechar en el mismo instante la entrada y la salida (una automatización
@@ -153,7 +165,7 @@ describe("episodiosNotificacionComercial", () => {
       cambio("T-FICT-1", 100, NC, "Notificación cliente"),
       cambio("T-FICT-1", 100, "Notificado", NC),
     ]);
-    expect(e).toEqual([{ ticketId: "T-FICT-1", inicio: 100, fin: 100, estado: "medible" }]);
+    expect(e).toEqual([esperado(100, 100, "medible", "Notificación cliente")]);
   });
 
   it("con un episodio abierto, una salida y una re-entrada en el mismo instante son dos episodios", () => {
@@ -163,14 +175,14 @@ describe("episodiosNotificacionComercial", () => {
       cambio("T-FICT-1", 200, NC, "Notificación cliente"),
     ]);
     expect(e).toEqual([
-      { ticketId: "T-FICT-1", inicio: 100, fin: 200, estado: "medible" },
-      { ticketId: "T-FICT-1", inicio: 200, fin: null, estado: "abierto" },
+      esperado(100, 200, "medible", "Notificación cliente"),
+      esperado(200, null, "abierto", null),
     ]);
   });
 
   it("sin salida el episodio queda abierto", () => {
     const e = episodiosNotificacionComercial([cambio("T-FICT-1", 100, "Notificado", NC)]);
-    expect(e).toEqual([{ ticketId: "T-FICT-1", inicio: 100, fin: null, estado: "abierto" }]);
+    expect(e).toEqual([esperado(100, null, "abierto", null)]);
   });
 
   it("cada re-entrada abre un episodio nuevo", () => {
@@ -189,7 +201,7 @@ describe("episodiosNotificacionComercial", () => {
       cambio("T-FICT-1", 150, "Notificación a Compras", NC),
       cambio("T-FICT-1", 200, NC, "Notificación cliente"),
     ]);
-    expect(e).toEqual([{ ticketId: "T-FICT-1", inicio: 100, fin: 200, estado: "medible" }]);
+    expect(e).toEqual([esperado(100, 200, "medible", "Notificación cliente")]);
   });
 
   it("una salida sin entrada previa se ignora", () => {
@@ -203,7 +215,27 @@ describe("episodiosNotificacionComercial", () => {
       cambio("T-FICT-1", 200, NC, "Notificación cliente"),
       cambio("T-FICT-1", 100, "Notificado", NC),
     ]);
-    expect(e).toEqual([{ ticketId: "T-FICT-1", inicio: 100, fin: 200, estado: "medible" }]);
+    expect(e).toEqual([esperado(100, 200, "medible", "Notificación cliente")]);
+  });
+
+  // El detalle de la celda enseña el ticket y el cliente: salen del hub con cada cambio y
+  // se toman del primero, porque un ticket tiene un solo número y una sola cuenta.
+  it("el episodio lleva el numero y el cliente del ticket y la fase de salida normalizada", () => {
+    const e = episodiosNotificacionComercial([
+      { ticketId: "T-FICT-1", instante: 100, desde: "Notificado", hacia: NC, numero: 9001, cliente: "Cliente Ficticio A" },
+      { ticketId: "T-FICT-1", instante: 200, desde: NC, hacia: "En espera de SKU  inventario", numero: 9001, cliente: "Cliente Ficticio A" },
+    ]);
+    expect(e).toEqual([
+      {
+        ticketId: "T-FICT-1",
+        numero: 9001,
+        cliente: "Cliente Ficticio A",
+        inicio: 100,
+        fin: 200,
+        faseSalida: "En espera de SKU inventario",
+        estado: "medible",
+      },
+    ]);
   });
 
   it("no mezcla los cambios de tickets distintos", () => {
@@ -213,14 +245,23 @@ describe("episodiosNotificacionComercial", () => {
       cambio("T-FICT-2", 120, "Notificado", NC),
     ]);
     expect(e).toEqual([
-      { ticketId: "T-FICT-1", inicio: 100, fin: null, estado: "abierto" },
-      { ticketId: "T-FICT-2", inicio: 120, fin: 150, estado: "medible" },
+      esperado(100, null, "abierto", null),
+      esperado(120, 150, "medible", "Notificación cliente", "T-FICT-2"),
     ]);
   });
 });
 
-const episodio = (inicio: number, fin: number | null, estado: Episodio["estado"]): Episodio =>
-  ({ ticketId: "T-FICT-1", inicio, fin, estado });
+// La fase de salida no influye en la clasificación (ya la resume `estado`): se rellena
+// con una coherente con el estado para que el episodio sea verosímil.
+const episodio = (inicio: number, fin: number | null, estado: Episodio["estado"]): Episodio => ({
+  ticketId: "T-FICT-1",
+  numero: null,
+  cliente: null,
+  inicio,
+  fin,
+  faseSalida: estado === "medible" ? "Notificación cliente" : estado === "excluido" ? "Por Facturar" : null,
+  estado,
+});
 
 // Lunes 2 mar 2026 a las 9:00 en Bogota: ninguna de las fechas de estos tests es festiva.
 const LUNES_MARZO = bog(2026, 3, 2, 9);
@@ -298,5 +339,156 @@ describe("ticketsEnPlazoPorMes", () => {
     const suma = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
     expect(suma(enPlazo)).toBe(1);
     expect(suma(fueraDePlazo)).toBe(2);
+  });
+});
+
+describe("clasificarEpisodio", () => {
+  it("un medible de menos de 12 horas laborables esta en plazo y lleva sus horas", () => {
+    // Lunes 9:00 -> martes 11:30: 8 h + 3,5 h.
+    expect(clasificarEpisodio(episodio(LUNES_MARZO, bog(2026, 3, 3, 11, 30), "medible"), AHORA))
+      .toEqual({ estado: "en_plazo", horas: 11.5 });
+  });
+
+  it("un medible de 12 horas justas esta fuera de plazo", () => {
+    // Lunes 9:00 -> martes 12:00: 8 h + 4 h. El plazo es "menos de 12".
+    expect(clasificarEpisodio(episodio(LUNES_MARZO, bog(2026, 3, 3, 12), "medible"), AHORA))
+      .toEqual({ estado: "fuera_de_plazo", horas: 12 });
+  });
+
+  it("un abierto que a fecha de ahora llega justo a 12 horas esta fuera de plazo", () => {
+    expect(clasificarEpisodio(episodio(LUNES_MARZO, null, "abierto"), bog(2026, 3, 3, 12)))
+      .toEqual({ estado: "fuera_de_plazo", horas: 12 });
+  });
+
+  it("un abierto con menos de 12 horas todavia no vence y cuenta sus horas hasta ahora", () => {
+    // Lunes 9:00 -> lunes 15:00.
+    expect(clasificarEpisodio(episodio(LUNES_MARZO, null, "abierto"), bog(2026, 3, 2, 15)))
+      .toEqual({ estado: "abierto_sin_vencer", horas: 6 });
+  });
+
+  it("un excluido no mide horas", () => {
+    expect(clasificarEpisodio(episodio(LUNES_MARZO, bog(2026, 3, 4, 9), "excluido"), AHORA))
+      .toEqual({ estado: "excluido", horas: 0 });
+  });
+});
+
+/** Episodio de un ticket concreto, para los tests que comprueban qué filas salen. */
+const ep = (ticketId: string, inicio: number, fin: number | null, estado: Episodio["estado"]): Episodio =>
+  ({ ...episodio(inicio, fin, estado), ticketId });
+
+describe("detalleTicketsMes", () => {
+  it("toma los episodios por su mes de entrada en hora de Bogota y descarta otros anios", () => {
+    const episodios = [
+      // Martes 31 mar 22:00 en Bogota ya es 1 de abril en UTC: es de marzo.
+      ep("T-FICT-MAR", bog(2026, 3, 31, 22), bog(2026, 4, 1, 9), "medible"),
+      ep("T-FICT-ABR", bog(2026, 4, 1, 9), bog(2026, 4, 1, 10), "medible"),
+      ep("T-FICT-2025", bog(2025, 3, 10, 9), bog(2025, 3, 10, 10), "medible"),
+    ];
+    expect(detalleTicketsMes(episodios, 2026, 3, AHORA).cuentan.map((f) => f.ticketId)).toEqual(["T-FICT-MAR"]);
+    expect(detalleTicketsMes(episodios, 2026, 4, AHORA).cuentan.map((f) => f.ticketId)).toEqual(["T-FICT-ABR"]);
+  });
+
+  it("cuentan: primero los fuera de plazo y despues los en plazo, de mas horas a menos", () => {
+    const d = detalleTicketsMes(
+      [
+        ep("T-FICT-EN-1", LUNES_MARZO, bog(2026, 3, 2, 10), "medible"), // 1 h
+        ep("T-FICT-FUERA-12", LUNES_MARZO, bog(2026, 3, 3, 12), "medible"), // 12 h
+        ep("T-FICT-EN-8", LUNES_MARZO, bog(2026, 3, 2, 17), "medible"), // 8 h
+        ep("T-FICT-FUERA-18B", bog(2026, 3, 3, 9), bog(2026, 3, 5, 9), "medible"), // 18 h, entra el martes
+        ep("T-FICT-ABIERTO", bog(2026, 3, 9, 9), null, "abierto"), // meses abierto: fuera
+        ep("T-FICT-FUERA-18", LUNES_MARZO, bog(2026, 3, 4, 9), "medible"), // 18 h, entra el lunes
+      ],
+      2026,
+      3,
+      AHORA
+    );
+    // A igualdad de horas desempata la entrada: el orden no puede depender de cómo
+    // lleguen los cambios del hub.
+    expect(d.cuentan.map((f) => f.ticketId)).toEqual([
+      "T-FICT-ABIERTO", "T-FICT-FUERA-18", "T-FICT-FUERA-18B", "T-FICT-FUERA-12", "T-FICT-EN-8", "T-FICT-EN-1",
+    ]);
+    expect([d.enPlazo, d.total]).toEqual([2, 6]);
+  });
+
+  it("no cuentan: los excluidos y los abiertos sin vencer, por orden de entrada", () => {
+    const ahora = bog(2026, 3, 10, 12);
+    const d = detalleTicketsMes(
+      [
+        ep("T-FICT-X1", bog(2026, 3, 5, 9), bog(2026, 3, 5, 10), "excluido"),
+        ep("T-FICT-AB", bog(2026, 3, 10, 9), null, "abierto"), // 3 h a fecha de ahora
+        ep("T-FICT-X0", bog(2026, 3, 2, 9), bog(2026, 3, 2, 10), "excluido"),
+        ep("T-FICT-M", LUNES_MARZO, bog(2026, 3, 2, 10), "medible"),
+      ],
+      2026,
+      3,
+      ahora
+    );
+    expect(d.noCuentan.map((f) => [f.ticketId, f.estado, f.horas])).toEqual([
+      ["T-FICT-X0", "excluido", 0],
+      ["T-FICT-X1", "excluido", 0],
+      ["T-FICT-AB", "abierto_sin_vencer", 3],
+    ]);
+    expect(d.cuentan.map((f) => f.ticketId)).toEqual(["T-FICT-M"]);
+    expect([d.enPlazo, d.total]).toEqual([1, 1]);
+  });
+
+  it("cada fila lleva el ticket, el cliente, la salida y las horas del episodio", () => {
+    const e: Episodio = {
+      ticketId: "T-FICT-1",
+      numero: 9001,
+      cliente: "Cliente Ficticio A",
+      inicio: LUNES_MARZO,
+      fin: bog(2026, 3, 2, 11),
+      faseSalida: "Notificación cliente",
+      estado: "medible",
+    };
+    expect(detalleTicketsMes([e], 2026, 3, AHORA)).toEqual({
+      cuentan: [
+        {
+          ticketId: "T-FICT-1",
+          numero: 9001,
+          cliente: "Cliente Ficticio A",
+          inicio: LUNES_MARZO,
+          fin: bog(2026, 3, 2, 11),
+          faseSalida: "Notificación cliente",
+          horas: 2,
+          estado: "en_plazo",
+        },
+      ],
+      noCuentan: [],
+      enPlazo: 1,
+      total: 1,
+    });
+  });
+
+  // La celda y el diálogo tienen que decir lo mismo: si esto falla, el pie del detalle
+  // enseñaría un porcentaje distinto del de la celda pulsada.
+  it("para cada mes, en plazo y total coinciden con los contadores de la celda", () => {
+    const episodios = [
+      ep("T-FICT-A", LUNES_MARZO, bog(2026, 3, 2, 10), "medible"),
+      ep("T-FICT-B", LUNES_MARZO, bog(2026, 3, 4, 9), "medible"),
+      ep("T-FICT-C", bog(2026, 5, 4, 9), bog(2026, 5, 4, 10), "excluido"),
+      ep("T-FICT-D", bog(2026, 6, 1, 9), null, "abierto"),
+      ep("T-FICT-E", bog(2026, 9, 23, 11), null, "abierto"),
+      ep("T-FICT-F", bog(2026, 3, 31, 22), bog(2026, 4, 1, 9), "medible"),
+      ep("T-FICT-G", bog(2025, 7, 1, 9), bog(2025, 7, 1, 10), "medible"),
+    ];
+    const { enPlazo, fueraDePlazo } = contarTicketsEnPlazo(episodios, 2026, AHORA);
+    for (let mes = 1; mes <= 12; mes++) {
+      const d = detalleTicketsMes(episodios, 2026, mes, AHORA);
+      expect([d.enPlazo, d.total]).toEqual([enPlazo[mes - 1], enPlazo[mes - 1] + fueraDePlazo[mes - 1]]);
+    }
+  });
+});
+
+describe("formatoInstanteBogota", () => {
+  it("pinta la hora de Bogota aunque el dia UTC sea otro", () => {
+    // 31 mar 22:00 en Bogota es 1 abr 03:00 UTC.
+    expect(formatoInstanteBogota(bog(2026, 3, 31, 22))).toBe("31/03 22:00");
+  });
+
+  it("rellena con ceros y pinta la medianoche como 00:00", () => {
+    expect(formatoInstanteBogota(bog(2026, 1, 5, 8, 5))).toBe("05/01 08:05");
+    expect(formatoInstanteBogota(bog(2026, 2, 2, 0))).toBe("02/02 00:00");
   });
 });

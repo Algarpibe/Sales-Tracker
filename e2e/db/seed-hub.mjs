@@ -138,6 +138,24 @@ function eventosTicketsFicticios(anio) {
   }));
 }
 
+// Cuentas y tickets del hub falso para el detalle del KPI de tickets en plazo. Numeros y
+// nombres INVENTADOS: el repositorio es publico. T-FICT-003 no tiene cuenta a proposito:
+// prueba de punta a punta que la consulta usa LEFT JOIN y no pierde el episodio, que
+// sale con cliente "—".
+const CUENTAS_FICTICIAS = [
+  { id: "ACC-FICT-A", name: "Cliente Ficticio A" },
+  { id: "ACC-FICT-B", name: "Cliente Ficticio B" },
+  { id: "ACC-FICT-C", name: "Cliente Ficticio C" },
+];
+const TICKETS_FICTICIOS = [
+  { id: "T-FICT-001", number: 9001, account_id: "ACC-FICT-A" },
+  { id: "T-FICT-002", number: 9002, account_id: "ACC-FICT-B" },
+  { id: "T-FICT-003", number: 9003, account_id: null },
+  { id: "T-FICT-004", number: 9004, account_id: "ACC-FICT-C" },
+  { id: "T-FICT-005", number: 9005, account_id: "ACC-FICT-A" },
+  { id: "T-FICT-006", number: 9006, account_id: "ACC-FICT-B" },
+];
+
 export async function seedHub(connectionString) {
   const client = new pg.Client({ connectionString });
   await client.connect();
@@ -261,6 +279,16 @@ export async function seedHub(connectionString) {
       deals += tratos.length;
     }
 
+    for (const cuenta of CUENTAS_FICTICIAS) {
+      await client.query(`INSERT INTO desk.accounts (id, name) VALUES ($1, $2)`, [cuenta.id, cuenta.name]);
+    }
+    for (const t of TICKETS_FICTICIOS) {
+      await client.query(
+        `INSERT INTO desk.tickets (id, number, account_id) VALUES ($1, $2, $3)`,
+        [t.id, t.number, t.account_id],
+      );
+    }
+
     const eventosTickets = eventosTicketsFicticios(CURRENT_YEAR);
     for (const ev of eventosTickets) {
       await client.query(
@@ -271,7 +299,7 @@ export async function seedHub(connectionString) {
     }
 
     await client.query("COMMIT");
-    console.log(`  hub sembrado: ${ITEMS.length} items, ${orders} pedidos, ${invoices} facturas, ${deals} tratos, ${eventosTickets.length} eventos de tickets`);
+    console.log(`  hub sembrado: ${ITEMS.length} items, ${orders} pedidos, ${invoices} facturas, ${deals} tratos, ${TICKETS_FICTICIOS.length} tickets, ${eventosTickets.length} eventos de tickets`);
   } catch (err) {
     await client.query("ROLLBACK");
     throw err;

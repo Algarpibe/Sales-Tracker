@@ -116,13 +116,23 @@ export interface CambioFase {
   instante: number;
   desde: string | null;
   hacia: string | null;
+  /** Número visible del ticket en Desk. null si el ticket todavía no está en el hub:
+   *  la consulta usa LEFT JOIN para no perder el episodio por eso. */
+  numero: number | null;
+  /** Nombre de la cuenta del ticket. null si no tiene cuenta o no está en el hub. */
+  cliente: string | null;
 }
 
 export interface Episodio {
   ticketId: string;
+  numero: number | null;
+  cliente: string | null;
   inicio: number;
   /** null si sigue abierto. */
   fin: number | null;
+  /** Fase a la que salió, ya normalizada; null si sigue abierto. El estado ya dice si
+   *  la salida es medible, pero el detalle enseña a qué fase fue. */
+  faseSalida: string | null;
   /** "medible": salió a una fase de FASES_FIN_RELOJ; "excluido": salió a otra; "abierto": no ha salido. */
   estado: "medible" | "excluido" | "abierto";
 }
@@ -155,12 +165,22 @@ export function episodiosNotificacionComercial(cambiosCrudos: CambioFase[]): Epi
   const episodios: Episodio[] = [];
   for (const [ticketId, lista] of porTicket) {
     const ordenados = [...lista].sort((a, b) => a.instante - b.instante);
+    // Un ticket tiene un solo número y una sola cuenta: todos sus cambios traen los mismos.
+    const { numero, cliente } = ordenados[0];
     let abierto: number | null = null;
     const procesar = (c: CambioFase) => {
       if (c.desde === FASE_NOTIFICACION_COMERCIAL) {
         if (abierto === null) return;
         const medible = c.hacia !== null && FASES_FIN_RELOJ.includes(c.hacia);
-        episodios.push({ ticketId, inicio: abierto, fin: c.instante, estado: medible ? "medible" : "excluido" });
+        episodios.push({
+          ticketId,
+          numero,
+          cliente,
+          inicio: abierto,
+          fin: c.instante,
+          faseSalida: c.hacia,
+          estado: medible ? "medible" : "excluido",
+        });
         abierto = null;
       } else if (c.hacia === FASE_NOTIFICACION_COMERCIAL && abierto === null) {
         abierto = c.instante;
@@ -179,7 +199,9 @@ export function episodiosNotificacionComercial(cambiosCrudos: CambioFase[]): Epi
       for (const c of grupo) procesar(c);
       i = j;
     }
-    if (abierto !== null) episodios.push({ ticketId, inicio: abierto, fin: null, estado: "abierto" });
+    if (abierto !== null) {
+      episodios.push({ ticketId, numero, cliente, inicio: abierto, fin: null, faseSalida: null, estado: "abierto" });
+    }
   }
   return episodios;
 }
@@ -187,6 +209,40 @@ export function episodiosNotificacionComercial(cambiosCrudos: CambioFase[]): Epi
 export interface ConteoTickets {
   enPlazo: number[];
   fueraDePlazo: number[];
+}
+
+/** Cómo cuenta un episodio para el porcentaje. Solo los dos primeros cuentan. */
+export type EstadoPlazo = "en_plazo" | "fuera_de_plazo" | "excluido" | "abierto_sin_vencer";
+
+export interface Clasificacion {
+  estado: EstadoPlazo;
+  /** Horas laborables hasta la salida o, si sigue abierto, hasta `ahora`. 0 en un excluido. */
+  horas: number;
+}
+
+/**
+ * Única regla de plazo del KPI (spec base, §2): de aquí salen la cifra de la celda y
+ * el detalle, así que no pueden discrepar. Un medible se mide hasta su salida; un
+ * abierto, hasta `ahora`, y solo cuenta (fuera de plazo) cuando ya consumió el plazo
+ * entero, porque antes todavía puede acabar en plazo. Cualquier otro caso se trata como
+ * excluido, igual que hacía el contador antes de apoyarse en esta función.
+ */
+export function clasificarEpisodio(e: Episodio, ahora: number): Clasificacion {
+  if (e.estado === "medible" && e.fin !== null) {
+    const horas = horasLaborables(e.inicio, e.fin);
+    return { estado: horas < PLAZO_HORAS ? "en_plazo" : "fuera_de_plazo", horas };
+  }
+  if (e.estado === "abierto") {
+    const horas = horasLaborables(e.inicio, ahora);
+    return { estado: horas >= PLAZO_HORAS ? "fuera_de_plazo" : "abierto_sin_vencer", horas };
+  }
+  return { estado: "excluido", horas: 0 };
+}
+
+/** Mes de entrada (0-11) en hora de Bogotá, o null si el episodio entró otro año. */
+function mesDeEntrada(e: Episodio, anio: number): number | null {
+  const local = new Date(e.inicio + MS_OFFSET);
+  return local.getUTCFullYear() === anio ? local.getUTCMonth() : null;
 }
 
 /**
@@ -199,15 +255,11 @@ export function contarTicketsEnPlazo(episodios: Episodio[], anio: number, ahora:
   const enPlazo: number[] = new Array(12).fill(0);
   const fueraDePlazo: number[] = new Array(12).fill(0);
   for (const e of episodios) {
-    const local = new Date(e.inicio + MS_OFFSET);
-    if (local.getUTCFullYear() !== anio) continue;
-    const mes = local.getUTCMonth();
-    if (e.estado === "medible" && e.fin !== null) {
-      if (horasLaborables(e.inicio, e.fin) < PLAZO_HORAS) enPlazo[mes]++;
-      else fueraDePlazo[mes]++;
-    } else if (e.estado === "abierto" && horasLaborables(e.inicio, ahora) >= PLAZO_HORAS) {
-      fueraDePlazo[mes]++;
-    }
+    const mes = mesDeEntrada(e, anio);
+    if (mes === null) continue;
+    const { estado } = clasificarEpisodio(e, ahora);
+    if (estado === "en_plazo") enPlazo[mes]++;
+    else if (estado === "fuera_de_plazo") fueraDePlazo[mes]++;
   }
   return { enPlazo, fueraDePlazo };
 }
@@ -220,4 +272,89 @@ export function ticketsEnPlazoPorMes(episodios: Episodio[], anio: number, ahora:
     const total = dentro + fueraDePlazo[i];
     return total === 0 ? null : (dentro / total) * 100;
   });
+}
+
+/** Una fila del detalle de una celda: el episodio con su clasificación ya resuelta. */
+export interface FilaDetalleTicket {
+  ticketId: string;
+  numero: number | null;
+  cliente: string | null;
+  inicio: number;
+  fin: number | null;
+  faseSalida: string | null;
+  horas: number;
+  estado: EstadoPlazo;
+}
+
+export interface DetalleTicketsMes {
+  /** En plazo y fuera de plazo: los que forman el porcentaje. */
+  cuentan: FilaDetalleTicket[];
+  /** Excluidos y abiertos sin vencer: se enseñan aparte para explicar por qué no cuentan. */
+  noCuentan: FilaDetalleTicket[];
+  enPlazo: number;
+  total: number;
+}
+
+/**
+ * Episodios que entraron en `mes` (1-12, hora de Bogotá) de `anio`, clasificados con
+ * la misma función que usa la celda. `cuentan` va primero con los fuera de plazo, que
+ * son los que piden explicación, y dentro de cada grupo de más horas a menos; a
+ * igualdad de horas, por entrada y por ticket, para que el orden sea siempre el mismo.
+ */
+export function detalleTicketsMes(episodios: Episodio[], anio: number, mes: number, ahora: number): DetalleTicketsMes {
+  const cuentan: FilaDetalleTicket[] = [];
+  const noCuentan: FilaDetalleTicket[] = [];
+  for (const e of episodios) {
+    if (mesDeEntrada(e, anio) !== mes - 1) continue;
+    const { estado, horas } = clasificarEpisodio(e, ahora);
+    const fila: FilaDetalleTicket = {
+      ticketId: e.ticketId,
+      numero: e.numero,
+      cliente: e.cliente,
+      inicio: e.inicio,
+      fin: e.fin,
+      faseSalida: e.faseSalida,
+      horas,
+      estado,
+    };
+    if (estado === "en_plazo" || estado === "fuera_de_plazo") cuentan.push(fila);
+    else noCuentan.push(fila);
+  }
+  const porEntrada = (a: FilaDetalleTicket, b: FilaDetalleTicket) =>
+    a.inicio - b.inicio || a.ticketId.localeCompare(b.ticketId);
+  const grupo = (f: FilaDetalleTicket) => (f.estado === "fuera_de_plazo" ? 0 : 1);
+  cuentan.sort((a, b) => grupo(a) - grupo(b) || b.horas - a.horas || porEntrada(a, b));
+  noCuentan.sort(porEntrada);
+  return {
+    cuentan,
+    noCuentan,
+    enPlazo: cuentan.filter((f) => f.estado === "en_plazo").length,
+    total: cuentan.length,
+  };
+}
+
+// Se crea una vez: construir un DateTimeFormat es caro y el diálogo formatea dos
+// instantes por fila. timeZone fija Bogotá, así que no depende de la zona del proceso;
+// hourCycle h23 evita "24:00" a medianoche en algunos motores.
+const FORMATO_BOGOTA = new Intl.DateTimeFormat("es-CO", {
+  timeZone: "America/Bogota",
+  day: "2-digit",
+  month: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+});
+
+/**
+ * "dd/MM HH:mm" en hora de Bogotá. Se monta con formatToParts y no con format(): el
+ * separador entre fecha y hora de es-CO (coma, espacio duro...) cambia entre versiones
+ * de ICU, y el detalle tiene que verse igual en el servidor, el navegador y el CI.
+ * padStart es necesario porque, sin "year" en las opciones, algunas versiones de ICU
+ * dejan "day"/"month" sin ceros para es-CO (p. ej. "5/1" en vez de "05/01") aunque
+ * "2-digit" los pida.
+ */
+export function formatoInstanteBogota(ms: number): string {
+  const p = Object.fromEntries(FORMATO_BOGOTA.formatToParts(ms).map((x) => [x.type, x.value]));
+  const dosDigitos = (v: string) => v.padStart(2, "0");
+  return `${dosDigitos(p.day)}/${dosDigitos(p.month)} ${dosDigitos(p.hour)}:${dosDigitos(p.minute)}`;
 }
