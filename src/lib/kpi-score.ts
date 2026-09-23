@@ -181,6 +181,17 @@ export interface MonthAmountRow { mes: number; importe: number; }
 
 /** Suma un importe por mes. Misma forma que toMonthlySeries, pero con dinero en
  *  vez de conteos: los nombres de campo lo dicen porque no son lo mismo. */
+/**
+ * Filas cuya fecha ('YYYY-MM-DD', un `date` de Postgres) cae en el año dado. Por
+ * prefijo de texto, sin new Date(), para no reinterpretar la fecha en otra zona
+ * horaria. Sin este filtro, sumByMonth agrupaba solo por mes y una orden de
+ * noviembre de un año sumaba también en noviembre de cualquier otro.
+ */
+export function ofYear<T extends { date: string }>(rows: T[], year: number): T[] {
+  const prefijo = `${year}-`;
+  return rows.filter((r) => r.date.startsWith(prefijo));
+}
+
 export function sumByMonth(rows: MonthAmountRow[]): number[] {
   const out = doceCeros();
   for (const r of rows) {

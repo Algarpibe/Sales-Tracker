@@ -24,7 +24,7 @@ import { firstYearByCustomer } from "@/lib/analytics-comercial";
 import { COMMERCIAL_KPIS, KPI_UNIT_LABEL, type KpiDef, type KpiUnit } from "@/lib/commercial-kpis";
 import {
   attainment, esTratoDeClienteNuevo, esVentaDeClienteNuevo, kpiAverage, kpiContribution,
-  monthBreakdown, periodTotals, scoreboard, splitDealsNewExisting, splitNewExisting, sumByMonth, toMonthlySeries,
+  monthBreakdown, ofYear, periodTotals, scoreboard, splitDealsNewExisting, splitNewExisting, sumByMonth, toMonthlySeries,
   type BreakdownInput,
 } from "@/lib/kpi-score";
 import { customerHref } from "@/lib/customer-detail";
@@ -255,6 +255,9 @@ export function CommercialKpiTable({
   const registros = useMemo<SalesRecord[]>(() => ventasQ.data ?? [], [ventasQ.data]);
   const categorias = useMemo<Category[]>(() => (categoriasQ.data as Category[]) ?? [], [categoriasQ.data]);
   const ordenesProyecto = useMemo<OrdenProyecto[]>(() => proyectosQ.data ?? [], [proyectosQ.data]);
+  // Solo las del año seleccionado: alimentan la fila y la lista del diálogo, así
+  // que las dos enseñan exactamente lo mismo.
+  const ordenesProyectoAnio = useMemo(() => ofYear(ordenesProyecto, year), [ordenesProyecto, year]);
   // Ids ya marcados: el buscador los muestra, pero no deja volver a agregarlos.
   const idsProyectoMarcados = useMemo(
     () => new Set(ordenesProyecto.map((o) => o.hub_order_id)),
@@ -327,7 +330,7 @@ export function CommercialKpiTable({
         // el mes con slice, nunca con new Date(...).getMonth(), que reinterpreta
         // la fecha en la zona horaria local y puede desplazarla de mes.
         const serie = sumByMonth(
-          ordenesProyecto.map((o) => ({ mes: Number(o.date.slice(5, 7)), importe: o.importe }))
+          ordenesProyectoAnio.map((o) => ({ mes: Number(o.date.slice(5, 7)), importe: o.importe }))
         );
         return construirFila(def, periodTotals(serie, def.period), meta, serie);
       }
@@ -335,7 +338,7 @@ export function CommercialKpiTable({
     });
 
     return { filas, mensualesBreakdown, tratosBreakdown, ganadosBreakdown };
-  }, [metas, mensuales, tratos, ganados, historico, registros, categorias, ordenesProyecto, recordType, year]);
+  }, [metas, mensuales, tratos, ganados, historico, registros, categorias, ordenesProyectoAnio, recordType, year]);
 
   const marcador = useMemo(
     () => scoreboard(filas.map((f) => ({ average: f.promedio, weight: f.peso }))),
@@ -633,15 +636,15 @@ export function CommercialKpiTable({
 
           <div className="space-y-2 border-t border-border/40 pt-3">
             <p className="text-xs font-medium text-muted-foreground">
-              Órdenes marcadas ({ordenesProyecto.length})
+              Órdenes marcadas en {year} ({ordenesProyectoAnio.length})
             </p>
             {proyectosQ.isPending ? (
               <p className="text-sm text-muted-foreground">Cargando…</p>
-            ) : ordenesProyecto.length === 0 ? (
+            ) : ordenesProyectoAnio.length === 0 ? (
               <p className="text-sm text-muted-foreground">Ninguna orden marcada todavía.</p>
             ) : (
               <ul className="max-h-56 space-y-1 overflow-auto">
-                {ordenesProyecto.map((orden) => (
+                {ordenesProyectoAnio.map((orden) => (
                   <li key={orden.hub_order_id} className="flex items-center justify-between gap-2">
                     <span className="truncate text-sm">
                       {orden.customer_name} · {orden.date} · {formatUSD(orden.importe)}
