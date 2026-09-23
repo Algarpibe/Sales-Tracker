@@ -122,6 +122,46 @@ test("pulsar la cifra de tratos ganados abre su detalle", async ({ page }) => {
 });
 
 /**
+ * La fila de ganados cuenta por el mes, en hora de Bogota, en que el trato ENTRO en la
+ * fase ganada (stage_modified_time), no por closing_date. Los tres GANADOS_ESPECIALES de
+ * e2e/db/seed-hub.mjs hacen discrepar las reglas a proposito; con closing_date saldria
+ * 1-2-2-1-2 en marzo, abril, junio, julio y septiembre. El indice de celda es el mes.
+ */
+test("la fila de tratos ganados cuenta por el mes en Bogota en que el trato entro en la fase", async ({ page }) => {
+  const card = await abrirComercial(page);
+
+  const fila = card.getByRole("row", { name: /Tratos cerrados ganados/ });
+  const celda = (mes: number) => fila.getByRole("cell").nth(mes);
+
+  // DEAL-GX-FRONTERA entro el 1 de abril a las 02:00 UTC, las 21:00 del 31 de marzo en
+  // Bogota: suma a marzo y no a abril. Con el mes UTC tambien iria a abril.
+  await expect(celda(3)).toHaveText("2");
+  await expect(celda(4)).toHaveText("1");
+  // DEAL-GX-MES tiene closing_date de junio pero entro en la fase en julio.
+  await expect(celda(6)).toHaveText("1");
+  await expect(celda(7)).toHaveText("2");
+  // DEAL-GX-SIN-HORA esta ganado con closing_date de septiembre pero sin hora de
+  // entrada: no cuenta, y septiembre se queda con el ganado del mes.
+  await expect(celda(9)).toHaveText("1");
+});
+
+test("el detalle de ganados de marzo incluye el trato que entro en la fase la noche del 31", async ({ page }) => {
+  const card = await abrirComercial(page);
+
+  const fila = card.getByRole("row", { name: /Tratos cerrados ganados/ });
+  await fila.getByRole("cell").nth(3).getByRole("button").click();
+
+  const dialogo = page.getByRole("dialog");
+  await expect(dialogo).toBeVisible();
+  await expect(dialogo).toContainText("Marzo");
+  // El ganado del mes (cuenta de Books "Alfa Industrial") y el de la frontera horaria.
+  await expect(dialogo).toContainText("Alfa Industrial");
+  await expect(dialogo).toContainText("Cuenta Ficticia Frontera");
+  await expect(dialogo.getByText("2 clientes")).toBeVisible();
+  await expect(dialogo.getByText("Total: 2")).toBeVisible();
+});
+
+/**
  * Orden identificable para el dialogo de gestion de ingresos por proyectos:
  * "Alfa Industrial" (ver e2e/db/seed-hub.mjs) tiene ordenes de venta en los
  * meses 1, 6 y 11 de CADA anio sembrado, incluido el anio en curso. La
