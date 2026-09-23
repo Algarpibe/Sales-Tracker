@@ -20,17 +20,17 @@ async function abrirComercial(page: Page) {
   return card;
 }
 
-test("la tabla muestra el TOTAL con su cobertura y los KPIs pendientes con su motivo", async ({ page }) => {
+test("la tabla muestra el TOTAL con su cobertura y ya no queda ningun KPI pendiente", async ({ page }) => {
   const card = await abrirComercial(page);
 
   await expect(card.getByText("TOTAL", { exact: true })).toBeVisible();
   // La semilla pesa dos KPIs medibles al 60 y al 40.
   await expect(card.getByText(/cobertura: 100/)).toBeVisible();
 
-  // Solo queda un KPI sin origen de datos, con su motivo. Zoho CRM ya no aparece
-  // (sus tres KPIs se calculan) y tampoco ingresos por proyectos (se gestiona a
-  // mano desde la propia tabla).
-  await expect(card.getByText("Pendiente de Zoho Desk").first()).toBeVisible();
+  // Tickets en plazo era el ultimo KPI sin origen de datos: ahora se calcula desde el
+  // historial de Zoho Desk, asi que ninguna fila dice que esta pendiente. El TOTAL
+  // ya esta pintado, asi que la cuenta a cero no puede pasar por una tabla a medio cargar.
+  await expect(card.getByText(/Pendiente de Zoho/)).toHaveCount(0);
 });
 
 test("el selector de propietario filtra los importes", async ({ page }) => {
@@ -170,4 +170,32 @@ test("un administrador marca una orden y su importe entra en la fila de ingresos
   await dialogo.getByRole("button", { name: "Cerrar" }).click();
 
   await expect(fila.getByRole("cell").nth(CELDA_ORDEN_MARCADA)).not.toHaveText("$0");
+});
+
+test("la fila de tickets en plazo calcula el porcentaje del mes con el historial de Desk", async ({ page }) => {
+  const card = await abrirComercial(page);
+
+  const fila = card.getByRole("row", { name: /Tickets de Servicio Técnico en plazo/ });
+  await expect(fila).toBeVisible();
+  await expect(fila).not.toContainText("Pendiente de Zoho Desk");
+
+  // Febrero de la semilla (e2e/db/seed-hub.mjs): tres episodios en plazo y dos fuera,
+  // mas un rechazo que no cuenta. 3 / 5 = 60 %. La semilla no pone meta a este KPI,
+  // asi que la celda lleva solo el valor, sin cumplimiento debajo.
+  await expect(fila.getByRole("cell").nth(CELDA_FEBRERO)).toHaveText("60.0%");
+  // Enero solo tiene la salida de un episodio que entro el anio anterior: se ignora y
+  // el mes queda sin dato, no a 0 %.
+  await expect(fila.getByRole("cell").nth(1)).toHaveText("—");
+});
+
+test("con un comercial elegido la fila de tickets sigue siendo de compania", async ({ page }) => {
+  const card = await abrirComercial(page);
+
+  await card.getByLabel("Propietario").click();
+  await page.getByRole("option", { name: SALESPEOPLE[0] }).click();
+
+  // Desk no asigna comercial al ticket: la cifra es la misma y la fila lo dice.
+  const fila = card.getByRole("row", { name: /Tickets de Servicio Técnico en plazo/ });
+  await expect(fila).toContainText("De compañía: no se filtra por comercial.");
+  await expect(fila.getByRole("cell").nth(CELDA_FEBRERO)).toHaveText("60.0%");
 });
