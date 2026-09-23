@@ -158,3 +158,41 @@ export function episodiosNotificacionComercial(cambios: CambioFase[]): Episodio[
   }
   return episodios;
 }
+
+export interface ConteoTickets {
+  enPlazo: number[];
+  fueraDePlazo: number[];
+}
+
+/**
+ * Cuenta por mes de entrada (en hora de Bogotá) los episodios en plazo y fuera de
+ * plazo del año. Los excluidos no cuentan, y un abierto solo cuenta, como fuera de
+ * plazo, cuando ya ha consumido el plazo entero a fecha de `ahora`: antes de eso
+ * todavía puede acabar en plazo.
+ */
+export function contarTicketsEnPlazo(episodios: Episodio[], anio: number, ahora: number): ConteoTickets {
+  const enPlazo: number[] = new Array(12).fill(0);
+  const fueraDePlazo: number[] = new Array(12).fill(0);
+  for (const e of episodios) {
+    const local = new Date(e.inicio + MS_OFFSET);
+    if (local.getUTCFullYear() !== anio) continue;
+    const mes = local.getUTCMonth();
+    if (e.estado === "medible" && e.fin !== null) {
+      if (horasLaborables(e.inicio, e.fin) < PLAZO_HORAS) enPlazo[mes]++;
+      else fueraDePlazo[mes]++;
+    } else if (e.estado === "abierto" && horasLaborables(e.inicio, ahora) >= PLAZO_HORAS) {
+      fueraDePlazo[mes]++;
+    }
+  }
+  return { enPlazo, fueraDePlazo };
+}
+
+/** Porcentaje en plazo de cada mes; null en un mes sin episodios contables, no 0 %:
+ *  un cero diría que Comercial incumplió todo, y lo cierto es que no hubo qué medir. */
+export function ticketsEnPlazoPorMes(episodios: Episodio[], anio: number, ahora: number): (number | null)[] {
+  const { enPlazo, fueraDePlazo } = contarTicketsEnPlazo(episodios, anio, ahora);
+  return enPlazo.map((dentro, i) => {
+    const total = dentro + fueraDePlazo[i];
+    return total === 0 ? null : (dentro / total) * 100;
+  });
+}
