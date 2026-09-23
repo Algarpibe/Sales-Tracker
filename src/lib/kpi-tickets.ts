@@ -211,6 +211,40 @@ export interface ConteoTickets {
   fueraDePlazo: number[];
 }
 
+/** Cómo cuenta un episodio para el porcentaje. Solo los dos primeros cuentan. */
+export type EstadoPlazo = "en_plazo" | "fuera_de_plazo" | "excluido" | "abierto_sin_vencer";
+
+export interface Clasificacion {
+  estado: EstadoPlazo;
+  /** Horas laborables hasta la salida o, si sigue abierto, hasta `ahora`. 0 en un excluido. */
+  horas: number;
+}
+
+/**
+ * Única regla de plazo del KPI (spec base, §2): de aquí salen la cifra de la celda y
+ * el detalle, así que no pueden discrepar. Un medible se mide hasta su salida; un
+ * abierto, hasta `ahora`, y solo cuenta (fuera de plazo) cuando ya consumió el plazo
+ * entero, porque antes todavía puede acabar en plazo. Cualquier otro caso se trata como
+ * excluido, igual que hacía el contador antes de apoyarse en esta función.
+ */
+export function clasificarEpisodio(e: Episodio, ahora: number): Clasificacion {
+  if (e.estado === "medible" && e.fin !== null) {
+    const horas = horasLaborables(e.inicio, e.fin);
+    return { estado: horas < PLAZO_HORAS ? "en_plazo" : "fuera_de_plazo", horas };
+  }
+  if (e.estado === "abierto") {
+    const horas = horasLaborables(e.inicio, ahora);
+    return { estado: horas >= PLAZO_HORAS ? "fuera_de_plazo" : "abierto_sin_vencer", horas };
+  }
+  return { estado: "excluido", horas: 0 };
+}
+
+/** Mes de entrada (0-11) en hora de Bogotá, o null si el episodio entró otro año. */
+function mesDeEntrada(e: Episodio, anio: number): number | null {
+  const local = new Date(e.inicio + MS_OFFSET);
+  return local.getUTCFullYear() === anio ? local.getUTCMonth() : null;
+}
+
 /**
  * Cuenta por mes de entrada (en hora de Bogotá) los episodios en plazo y fuera de
  * plazo del año. Los excluidos no cuentan, y un abierto solo cuenta, como fuera de
@@ -221,15 +255,11 @@ export function contarTicketsEnPlazo(episodios: Episodio[], anio: number, ahora:
   const enPlazo: number[] = new Array(12).fill(0);
   const fueraDePlazo: number[] = new Array(12).fill(0);
   for (const e of episodios) {
-    const local = new Date(e.inicio + MS_OFFSET);
-    if (local.getUTCFullYear() !== anio) continue;
-    const mes = local.getUTCMonth();
-    if (e.estado === "medible" && e.fin !== null) {
-      if (horasLaborables(e.inicio, e.fin) < PLAZO_HORAS) enPlazo[mes]++;
-      else fueraDePlazo[mes]++;
-    } else if (e.estado === "abierto" && horasLaborables(e.inicio, ahora) >= PLAZO_HORAS) {
-      fueraDePlazo[mes]++;
-    }
+    const mes = mesDeEntrada(e, anio);
+    if (mes === null) continue;
+    const { estado } = clasificarEpisodio(e, ahora);
+    if (estado === "en_plazo") enPlazo[mes]++;
+    else if (estado === "fuera_de_plazo") fueraDePlazo[mes]++;
   }
   return { enPlazo, fueraDePlazo };
 }

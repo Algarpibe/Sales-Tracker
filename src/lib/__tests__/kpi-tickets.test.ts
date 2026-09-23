@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   FASE_NOTIFICACION_COMERCIAL,
+  clasificarEpisodio,
   contarTicketsEnPlazo,
   episodiosNotificacionComercial,
   festivosColombia,
@@ -336,5 +337,35 @@ describe("ticketsEnPlazoPorMes", () => {
     const suma = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
     expect(suma(enPlazo)).toBe(1);
     expect(suma(fueraDePlazo)).toBe(2);
+  });
+});
+
+describe("clasificarEpisodio", () => {
+  it("un medible de menos de 12 horas laborables esta en plazo y lleva sus horas", () => {
+    // Lunes 9:00 -> martes 11:30: 8 h + 3,5 h.
+    expect(clasificarEpisodio(episodio(LUNES_MARZO, bog(2026, 3, 3, 11, 30), "medible"), AHORA))
+      .toEqual({ estado: "en_plazo", horas: 11.5 });
+  });
+
+  it("un medible de 12 horas justas esta fuera de plazo", () => {
+    // Lunes 9:00 -> martes 12:00: 8 h + 4 h. El plazo es "menos de 12".
+    expect(clasificarEpisodio(episodio(LUNES_MARZO, bog(2026, 3, 3, 12), "medible"), AHORA))
+      .toEqual({ estado: "fuera_de_plazo", horas: 12 });
+  });
+
+  it("un abierto que a fecha de ahora llega justo a 12 horas esta fuera de plazo", () => {
+    expect(clasificarEpisodio(episodio(LUNES_MARZO, null, "abierto"), bog(2026, 3, 3, 12)))
+      .toEqual({ estado: "fuera_de_plazo", horas: 12 });
+  });
+
+  it("un abierto con menos de 12 horas todavia no vence y cuenta sus horas hasta ahora", () => {
+    // Lunes 9:00 -> lunes 15:00.
+    expect(clasificarEpisodio(episodio(LUNES_MARZO, null, "abierto"), bog(2026, 3, 2, 15)))
+      .toEqual({ estado: "abierto_sin_vencer", horas: 6 });
+  });
+
+  it("un excluido no mide horas", () => {
+    expect(clasificarEpisodio(episodio(LUNES_MARZO, bog(2026, 3, 4, 9), "excluido"), AHORA))
+      .toEqual({ estado: "excluido", horas: 0 });
   });
 });
