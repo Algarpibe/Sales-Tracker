@@ -27,10 +27,10 @@ test("la tabla muestra el TOTAL con su cobertura y los KPIs pendientes con su mo
   // La semilla pesa dos KPIs medibles al 60 y al 40.
   await expect(card.getByText(/cobertura: 100/)).toBeVisible();
 
-  // Los dos KPIs que siguen sin origen de datos dicen por que estan vacios, cada
-  // uno con su motivo. Zoho CRM ya no aparece: sus tres KPIs se calculan.
+  // Solo queda un KPI sin origen de datos, con su motivo. Zoho CRM ya no aparece
+  // (sus tres KPIs se calculan) y tampoco ingresos por proyectos (se gestiona a
+  // mano desde la propia tabla).
   await expect(card.getByText("Pendiente de Zoho Desk").first()).toBeVisible();
-  await expect(card.getByText("Pendiente de carga manual").first()).toBeVisible();
 });
 
 test("el selector de propietario filtra los importes", async ({ page }) => {
