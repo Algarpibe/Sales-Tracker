@@ -26,6 +26,7 @@ export const OFFSET_BOGOTA_HORAS = -5;
 
 const MS_HORA = 3_600_000;
 const MS_DIA = 24 * MS_HORA;
+const MS_OFFSET = OFFSET_BOGOTA_HORAS * MS_HORA;
 
 /** 'YYYY-MM-DD' de un instante leído en UTC. */
 function claveDia(ms: number): string {
@@ -72,4 +73,38 @@ export function festivosColombia(anio: number): Set<string> {
   const deSemanaSanta = [desdePascua(-3), desdePascua(-2), desdePascua(43), desdePascua(64), desdePascua(71)];
 
   return new Set([...fijos, ...trasladables, ...deSemanaSanta].map(claveDia));
+}
+
+// Los festivos de un año no cambian: se calculan una vez por año y proceso, porque
+// horasLaborables recorre día a día y un episodio abierto puede abarcar meses.
+const festivosPorAnio = new Map<number, Set<string>>();
+function esFestivo(dia: number): boolean {
+  const anio = new Date(dia).getUTCFullYear();
+  let festivos = festivosPorAnio.get(anio);
+  if (!festivos) {
+    festivos = festivosColombia(anio);
+    festivosPorAnio.set(anio, festivos);
+  }
+  return festivos.has(claveDia(dia));
+}
+
+/**
+ * Horas laborables entre dos instantes: lunes a viernes de 8:00 a 17:00 en Bogotá,
+ * jornada continua, sin festivos. Horas decimales; 0 si `hasta` no es posterior.
+ */
+export function horasLaborables(desde: number, hasta: number): number {
+  if (!(hasta > desde)) return 0;
+  // "Reloj de pared" de Bogotá expresado como si fuera UTC: a partir de aquí todos
+  // los getUTC* devuelven la fecha y la hora locales de Bogotá.
+  const inicio = desde + MS_OFFSET;
+  const fin = hasta + MS_OFFSET;
+  let total = 0;
+  for (let dia = Math.floor(inicio / MS_DIA) * MS_DIA; dia < fin; dia += MS_DIA) {
+    const diaSemana = new Date(dia).getUTCDay();
+    if (diaSemana === 0 || diaSemana === 6 || esFestivo(dia)) continue;
+    const abre = Math.max(inicio, dia + HORA_INICIO * MS_HORA);
+    const cierra = Math.min(fin, dia + HORA_FIN * MS_HORA);
+    if (cierra > abre) total += cierra - abre;
+  }
+  return total / MS_HORA;
 }

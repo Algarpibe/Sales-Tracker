@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { festivosColombia } from "@/lib/kpi-tickets";
+import { festivosColombia, horasLaborables } from "@/lib/kpi-tickets";
 
 describe("festivosColombia", () => {
   it("2025 coincide con la lista oficial completa", () => {
@@ -26,5 +26,56 @@ describe("festivosColombia", () => {
   it("un festivo trasladable que ya cae en lunes se queda en su fecha", () => {
     expect(festivosColombia(2026).has("2026-10-12")).toBe(true);
     expect(festivosColombia(2026).has("2026-10-19")).toBe(false);
+  });
+});
+
+/** Instante de una hora de pared de Bogota (UTC-5 fijo). Date.UTC con +5 h lo hace
+ *  independiente de la zona horaria de quien ejecuta los tests. */
+const bog = (anio: number, mes: number, dia: number, hora: number, minuto = 0) =>
+  Date.UTC(anio, mes - 1, dia, hora + 5, minuto);
+
+describe("horasLaborables", () => {
+  it("mismo dia dentro del horario", () => {
+    // Lunes 21 sep 2026.
+    expect(horasLaborables(bog(2026, 9, 21, 9), bog(2026, 9, 21, 11, 30))).toBe(2.5);
+  });
+
+  it("recorta lo anterior a las 8:00 y lo posterior a las 17:00", () => {
+    expect(horasLaborables(bog(2026, 9, 21, 6), bog(2026, 9, 21, 19))).toBe(9);
+  });
+
+  it("de viernes a lunes no cuenta el fin de semana", () => {
+    // Viernes 25 sep 15:00 -> lunes 28 sep 10:00: 2 h + 2 h.
+    expect(horasLaborables(bog(2026, 9, 25, 15), bog(2026, 9, 28, 10))).toBe(4);
+  });
+
+  it("un festivo no suma horas", () => {
+    // Viernes 9 oct 16:00 -> martes 13 oct 9:00; el lunes 12 es festivo: 1 h + 1 h.
+    expect(horasLaborables(bog(2026, 10, 9, 16), bog(2026, 10, 13, 9))).toBe(2);
+  });
+
+  it("jueves y viernes santo no suman horas", () => {
+    // Miercoles 1 abr 16:00 -> lunes 6 abr 9:00 de 2026: 1 h + 1 h.
+    expect(horasLaborables(bog(2026, 4, 1, 16), bog(2026, 4, 6, 9))).toBe(2);
+  });
+
+  it("un episodio que empieza en fin de semana arranca el lunes a las 8:00", () => {
+    // Sabado 26 sep 10:00 -> lunes 28 sep 12:00.
+    expect(horasLaborables(bog(2026, 9, 26, 10), bog(2026, 9, 28, 12))).toBe(4);
+  });
+
+  it("cuenta la jornada completa sin descontar el almuerzo", () => {
+    expect(horasLaborables(bog(2026, 9, 21, 8), bog(2026, 9, 22, 17))).toBe(18);
+  });
+
+  it("devuelve 0 si hasta no es posterior a desde", () => {
+    expect(horasLaborables(bog(2026, 9, 21, 10), bog(2026, 9, 21, 10))).toBe(0);
+    expect(horasLaborables(bog(2026, 9, 21, 11), bog(2026, 9, 21, 10))).toBe(0);
+  });
+
+  it("usa la hora de Bogota aunque el dia UTC sea otro", () => {
+    // Lunes 21 sep 16:00 en Bogota son las 21:00 UTC; hasta el martes 22 a las 9:00
+    // de Bogota (14:00 UTC) hay 1 h + 1 h.
+    expect(horasLaborables(bog(2026, 9, 21, 16), bog(2026, 9, 22, 9))).toBe(2);
   });
 });
