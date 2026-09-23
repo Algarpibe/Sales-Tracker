@@ -38,17 +38,6 @@ export const KPI_UNIT_LABEL: Record<KpiUnit, string> = {
   pct: "%",
 };
 
-/**
- * Fases de Zoho CRM que cuentan como trato ganado. Va en código y no en una variable
- * de entorno porque una etiqueta de fase no expone nada del negocio, y aquí queda
- * visible y cubierta por un test. Si se renombra la fase en Zoho, este KPI se iría a
- * cero: es el precio de tenerlo fijo, y la alternativa sería configurarlo.
- *
- * El mismo literal está repetido en e2e/db/seed-hub.mjs, que no puede importar de aquí
- * por ser .mjs: si se cambia aquí, hay que cambiarlo allí.
- */
-export const WON_DEAL_STAGES = ["Cerrado ganado"] as const;
-
 const BY_KEY = new Map(COMMERCIAL_KPIS.map((k) => [k.key, k]));
 
 export function kpiDef(key: string): KpiDef | undefined {

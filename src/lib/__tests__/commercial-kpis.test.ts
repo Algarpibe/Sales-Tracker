@@ -3,7 +3,6 @@ import {
   COMMERCIAL_KPIS,
   KPI_FIRST_YEAR,
   KPI_KEYS,
-  WON_DEAL_STAGES,
   getKpiYearRange,
   isExcludedSalesperson,
   kpiDef,
@@ -85,14 +84,5 @@ describe("comerciales excluidos del selector de propietario", () => {
   });
   it("no excluye a quien no esta en la lista", () => {
     expect(isExcludedSalesperson("Carla Imaginaria", ["Ana Inventada"])).toBe(false);
-  });
-});
-
-describe("fases ganadoras", () => {
-  it("hay al menos una fase que cuenta como ganada", () => {
-    expect(WON_DEAL_STAGES.length).toBeGreaterThan(0);
-  });
-  it("ninguna fase ganadora esta vacia", () => {
-    for (const f of WON_DEAL_STAGES) expect(f.trim()).not.toBe("");
   });
 });

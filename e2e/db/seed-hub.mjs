@@ -279,18 +279,17 @@ export async function seedHub(connectionString) {
     // cliente existente y otro de cliente que no existe en Books, para que el reparto
     // nuevo/existente tenga las dos ramas. El de agosto se escribe en mayusculas a
     // proposito: prueba de punta a punta que la clave se normaliza antes de cruzar con
-    // Books. De los cerrados, uno esta ganado y otro perdido, para el KPI de ganados.
+    // Books. De los cerrados, uno esta ganado y otro perdido.
     const CUENTA_EXISTENTE = CUSTOMERS[0];
     const CUENTA_NUEVA = "Prospecto Ficticio";
-    // Fase ganadora REAL de Zoho CRM: es el unico valor de produccion de esta semilla.
-    // Tiene que coincidir LETRA POR LETRA con WON_DEAL_STAGES[0] de
-    // src/lib/commercial-kpis.ts, porque la consulta de tratos ganados filtra por el.
-    // Este fichero es .mjs y no puede importar del TypeScript, asi que el literal esta
-    // repetido: quien lo cambie alli tiene que cambiarlo aqui. Con dos grafias distintas
-    // el conteo saldria cero y el test pasaria sin probar nada.
+    // Fase ganadora REAL de Zoho CRM. El KPI de tratos ganados ya no la mira: cuenta
+    // por la primera orden de venta de cada trato (ver tratoDeOrden). Se deja un trato
+    // ganado en CRM cada mes a proposito: si la consulta volviera a seguir la fase y la
+    // fecha de cierre, los meses sin primera orden dejarian de salir a cero y el test
+    // de kpis-comerciales lo detectaria.
     const FASE_GANADA = "Cerrado ganado";
-    // Fase de perdido INVENTADA, como 'Negociacion'. No necesita parecerse a ninguna fase
-    // real: existe para que el filtro por fase tenga algo que descartar en el mismo mes.
+    // Fase de perdido INVENTADA, como 'Negociacion'. No necesita parecerse a ninguna
+    // fase real: completa el par de tratos cerrados de cada mes.
     const FASE_PERDIDA = "Cerrado perdido ficticio";
     let deals = 0;
     for (let month = 1; month <= 12; month++) {

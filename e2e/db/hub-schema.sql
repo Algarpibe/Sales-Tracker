@@ -19,6 +19,8 @@ CREATE TABLE books.sales_orders (
   bcy_sub_total numeric,
   -- raw->>'invoiced_status' alimenta el calculo de BACKLOG.
   -- raw->>'bcy_discount_total' es el descuento de cabecera.
+  -- raw->>'zcrm_potential_id' es el trato de CRM de la orden: alimenta el KPI de
+  -- tratos cerrados ganados.
   raw           jsonb NOT NULL DEFAULT '{}'::jsonb
 );
 
@@ -60,8 +62,8 @@ CREATE TABLE crm.deals (
   stage        text,
   amount       numeric,
   created_time timestamptz,
-  -- Fecha de negocio del cierre, la que cuenta para el KPI de tratos ganados.
-  -- Es date y no timestamptz: no arrastra zona horaria.
+  -- Fecha de negocio del cierre. El KPI de tratos ganados ya no la usa (cuenta por la
+  -- primera orden de venta del trato); se conserva porque la semilla la rellena.
   closing_date date
 );
 

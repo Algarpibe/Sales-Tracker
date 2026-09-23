@@ -1,5 +1,5 @@
 import { getHubPool } from "@/db/hub";
-import { isExcludedSalesperson, parseExcludedSalespeople, WON_DEAL_STAGES } from "@/lib/commercial-kpis";
+import { isExcludedSalesperson, parseExcludedSalespeople } from "@/lib/commercial-kpis";
 import type { DealMonthRow } from "@/lib/kpi-score";
 import { FASE_NOTIFICACION_COMERCIAL, type CambioFase } from "@/lib/kpi-tickets";
 import type { CustomerMonthRow, RecordType } from "@/types/database";
@@ -92,25 +92,43 @@ export async function getHubDealsMonth(f: {
   }));
 }
 
-// Tratos ganados por cuenta y mes. Se cuenta por closing_date y no por created_time: es
-// la fecha de negocio del cierre, y al ser date no arrastra zona horaria. El filtro por
-// fase es imprescindible: las fases abiertas llevan fecha de cierre PREVISTA, que cae
-// en el futuro, y sin filtrar contaminarian el conteo.
+// Tratos ganados por cliente y mes. Se decidio que un trato ganado es el que llego a
+// orden de venta, asi que el KPI sigue a Books y no a la fase ni a la fecha de cierre
+// de CRM. La orden apunta a su trato con
+// raw->>'zcrm_potential_id'; las que no lo llevan (internas, por ejemplo) no cuentan.
+// Cada trato cuenta UNA vez, en el mes de su PRIMERA orden valida de todo el historico:
+// por eso la CTE no filtra por anio. Si lo hiciera, un trato ganado en diciembre con
+// otra orden en enero contaria en los dos anios. Las anuladas y los borradores no
+// cuentan: un trato cuya unica orden se anulo no se gano.
+// El desempate por salesorder_id deja fija la primera orden cuando dos caen el mismo
+// dia, para que cliente y comercial no cambien de una consulta a otra.
+// Cliente y comercial salen de esa primera orden; el comercial usa las mismas cadenas
+// que owner_name de CRM, asi que el filtro por propietario no cambia de significado.
 export async function getHubWonDealsMonth(f: {
   anio: number;
   owner: string | null;
 }): Promise<DealMonthRow[]> {
   const sql = `
-    SELECT d.account_name,
-           extract(month from d.closing_date)::int AS mes,
+    WITH primeras AS (
+      SELECT DISTINCT ON (s.raw->>'zcrm_potential_id')
+             s.date,
+             s.customer_name,
+             s.raw->>'salesperson_name' AS vendedor
+      FROM books.sales_orders s
+      WHERE s.status NOT IN ('void','draft')
+        AND s.date IS NOT NULL
+        AND coalesce(s.raw->>'zcrm_potential_id', '') <> ''
+      ORDER BY s.raw->>'zcrm_potential_id', s.date, s.salesorder_id
+    )
+    SELECT p.customer_name AS account_name,
+           extract(month from p.date)::int AS mes,
            count(*)::int AS tratos
-    FROM crm.deals d
-    WHERE extract(year from d.closing_date) = $1
-      AND d.stage = ANY($2::text[])
-      AND d.account_name IS NOT NULL
-      AND ($3::text IS NULL OR d.owner_name = $3)
-    GROUP BY d.account_name, extract(month from d.closing_date)`;
-  const { rows } = await getHubPool().query(sql, [f.anio, [...WON_DEAL_STAGES], f.owner]);
+    FROM primeras p
+    WHERE extract(year from p.date) = $1
+      AND p.customer_name IS NOT NULL
+      AND ($2::text IS NULL OR p.vendedor = $2)
+    GROUP BY p.customer_name, extract(month from p.date)`;
+  const { rows } = await getHubPool().query(sql, [f.anio, f.owner]);
   return rows.map((r) => ({
     account_name: String(r.account_name),
     mes: Number(r.mes),
