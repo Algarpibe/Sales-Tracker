@@ -131,11 +131,12 @@ export async function getKpiWonDealsMonthly(anio: number, owner: KpiScope): Prom
 
 /** Busca ordenes de venta para marcarlas como ingresos de proyecto. Lectura: cualquier
  *  usuario aprobado puede buscar, no expone nada que no vea ya en el resto de la app. */
-export async function searchSalesOrdersForProjects(query: string): Promise<HubOrderRow[]> {
+export async function searchSalesOrdersForProjects(query: string, anio: number): Promise<HubOrderRow[]> {
   await requireApproved();
   const q = query.trim();
   if (q.length < 2) return [];
-  return searchHubSalesOrders(q);
+  const a = z.number().int().min(2000).max(2100).parse(anio);
+  return searchHubSalesOrders(q, a);
 }
 
 /** Ordenes ya marcadas como ingresos de proyecto de la empresa, con su importe en vivo. */

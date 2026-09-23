@@ -204,8 +204,8 @@ export function CommercialKpiTable({
   // en el servidor.
   const busquedaHabilitada = gestionandoProyectos && busquedaProyectos.trim().length >= 2;
   const busquedaProyectosQ = useQuery({
-    queryKey: ["kpi-project-orders-search", busquedaProyectos.trim()],
-    queryFn: () => searchSalesOrdersForProjects(busquedaProyectos.trim()),
+    queryKey: ["kpi-project-orders-search", year, busquedaProyectos.trim()],
+    queryFn: () => searchSalesOrdersForProjects(busquedaProyectos.trim(), year),
     enabled: busquedaHabilitada,
   });
 
@@ -255,6 +255,11 @@ export function CommercialKpiTable({
   const registros = useMemo<SalesRecord[]>(() => ventasQ.data ?? [], [ventasQ.data]);
   const categorias = useMemo<Category[]>(() => (categoriasQ.data as Category[]) ?? [], [categoriasQ.data]);
   const ordenesProyecto = useMemo<OrdenProyecto[]>(() => proyectosQ.data ?? [], [proyectosQ.data]);
+  // Ids ya marcados: el buscador los muestra, pero no deja volver a agregarlos.
+  const idsProyectoMarcados = useMemo(
+    () => new Set(ordenesProyecto.map((o) => o.hub_order_id)),
+    [ordenesProyecto]
+  );
 
   const { filas, mensualesBreakdown, tratosBreakdown, ganadosBreakdown } = useMemo(() => {
     const porClave = new Map(metas.map((m) => [m.kpi_key, m]));
@@ -594,11 +599,13 @@ export function CommercialKpiTable({
               ) : (busquedaProyectosQ.data ?? []).length === 0 ? (
                 <CommandEmpty>Sin resultados.</CommandEmpty>
               ) : (
-                (busquedaProyectosQ.data ?? []).map((orden) => (
+                (busquedaProyectosQ.data ?? []).map((orden) => {
+                  const yaMarcada = idsProyectoMarcados.has(orden.hub_order_id);
+                  return (
                   <CommandItem
                     key={orden.hub_order_id}
                     value={orden.hub_order_id}
-                    onSelect={() => handleAgregarProyecto(orden.hub_order_id)}
+                    onSelect={() => { if (!yaMarcada) handleAgregarProyecto(orden.hub_order_id); }}
                     className="flex items-center justify-between gap-2"
                   >
                     <span className="truncate">
@@ -609,16 +616,17 @@ export function CommercialKpiTable({
                       size="sm"
                       variant="outline"
                       className="shrink-0"
-                      disabled={pendienteProyecto === orden.hub_order_id}
+                      disabled={yaMarcada || pendienteProyecto === orden.hub_order_id}
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleAgregarProyecto(orden.hub_order_id);
+                        if (!yaMarcada) handleAgregarProyecto(orden.hub_order_id);
                       }}
                     >
-                      Agregar
+                      {yaMarcada ? "Agregada" : "Agregar"}
                     </Button>
                   </CommandItem>
-                ))
+                  );
+                })
               )}
             </CommandList>
           </Command>

@@ -135,7 +135,10 @@ const IMPORTE_ORDEN = `
 // Busca ordenes de venta por cliente o por id interno de Zoho. NO busca por
 // salesorder_number: esa clave no existe en raw del hub (comprobado contra el
 // hub falso de test).
-export async function searchHubSalesOrders(query: string): Promise<HubOrderRow[]> {
+// Solo ordenes del anio que se esta mirando en la tabla: marcar una orden de otro
+// anio no cambiaria nada de lo que se ve, y mezclar anios en el buscador lleva a
+// marcar la orden equivocada de un cliente que repite cada anio.
+export async function searchHubSalesOrders(query: string, anio: number): Promise<HubOrderRow[]> {
   const like = `%${query}%`;
   // s.date::text: sin el cast, pg devuelve un objeto Date (parser por defecto de
   // node-postgres para el tipo date) y String(...) lo serializa en la zona horaria
@@ -147,10 +150,11 @@ export async function searchHubSalesOrders(query: string): Promise<HubOrderRow[]
     JOIN books.sales_orders s ON s.salesorder_id = l.salesorder_id
     WHERE s.status NOT IN ('void','draft')
       AND (s.customer_name ILIKE $1 OR s.salesorder_id ILIKE $1)
+      AND extract(year from s.date) = $2
     GROUP BY s.salesorder_id, s.customer_name, s.date
     ORDER BY s.date DESC
     LIMIT 25`;
-  const { rows } = await getHubPool().query(sql, [like]);
+  const { rows } = await getHubPool().query(sql, [like, anio]);
   return rows.map((r) => ({
     hub_order_id: String(r.hub_order_id),
     customer_name: String(r.customer_name),
