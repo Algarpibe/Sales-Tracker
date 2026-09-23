@@ -273,3 +273,62 @@ export function ticketsEnPlazoPorMes(episodios: Episodio[], anio: number, ahora:
     return total === 0 ? null : (dentro / total) * 100;
   });
 }
+
+/** Una fila del detalle de una celda: el episodio con su clasificación ya resuelta. */
+export interface FilaDetalleTicket {
+  ticketId: string;
+  numero: number | null;
+  cliente: string | null;
+  inicio: number;
+  fin: number | null;
+  faseSalida: string | null;
+  horas: number;
+  estado: EstadoPlazo;
+}
+
+export interface DetalleTicketsMes {
+  /** En plazo y fuera de plazo: los que forman el porcentaje. */
+  cuentan: FilaDetalleTicket[];
+  /** Excluidos y abiertos sin vencer: se enseñan aparte para explicar por qué no cuentan. */
+  noCuentan: FilaDetalleTicket[];
+  enPlazo: number;
+  total: number;
+}
+
+/**
+ * Episodios que entraron en `mes` (1-12, hora de Bogotá) de `anio`, clasificados con
+ * la misma función que usa la celda. `cuentan` va primero con los fuera de plazo, que
+ * son los que piden explicación, y dentro de cada grupo de más horas a menos; a
+ * igualdad de horas, por entrada y por ticket, para que el orden sea siempre el mismo.
+ */
+export function detalleTicketsMes(episodios: Episodio[], anio: number, mes: number, ahora: number): DetalleTicketsMes {
+  const cuentan: FilaDetalleTicket[] = [];
+  const noCuentan: FilaDetalleTicket[] = [];
+  for (const e of episodios) {
+    if (mesDeEntrada(e, anio) !== mes - 1) continue;
+    const { estado, horas } = clasificarEpisodio(e, ahora);
+    const fila: FilaDetalleTicket = {
+      ticketId: e.ticketId,
+      numero: e.numero,
+      cliente: e.cliente,
+      inicio: e.inicio,
+      fin: e.fin,
+      faseSalida: e.faseSalida,
+      horas,
+      estado,
+    };
+    if (estado === "en_plazo" || estado === "fuera_de_plazo") cuentan.push(fila);
+    else noCuentan.push(fila);
+  }
+  const porEntrada = (a: FilaDetalleTicket, b: FilaDetalleTicket) =>
+    a.inicio - b.inicio || a.ticketId.localeCompare(b.ticketId);
+  const grupo = (f: FilaDetalleTicket) => (f.estado === "fuera_de_plazo" ? 0 : 1);
+  cuentan.sort((a, b) => grupo(a) - grupo(b) || b.horas - a.horas || porEntrada(a, b));
+  noCuentan.sort(porEntrada);
+  return {
+    cuentan,
+    noCuentan,
+    enPlazo: cuentan.filter((f) => f.estado === "en_plazo").length,
+    total: cuentan.length,
+  };
+}

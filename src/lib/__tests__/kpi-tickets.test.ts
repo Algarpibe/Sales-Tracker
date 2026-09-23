@@ -3,6 +3,7 @@ import {
   FASE_NOTIFICACION_COMERCIAL,
   clasificarEpisodio,
   contarTicketsEnPlazo,
+  detalleTicketsMes,
   episodiosNotificacionComercial,
   festivosColombia,
   horasLaborables,
@@ -367,5 +368,114 @@ describe("clasificarEpisodio", () => {
   it("un excluido no mide horas", () => {
     expect(clasificarEpisodio(episodio(LUNES_MARZO, bog(2026, 3, 4, 9), "excluido"), AHORA))
       .toEqual({ estado: "excluido", horas: 0 });
+  });
+});
+
+/** Episodio de un ticket concreto, para los tests que comprueban qué filas salen. */
+const ep = (ticketId: string, inicio: number, fin: number | null, estado: Episodio["estado"]): Episodio =>
+  ({ ...episodio(inicio, fin, estado), ticketId });
+
+describe("detalleTicketsMes", () => {
+  it("toma los episodios por su mes de entrada en hora de Bogota y descarta otros anios", () => {
+    const episodios = [
+      // Martes 31 mar 22:00 en Bogota ya es 1 de abril en UTC: es de marzo.
+      ep("T-FICT-MAR", bog(2026, 3, 31, 22), bog(2026, 4, 1, 9), "medible"),
+      ep("T-FICT-ABR", bog(2026, 4, 1, 9), bog(2026, 4, 1, 10), "medible"),
+      ep("T-FICT-2025", bog(2025, 3, 10, 9), bog(2025, 3, 10, 10), "medible"),
+    ];
+    expect(detalleTicketsMes(episodios, 2026, 3, AHORA).cuentan.map((f) => f.ticketId)).toEqual(["T-FICT-MAR"]);
+    expect(detalleTicketsMes(episodios, 2026, 4, AHORA).cuentan.map((f) => f.ticketId)).toEqual(["T-FICT-ABR"]);
+  });
+
+  it("cuentan: primero los fuera de plazo y despues los en plazo, de mas horas a menos", () => {
+    const d = detalleTicketsMes(
+      [
+        ep("T-FICT-EN-1", LUNES_MARZO, bog(2026, 3, 2, 10), "medible"), // 1 h
+        ep("T-FICT-FUERA-12", LUNES_MARZO, bog(2026, 3, 3, 12), "medible"), // 12 h
+        ep("T-FICT-EN-8", LUNES_MARZO, bog(2026, 3, 2, 17), "medible"), // 8 h
+        ep("T-FICT-FUERA-18B", bog(2026, 3, 3, 9), bog(2026, 3, 5, 9), "medible"), // 18 h, entra el martes
+        ep("T-FICT-ABIERTO", bog(2026, 3, 9, 9), null, "abierto"), // meses abierto: fuera
+        ep("T-FICT-FUERA-18", LUNES_MARZO, bog(2026, 3, 4, 9), "medible"), // 18 h, entra el lunes
+      ],
+      2026,
+      3,
+      AHORA
+    );
+    // A igualdad de horas desempata la entrada: el orden no puede depender de cómo
+    // lleguen los cambios del hub.
+    expect(d.cuentan.map((f) => f.ticketId)).toEqual([
+      "T-FICT-ABIERTO", "T-FICT-FUERA-18", "T-FICT-FUERA-18B", "T-FICT-FUERA-12", "T-FICT-EN-8", "T-FICT-EN-1",
+    ]);
+    expect([d.enPlazo, d.total]).toEqual([2, 6]);
+  });
+
+  it("no cuentan: los excluidos y los abiertos sin vencer, por orden de entrada", () => {
+    const ahora = bog(2026, 3, 10, 12);
+    const d = detalleTicketsMes(
+      [
+        ep("T-FICT-X1", bog(2026, 3, 5, 9), bog(2026, 3, 5, 10), "excluido"),
+        ep("T-FICT-AB", bog(2026, 3, 10, 9), null, "abierto"), // 3 h a fecha de ahora
+        ep("T-FICT-X0", bog(2026, 3, 2, 9), bog(2026, 3, 2, 10), "excluido"),
+        ep("T-FICT-M", LUNES_MARZO, bog(2026, 3, 2, 10), "medible"),
+      ],
+      2026,
+      3,
+      ahora
+    );
+    expect(d.noCuentan.map((f) => [f.ticketId, f.estado, f.horas])).toEqual([
+      ["T-FICT-X0", "excluido", 0],
+      ["T-FICT-X1", "excluido", 0],
+      ["T-FICT-AB", "abierto_sin_vencer", 3],
+    ]);
+    expect(d.cuentan.map((f) => f.ticketId)).toEqual(["T-FICT-M"]);
+    expect([d.enPlazo, d.total]).toEqual([1, 1]);
+  });
+
+  it("cada fila lleva el ticket, el cliente, la salida y las horas del episodio", () => {
+    const e: Episodio = {
+      ticketId: "T-FICT-1",
+      numero: 9001,
+      cliente: "Cliente Ficticio A",
+      inicio: LUNES_MARZO,
+      fin: bog(2026, 3, 2, 11),
+      faseSalida: "Notificación cliente",
+      estado: "medible",
+    };
+    expect(detalleTicketsMes([e], 2026, 3, AHORA)).toEqual({
+      cuentan: [
+        {
+          ticketId: "T-FICT-1",
+          numero: 9001,
+          cliente: "Cliente Ficticio A",
+          inicio: LUNES_MARZO,
+          fin: bog(2026, 3, 2, 11),
+          faseSalida: "Notificación cliente",
+          horas: 2,
+          estado: "en_plazo",
+        },
+      ],
+      noCuentan: [],
+      enPlazo: 1,
+      total: 1,
+    });
+  });
+
+  // La celda y el diálogo tienen que decir lo mismo: si esto falla, el pie del detalle
+  // enseñaría un porcentaje distinto del de la celda pulsada.
+  it("para cada mes, en plazo y total coinciden con los contadores de la celda", () => {
+    const episodios = [
+      ep("T-FICT-A", LUNES_MARZO, bog(2026, 3, 2, 10), "medible"),
+      ep("T-FICT-B", LUNES_MARZO, bog(2026, 3, 4, 9), "medible"),
+      ep("T-FICT-C", bog(2026, 5, 4, 9), bog(2026, 5, 4, 10), "excluido"),
+      ep("T-FICT-D", bog(2026, 6, 1, 9), null, "abierto"),
+      ep("T-FICT-E", bog(2026, 9, 23, 11), null, "abierto"),
+      ep("T-FICT-F", bog(2026, 3, 31, 22), bog(2026, 4, 1, 9), "medible"),
+      ep("T-FICT-G", bog(2025, 7, 1, 9), bog(2025, 7, 1, 10), "medible"),
+    ];
+    const { enPlazo, fueraDePlazo } = contarTicketsEnPlazo(episodios, 2026, AHORA);
+    for (let mes = 1; mes <= 12; mes++) {
+      const d = detalleTicketsMes(episodios, 2026, mes, AHORA);
+      expect([d.enPlazo, d.total]).toEqual([enPlazo[mes - 1], enPlazo[mes - 1] + fueraDePlazo[mes - 1]]);
+    }
   });
 });
