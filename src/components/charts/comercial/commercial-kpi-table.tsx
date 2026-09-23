@@ -24,7 +24,7 @@ import { firstYearByCustomer } from "@/lib/analytics-comercial";
 import { COMMERCIAL_KPIS, KPI_UNIT_LABEL, type KpiDef, type KpiUnit } from "@/lib/commercial-kpis";
 import {
   attainment, esTratoDeClienteNuevo, esVentaDeClienteNuevo, kpiAverage, kpiContribution,
-  monthBreakdown, ofYear, periodTotals, scoreboard, splitDealsNewExisting, splitNewExisting, sumByMonth, toMonthlySeries,
+  monthBreakdown, ofYear, periodTotals, valorAlCierre, scoreboard, splitDealsNewExisting, splitNewExisting, sumByMonth, toMonthlySeries,
   type BreakdownInput,
 } from "@/lib/kpi-score";
 import { customerHref } from "@/lib/customer-detail";
@@ -86,6 +86,9 @@ interface FilaKpi {
   /** Cumplimiento del periodo, colgado del mes que lo cierra. */
   cierres: (number | null)[];
   promedio: number | null;
+  /** Cumplimiento que puntúa en el TOTAL. Coincide con `promedio` salvo en el
+   *  incremento de Servicio Técnico, cuya columna enseña el incremento en sí. */
+  logro: number | null;
   peso: number;
   aporte: number | null;
 }
@@ -119,8 +122,38 @@ function construirFila(
     meses,
     cierres,
     promedio,
+    logro: promedio,
     peso,
     aporte: promedio === null || peso <= 0 ? null : kpiContribution(promedio, peso),
+  };
+}
+
+/**
+ * Fila del incremento de Servicio Técnico. Es una variación acumulada, así que no
+ * se promedia: la columna Promedio enseña el valor del trimestre en curso, y bajo
+ * cada trimestre no se pinta el cumplimiento (el incremento dividido por la meta,
+ * que multiplicaba la cifra y confundía). El aporte sí compara ese valor con la
+ * meta, igual que el resto de filas, para que el TOTAL siga midiendo cumplimiento.
+ */
+function construirFilaIncremento(
+  def: KpiDef,
+  trimestres: (number | null)[],
+  meta: KpiTargetRow | undefined,
+  alCierre: number | null
+): FilaKpi {
+  const paso = MESES / trimestres.length;
+  const meses: (number | null)[] = new Array(MESES).fill(null);
+  for (const [i, valor] of trimestres.entries()) meses[(i + 1) * paso - 1] = valor;
+  const logro = alCierre === null ? null : attainment(alCierre, meta?.target_value ?? 0);
+  const peso = meta?.weight_pct ?? 0;
+  return {
+    def,
+    meses,
+    cierres: new Array(MESES).fill(null),
+    promedio: alCierre,
+    logro,
+    peso,
+    aporte: logro === null || peso <= 0 ? null : kpiContribution(logro, peso),
   };
 }
 
@@ -324,7 +357,9 @@ export function CommercialKpiTable({
         const serie = toMonthlySeries(ganados);
         return construirFila(def, periodTotals(serie, def.period), meta, serie);
       }
-      if (def.key === "incremento_st") return construirFila(def, st, meta, null);
+      if (def.key === "incremento_st") {
+        return construirFilaIncremento(def, st, meta, valorAlCierre(st, year, new Date()));
+      }
       if (def.key === "ingresos_proyectos") {
         // date es un `date` de Postgres ('YYYY-MM-DD'), sin hora ni zona: se lee
         // el mes con slice, nunca con new Date(...).getMonth(), que reinterpreta
@@ -341,7 +376,7 @@ export function CommercialKpiTable({
   }, [metas, mensuales, tratos, ganados, historico, registros, categorias, ordenesProyectoAnio, recordType, year]);
 
   const marcador = useMemo(
-    () => scoreboard(filas.map((f) => ({ average: f.promedio, weight: f.peso }))),
+    () => scoreboard(filas.map((f) => ({ average: f.logro, weight: f.peso }))),
     [filas]
   );
   const aporteTotal = useMemo(() => filas.reduce((s, f) => s + (f.aporte ?? 0), 0), [filas]);
