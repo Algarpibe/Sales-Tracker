@@ -194,6 +194,12 @@ export async function getHubOrdersByIds(ids: string[]): Promise<HubOrderRow[]> {
 // convertiría en Date y la hora dependería de la zona del proceso.
 // El CASE protege el LATERAL: un eventInfo que no sea array haría fallar la consulta
 // entera por un solo evento raro, en vez de ignorarlo.
+// La fase se compara normalizada, con la misma regla que normalizarFase: en Zoho se
+// llama "Notificación  Comercial", con dos espacios, y una comparación exacta no
+// encontraba ni un solo cambio. Los nombres salen crudos y los normaliza la lógica pura.
+const faseNormalizada = (expr: string) =>
+  `btrim(regexp_replace(normalize(${expr}, NFC), '[\\s\\u00a0]+', ' ', 'g'))`;
+
 export async function getHubCommercialNotificationChanges(anio: number): Promise<CambioFase[]> {
   const sql = `
     SELECT h.ticket_id AS "ticketId",
@@ -206,7 +212,8 @@ export async function getHubCommercialNotificationChanges(anio: number): Promise
     ) s
     WHERE h.event_name = 'TicketUpdated'
       AND s->>'propertyName' = 'Status'
-      AND $2::text IN (s->'propertyValue'->>'previousValue', s->'propertyValue'->>'updatedValue')
+      AND $2::text IN (${faseNormalizada("s->'propertyValue'->>'previousValue'")},
+                       ${faseNormalizada("s->'propertyValue'->>'updatedValue'")})
       AND h.event_time >= make_timestamptz($1::int, 1, 1, 0, 0, 0, 'America/Bogota')
       AND h.event_time <  make_timestamptz($1::int + 1, 2, 1, 0, 0, 0, 'America/Bogota')
     ORDER BY h.ticket_id, h.event_time`;

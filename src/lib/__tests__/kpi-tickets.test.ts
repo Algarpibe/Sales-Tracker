@@ -5,6 +5,7 @@ import {
   episodiosNotificacionComercial,
   festivosColombia,
   horasLaborables,
+  normalizarFase,
   ticketsEnPlazoPorMes,
   type CambioFase,
   type Episodio,
@@ -93,6 +94,20 @@ const NC = FASE_NOTIFICACION_COMERCIAL;
 const cambio = (ticketId: string, instante: number, desde: string | null, hacia: string | null): CambioFase =>
   ({ ticketId, instante, desde, hacia });
 
+describe("normalizarFase", () => {
+  it("colapsa espacios, espacios duros y extremos, y respeta tildes y mayusculas", () => {
+    expect(normalizarFase("Notificación  Comercial")).toBe("Notificación Comercial");
+    expect(normalizarFase(" Notificación cliente\t")).toBe("Notificación cliente");
+    expect(normalizarFase("En espera de SKU inventario")).toBe("En espera de SKU inventario");
+  });
+  it("une la o con tilde escrita como dos caracteres", () => {
+    expect(normalizarFase("Notificación Comercial")).toBe("Notificación Comercial");
+  });
+  it("deja pasar null", () => {
+    expect(normalizarFase(null)).toBeNull();
+  });
+});
+
 describe("episodiosNotificacionComercial", () => {
   it("una entrada y su salida a Notificacion cliente es un episodio medible", () => {
     const e = episodiosNotificacionComercial([
@@ -116,6 +131,17 @@ describe("episodiosNotificacionComercial", () => {
       cambio("T-FICT-1", 200, NC, "Por Facturar"),
     ]);
     expect(e).toEqual([{ ticketId: "T-FICT-1", inicio: 100, fin: 200, estado: "excluido" }]);
+  });
+
+  // En Zoho la fase se llama "Notificación  Comercial", con dos espacios: el nombre que
+  // teclea una persona en el Blueprint no tiene por qué coincidir carácter a carácter
+  // con el que escribimos aquí.
+  it("reconoce las fases aunque Zoho las escriba con espacios de mas o espacios duros", () => {
+    const e = episodiosNotificacionComercial([
+      cambio("T-FICT-1", 100, "Notificado", "Notificación  Comercial"),
+      cambio("T-FICT-1", 200, "Notificación  Comercial", "Notificación cliente "),
+    ]);
+    expect(e).toEqual([{ ticketId: "T-FICT-1", inicio: 100, fin: 200, estado: "medible" }]);
   });
 
   // Zoho puede fechar en el mismo instante la entrada y la salida (una automatización
