@@ -5,6 +5,7 @@ import {
   splitDealsNewExisting,
   toMonthlySeries,
   sumByMonth,
+  ofYear,
   periodTotals,
   attainment,
   kpiAverage,
@@ -343,5 +344,23 @@ describe("el desglose cuadra con la celda", () => {
       const suma = monthBreakdown(entrada, 2, serie).reduce((s, r) => s + r.valor, 0);
       expect(suma).toBe(split[serie][1]);
     }
+  });
+});
+
+describe("ofYear", () => {
+  const ordenes = [
+    { id: "a", date: "2025-11-15" },
+    { id: "b", date: "2026-11-15" },
+    { id: "c", date: "2026-01-02" },
+  ];
+  it("se queda solo con las del anio pedido", () => {
+    expect(ofYear(ordenes, 2026).map((o) => o.id)).toEqual(["b", "c"]);
+  });
+  it("no mezcla el mismo mes de otro anio", () => {
+    // El fallo que motivo esta funcion: noviembre de 2025 sumaba en noviembre de 2026.
+    expect(ofYear(ordenes, 2025).map((o) => o.id)).toEqual(["a"]);
+  });
+  it("sin ordenes devuelve la lista vacia", () => {
+    expect(ofYear([], 2026)).toEqual([]);
   });
 });
