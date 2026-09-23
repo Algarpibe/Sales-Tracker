@@ -29,7 +29,7 @@ import {
   type BreakdownInput,
 } from "@/lib/kpi-score";
 import { customerHref } from "@/lib/customer-detail";
-import { episodiosNotificacionComercial, ticketsEnPlazoPorMes } from "@/lib/kpi-tickets";
+import { detalleTicketsMes, episodiosNotificacionComercial, ticketsEnPlazoPorMes } from "@/lib/kpi-tickets";
 import { stGrowthByQuarter } from "@/lib/tech-service";
 import { CHART_HELP } from "@/lib/chart-help";
 import { MONTHS, RECORD_TYPES, formatPct, formatUSD } from "@/lib/constants";
@@ -42,6 +42,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { InfoTooltip } from "@/components/common/info-tooltip";
+import { TicketsDetalleDialog } from "@/components/charts/comercial/tickets-detalle-dialog";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -63,6 +64,11 @@ const MESES = MONTHS.length;
  *  comercial en sus líneas, y Desk no asigna comercial al ticket. Con un comercial
  *  elegido enseñan la cifra de compañía, y la fila lo dice. */
 const KPIS_DE_COMPANIA = new Set(["incremento_st", "tickets_st"]);
+
+/** Aspecto de una cifra de mes que abre un detalle. Compartido por ventas, tratos y
+ *  tickets para que todas las celdas pulsables se vean igual. */
+const CLASE_CELDA_PULSABLE =
+  "underline decoration-dotted underline-offset-2 hover:text-primary hover:decoration-solid";
 
 /** Orden de venta con su importe neto calculado en vivo, tal y como la devuelven
  *  searchSalesOrdersForProjects y getKpiProjectOrders. Se deriva del tipo real de
@@ -218,6 +224,9 @@ export function CommercialKpiTable({
   const [owner, setOwner] = useState<string>(TOTAL);
   const salesperson: KpiScope = owner === TOTAL ? null : owner;
   const [celda, setCelda] = useState<CeldaSeleccionada | null>(null);
+  // Celda de tickets pulsada (mes 1-12). Va aparte de `celda`: su detalle es una fila
+  // por episodio, no clientes con importes, y lo pinta otro diálogo.
+  const [celdaTickets, setCeldaTickets] = useState<{ mes: number } | null>(null);
   // Diálogo de gestión de ingresos por proyectos: distinto del de detalle por
   // celda de arriba (`celda`/`setCelda`), que es de solo lectura. Este se abre
   // desde la cabecera de la fila y permite marcar y desmarcar órdenes.
@@ -318,7 +327,7 @@ export function CommercialKpiTable({
     [ordenesProyecto]
   );
 
-  const { filas, mensualesBreakdown, tratosBreakdown, ganadosBreakdown } = useMemo(() => {
+  const { filas, mensualesBreakdown, tratosBreakdown, ganadosBreakdown, ahoraTickets } = useMemo(() => {
     const porClave = new Map(metas.map((m) => [m.kpi_key, m]));
     // Un solo mapa de primer año para los dos repartos: el de ventas y el de
     // tratos, y para el desglose de sus celdas, que usa los mismos predicados.
@@ -358,6 +367,11 @@ export function CommercialKpiTable({
       nuevo: true,
     }));
 
+    // Un solo instante para la fila de tickets y su detalle: si el detalle calculara el
+    // suyo al pulsar, un episodio abierto que cruzara las 12 horas entre medias haría que
+    // el pie dijera otra cosa que la celda.
+    const ahoraTickets = new Date().getTime();
+
     const filas = COMMERCIAL_KPIS.map((def) => {
       const meta = porClave.get(def.key);
       if (def.key === "ventas_nuevos") {
@@ -386,7 +400,7 @@ export function CommercialKpiTable({
         // no hay serie aparte, así que construirFila lo pinta en su mes con el
         // cumplimiento debajo. `ahora` decide qué episodios abiertos ya están fuera de
         // plazo; new Date() como en el incremento de arriba.
-        return construirFila(def, ticketsEnPlazoPorMes(episodiosTickets, year, new Date().getTime()), meta, null);
+        return construirFila(def, ticketsEnPlazoPorMes(episodiosTickets, year, ahoraTickets), meta, null);
       }
       if (def.key === "ingresos_proyectos") {
         // date es un `date` de Postgres ('YYYY-MM-DD'), sin hora ni zona: se lee
@@ -400,7 +414,7 @@ export function CommercialKpiTable({
       return construirFila(def, new Array(cubosDe(def)).fill(null), meta, null);
     });
 
-    return { filas, mensualesBreakdown, tratosBreakdown, ganadosBreakdown };
+    return { filas, mensualesBreakdown, tratosBreakdown, ganadosBreakdown, ahoraTickets };
   }, [metas, mensuales, tratos, ganados, historico, registros, categorias, ordenesProyectoAnio, episodiosTickets, recordType, year]);
 
   const marcador = useMemo(
@@ -428,6 +442,11 @@ export function CommercialKpiTable({
   const detalleEnlaza = celda ? celda.def.key === "ventas_nuevos" || celda.def.key === "ventas_existentes" : false;
   const detalleTotal = detalle.reduce((s, r) => s + r.valor, 0);
   const tipoRegistroLabel = RECORD_TYPES.find((t) => t.value === recordType)?.label ?? recordType;
+  // Mismos episodios, mismo año y mismo `ahora` que la fila: el detalle sale de la misma
+  // clasificación que la cifra pulsada.
+  const detalleTickets = celdaTickets
+    ? detalleTicketsMes(episodiosTickets, year, celdaTickets.mes, ahoraTickets)
+    : null;
 
   // Agregar y quitar comparten la misma invalidación: ["kpi-project-orders"]
   // alimenta a la vez la lista de marcadas del diálogo y la fila de la tabla,
@@ -549,7 +568,18 @@ export function CommercialKpiTable({
                                 <button
                                   type="button"
                                   onClick={() => setCelda({ def: f.def, mesIndex: i, rows: origen.rows, serie: origen.serie })}
-                                  className="underline decoration-dotted underline-offset-2 hover:text-primary hover:decoration-solid"
+                                  className={CLASE_CELDA_PULSABLE}
+                                >
+                                  {formatValor(v, f.def.unit)}
+                                </button>
+                              ) : f.def.key === "tickets_st" && v !== null ? (
+                                // v !== null y no v > 0: un 0,0 % tiene episodios (todos
+                                // fuera de plazo) y es justo el que más pide explicación.
+                                // «—» es un mes sin nada que contar y no abre nada.
+                                <button
+                                  type="button"
+                                  onClick={() => setCeldaTickets({ mes: i + 1 })}
+                                  className={CLASE_CELDA_PULSABLE}
                                 >
                                   {formatValor(v, f.def.unit)}
                                 </button>
@@ -636,6 +666,13 @@ export function CommercialKpiTable({
           )}
         </DialogContent>
       </Dialog>
+      <TicketsDetalleDialog
+        abierto={celdaTickets !== null}
+        onCerrar={() => setCeldaTickets(null)}
+        anio={year}
+        mes={celdaTickets?.mes ?? 1}
+        detalle={detalleTickets}
+      />
       <Dialog
         open={gestionandoProyectos}
         onOpenChange={(open) => {
