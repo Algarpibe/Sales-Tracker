@@ -197,6 +197,8 @@ export async function getHubOrdersByIds(ids: string[]): Promise<HubOrderRow[]> {
 // La fase se compara normalizada, con la misma regla que normalizarFase: en Zoho se
 // llama "Notificación  Comercial", con dos espacios, y una comparación exacta no
 // encontraba ni un solo cambio. Los nombres salen crudos y los normaliza la lógica pura.
+// Número y cliente van con LEFT JOIN: un ticket o una cuenta que aún no esté replicado
+// en el hub no puede quitar un episodio del KPI; sale con número o cliente nulo.
 const faseNormalizada = (expr: string) =>
   `btrim(regexp_replace(normalize(${expr}, NFC), '[\\s\\u00a0]+', ' ', 'g'))`;
 
@@ -205,11 +207,15 @@ export async function getHubCommercialNotificationChanges(anio: number): Promise
     SELECT h.ticket_id AS "ticketId",
            (extract(epoch from h.event_time) * 1000)::float8 AS instante,
            s->'propertyValue'->>'previousValue' AS desde,
-           s->'propertyValue'->>'updatedValue' AS hacia
+           s->'propertyValue'->>'updatedValue' AS hacia,
+           t.number AS numero,
+           a.name AS cliente
     FROM desk.ticket_history h
     CROSS JOIN LATERAL jsonb_array_elements(
       CASE WHEN jsonb_typeof(h.raw->'eventInfo') = 'array' THEN h.raw->'eventInfo' ELSE '[]'::jsonb END
     ) s
+    LEFT JOIN desk.tickets t  ON t.id = h.ticket_id
+    LEFT JOIN desk.accounts a ON a.id = t.account_id
     WHERE h.event_name = 'TicketUpdated'
       AND s->>'propertyName' = 'Status'
       AND $2::text IN (${faseNormalizada("s->'propertyValue'->>'previousValue'")},
@@ -223,5 +229,7 @@ export async function getHubCommercialNotificationChanges(anio: number): Promise
     instante: Number(r.instante),
     desde: r.desde === null ? null : String(r.desde),
     hacia: r.hacia === null ? null : String(r.hacia),
+    numero: r.numero === null ? null : Number(r.numero),
+    cliente: r.cliente === null ? null : String(r.cliente),
   }));
 }

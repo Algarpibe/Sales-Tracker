@@ -92,7 +92,16 @@ describe("horasLaborables", () => {
 
 const NC = FASE_NOTIFICACION_COMERCIAL;
 const cambio = (ticketId: string, instante: number, desde: string | null, hacia: string | null): CambioFase =>
-  ({ ticketId, instante, desde, hacia });
+  ({ ticketId, instante, desde, hacia, numero: null, cliente: null });
+
+/** Episodio esperado de un ticket sin número ni cliente, que es lo que construye `cambio`. */
+const esperado = (
+  inicio: number,
+  fin: number | null,
+  estado: Episodio["estado"],
+  faseSalida: string | null,
+  ticketId = "T-FICT-1"
+): Episodio => ({ ticketId, numero: null, cliente: null, inicio, fin, faseSalida, estado });
 
 describe("normalizarFase", () => {
   it("colapsa espacios, espacios duros y extremos, y respeta tildes y mayusculas", () => {
@@ -114,7 +123,7 @@ describe("episodiosNotificacionComercial", () => {
       cambio("T-FICT-1", 100, "Notificado", NC),
       cambio("T-FICT-1", 200, NC, "Notificación cliente"),
     ]);
-    expect(e).toEqual([{ ticketId: "T-FICT-1", inicio: 100, fin: 200, estado: "medible" }]);
+    expect(e).toEqual([esperado(100, 200, "medible", "Notificación cliente")]);
   });
 
   it("la salida a En espera de SKU inventario tambien es medible", () => {
@@ -130,7 +139,7 @@ describe("episodiosNotificacionComercial", () => {
       cambio("T-FICT-1", 100, "Notificado", NC),
       cambio("T-FICT-1", 200, NC, "Por Facturar"),
     ]);
-    expect(e).toEqual([{ ticketId: "T-FICT-1", inicio: 100, fin: 200, estado: "excluido" }]);
+    expect(e).toEqual([esperado(100, 200, "excluido", "Por Facturar")]);
   });
 
   // En Zoho la fase se llama "Notificación  Comercial", con dos espacios: el nombre que
@@ -141,7 +150,7 @@ describe("episodiosNotificacionComercial", () => {
       cambio("T-FICT-1", 100, "Notificado", "Notificación  Comercial"),
       cambio("T-FICT-1", 200, "Notificación  Comercial", "Notificación cliente "),
     ]);
-    expect(e).toEqual([{ ticketId: "T-FICT-1", inicio: 100, fin: 200, estado: "medible" }]);
+    expect(e).toEqual([esperado(100, 200, "medible", "Notificación cliente")]);
   });
 
   // Zoho puede fechar en el mismo instante la entrada y la salida (una automatización
@@ -153,7 +162,7 @@ describe("episodiosNotificacionComercial", () => {
       cambio("T-FICT-1", 100, NC, "Notificación cliente"),
       cambio("T-FICT-1", 100, "Notificado", NC),
     ]);
-    expect(e).toEqual([{ ticketId: "T-FICT-1", inicio: 100, fin: 100, estado: "medible" }]);
+    expect(e).toEqual([esperado(100, 100, "medible", "Notificación cliente")]);
   });
 
   it("con un episodio abierto, una salida y una re-entrada en el mismo instante son dos episodios", () => {
@@ -163,14 +172,14 @@ describe("episodiosNotificacionComercial", () => {
       cambio("T-FICT-1", 200, NC, "Notificación cliente"),
     ]);
     expect(e).toEqual([
-      { ticketId: "T-FICT-1", inicio: 100, fin: 200, estado: "medible" },
-      { ticketId: "T-FICT-1", inicio: 200, fin: null, estado: "abierto" },
+      esperado(100, 200, "medible", "Notificación cliente"),
+      esperado(200, null, "abierto", null),
     ]);
   });
 
   it("sin salida el episodio queda abierto", () => {
     const e = episodiosNotificacionComercial([cambio("T-FICT-1", 100, "Notificado", NC)]);
-    expect(e).toEqual([{ ticketId: "T-FICT-1", inicio: 100, fin: null, estado: "abierto" }]);
+    expect(e).toEqual([esperado(100, null, "abierto", null)]);
   });
 
   it("cada re-entrada abre un episodio nuevo", () => {
@@ -189,7 +198,7 @@ describe("episodiosNotificacionComercial", () => {
       cambio("T-FICT-1", 150, "Notificación a Compras", NC),
       cambio("T-FICT-1", 200, NC, "Notificación cliente"),
     ]);
-    expect(e).toEqual([{ ticketId: "T-FICT-1", inicio: 100, fin: 200, estado: "medible" }]);
+    expect(e).toEqual([esperado(100, 200, "medible", "Notificación cliente")]);
   });
 
   it("una salida sin entrada previa se ignora", () => {
@@ -203,7 +212,27 @@ describe("episodiosNotificacionComercial", () => {
       cambio("T-FICT-1", 200, NC, "Notificación cliente"),
       cambio("T-FICT-1", 100, "Notificado", NC),
     ]);
-    expect(e).toEqual([{ ticketId: "T-FICT-1", inicio: 100, fin: 200, estado: "medible" }]);
+    expect(e).toEqual([esperado(100, 200, "medible", "Notificación cliente")]);
+  });
+
+  // El detalle de la celda enseña el ticket y el cliente: salen del hub con cada cambio y
+  // se toman del primero, porque un ticket tiene un solo número y una sola cuenta.
+  it("el episodio lleva el numero y el cliente del ticket y la fase de salida normalizada", () => {
+    const e = episodiosNotificacionComercial([
+      { ticketId: "T-FICT-1", instante: 100, desde: "Notificado", hacia: NC, numero: 9001, cliente: "Cliente Ficticio A" },
+      { ticketId: "T-FICT-1", instante: 200, desde: NC, hacia: "En espera de SKU  inventario", numero: 9001, cliente: "Cliente Ficticio A" },
+    ]);
+    expect(e).toEqual([
+      {
+        ticketId: "T-FICT-1",
+        numero: 9001,
+        cliente: "Cliente Ficticio A",
+        inicio: 100,
+        fin: 200,
+        faseSalida: "En espera de SKU inventario",
+        estado: "medible",
+      },
+    ]);
   });
 
   it("no mezcla los cambios de tickets distintos", () => {
@@ -213,14 +242,23 @@ describe("episodiosNotificacionComercial", () => {
       cambio("T-FICT-2", 120, "Notificado", NC),
     ]);
     expect(e).toEqual([
-      { ticketId: "T-FICT-1", inicio: 100, fin: null, estado: "abierto" },
-      { ticketId: "T-FICT-2", inicio: 120, fin: 150, estado: "medible" },
+      esperado(100, null, "abierto", null),
+      esperado(120, 150, "medible", "Notificación cliente", "T-FICT-2"),
     ]);
   });
 });
 
-const episodio = (inicio: number, fin: number | null, estado: Episodio["estado"]): Episodio =>
-  ({ ticketId: "T-FICT-1", inicio, fin, estado });
+// La fase de salida no influye en la clasificación (ya la resume `estado`): se rellena
+// con una coherente con el estado para que el episodio sea verosímil.
+const episodio = (inicio: number, fin: number | null, estado: Episodio["estado"]): Episodio => ({
+  ticketId: "T-FICT-1",
+  numero: null,
+  cliente: null,
+  inicio,
+  fin,
+  faseSalida: estado === "medible" ? "Notificación cliente" : estado === "excluido" ? "Por Facturar" : null,
+  estado,
+});
 
 // Lunes 2 mar 2026 a las 9:00 en Bogota: ninguna de las fechas de estos tests es festiva.
 const LUNES_MARZO = bog(2026, 3, 2, 9);

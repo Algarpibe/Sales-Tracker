@@ -116,13 +116,23 @@ export interface CambioFase {
   instante: number;
   desde: string | null;
   hacia: string | null;
+  /** Número visible del ticket en Desk. null si el ticket todavía no está en el hub:
+   *  la consulta usa LEFT JOIN para no perder el episodio por eso. */
+  numero: number | null;
+  /** Nombre de la cuenta del ticket. null si no tiene cuenta o no está en el hub. */
+  cliente: string | null;
 }
 
 export interface Episodio {
   ticketId: string;
+  numero: number | null;
+  cliente: string | null;
   inicio: number;
   /** null si sigue abierto. */
   fin: number | null;
+  /** Fase a la que salió, ya normalizada; null si sigue abierto. El estado ya dice si
+   *  la salida es medible, pero el detalle enseña a qué fase fue. */
+  faseSalida: string | null;
   /** "medible": salió a una fase de FASES_FIN_RELOJ; "excluido": salió a otra; "abierto": no ha salido. */
   estado: "medible" | "excluido" | "abierto";
 }
@@ -155,12 +165,22 @@ export function episodiosNotificacionComercial(cambiosCrudos: CambioFase[]): Epi
   const episodios: Episodio[] = [];
   for (const [ticketId, lista] of porTicket) {
     const ordenados = [...lista].sort((a, b) => a.instante - b.instante);
+    // Un ticket tiene un solo número y una sola cuenta: todos sus cambios traen los mismos.
+    const { numero, cliente } = ordenados[0];
     let abierto: number | null = null;
     const procesar = (c: CambioFase) => {
       if (c.desde === FASE_NOTIFICACION_COMERCIAL) {
         if (abierto === null) return;
         const medible = c.hacia !== null && FASES_FIN_RELOJ.includes(c.hacia);
-        episodios.push({ ticketId, inicio: abierto, fin: c.instante, estado: medible ? "medible" : "excluido" });
+        episodios.push({
+          ticketId,
+          numero,
+          cliente,
+          inicio: abierto,
+          fin: c.instante,
+          faseSalida: c.hacia,
+          estado: medible ? "medible" : "excluido",
+        });
         abierto = null;
       } else if (c.hacia === FASE_NOTIFICACION_COMERCIAL && abierto === null) {
         abierto = c.instante;
@@ -179,7 +199,9 @@ export function episodiosNotificacionComercial(cambiosCrudos: CambioFase[]): Epi
       for (const c of grupo) procesar(c);
       i = j;
     }
-    if (abierto !== null) episodios.push({ ticketId, inicio: abierto, fin: null, estado: "abierto" });
+    if (abierto !== null) {
+      episodios.push({ ticketId, numero, cliente, inicio: abierto, fin: null, faseSalida: null, estado: "abierto" });
+    }
   }
   return episodios;
 }
