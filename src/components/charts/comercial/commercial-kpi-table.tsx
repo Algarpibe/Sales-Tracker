@@ -2,15 +2,20 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { getCategories } from "@/actions/category-actions";
 import { getCustomerSales } from "@/actions/customer-sales-actions";
 import {
+  addProjectOrder,
   getKpiDealsMonthly,
   getKpiMonthlySales,
+  getKpiProjectOrders,
   getKpiTargets,
   getKpiWonDealsMonthly,
   getSalespeople,
+  removeProjectOrder,
+  searchSalesOrdersForProjects,
   type KpiScope,
   type KpiTargetRow,
 } from "@/actions/kpi-actions";
@@ -19,7 +24,7 @@ import { firstYearByCustomer } from "@/lib/analytics-comercial";
 import { COMMERCIAL_KPIS, KPI_UNIT_LABEL, type KpiDef, type KpiUnit } from "@/lib/commercial-kpis";
 import {
   attainment, esTratoDeClienteNuevo, esVentaDeClienteNuevo, kpiAverage, kpiContribution,
-  monthBreakdown, periodTotals, scoreboard, splitDealsNewExisting, splitNewExisting, toMonthlySeries,
+  monthBreakdown, periodTotals, scoreboard, splitDealsNewExisting, splitNewExisting, sumByMonth, toMonthlySeries,
   type BreakdownInput,
 } from "@/lib/kpi-score";
 import { customerHref } from "@/lib/customer-detail";
@@ -27,7 +32,11 @@ import { stGrowthByQuarter } from "@/lib/tech-service";
 import { CHART_HELP } from "@/lib/chart-help";
 import { MONTHS, RECORD_TYPES, formatPct, formatUSD } from "@/lib/constants";
 import { useAuth } from "@/components/providers/auth-provider";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Command, CommandEmpty, CommandInput, CommandItem, CommandList,
+} from "@/components/ui/command";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { InfoTooltip } from "@/components/common/info-tooltip";
@@ -47,6 +56,11 @@ const TOTAL_LABEL = "Total compañía";
 const HISTORY_FIRST_YEAR = 2015;
 
 const MESES = MONTHS.length;
+
+/** Orden de venta con su importe neto calculado en vivo, tal y como la devuelven
+ *  searchSalesOrdersForProjects y getKpiProjectOrders. Se deriva del tipo real de
+ *  la acción en vez de importar HubOrderRow desde src/db/hub-kpi (server-only). */
+type OrdenProyecto = Awaited<ReturnType<typeof getKpiProjectOrders>>[number];
 
 /** "mensual" -> "Mensual". Con CSS, `capitalize` dejaría "nº" como "Nº". */
 function conMayuscula(texto: string): string {
@@ -159,14 +173,40 @@ export function CommercialKpiTable({
   year: number;
 }) {
   const { profile } = useAuth();
+  const queryClient = useQueryClient();
   const thisYear = new Date().getFullYear();
   const [owner, setOwner] = useState<string>(TOTAL);
   const salesperson: KpiScope = owner === TOTAL ? null : owner;
   const [celda, setCelda] = useState<CeldaSeleccionada | null>(null);
+  // Diálogo de gestión de ingresos por proyectos: distinto del de detalle por
+  // celda de arriba (`celda`/`setCelda`), que es de solo lectura. Este se abre
+  // desde la cabecera de la fila y permite marcar y desmarcar órdenes.
+  const [gestionandoProyectos, setGestionandoProyectos] = useState(false);
+  const [busquedaProyectos, setBusquedaProyectos] = useState("");
+  // hub_order_id de la orden con una acción (agregar/quitar) en curso, para
+  // deshabilitar su botón y evitar un doble clic mientras responde el servidor.
+  const [pendienteProyecto, setPendienteProyecto] = useState<string | null>(null);
 
   const vendedoresQ = useQuery({
     queryKey: ["kpi-salespeople"],
     queryFn: () => getSalespeople(),
+  });
+
+  // Órdenes marcadas como ingresos de proyecto: no depende de año ni de ámbito,
+  // son las que hay, punto. Misma clave que invalidan agregar/quitar, así que el
+  // diálogo y la fila de la tabla comparten caché y se refrescan juntos.
+  const proyectosQ = useQuery({
+    queryKey: ["kpi-project-orders"],
+    queryFn: () => getKpiProjectOrders(),
+  });
+  // Búsqueda del diálogo de gestión: solo se lanza con el diálogo abierto y al
+  // menos 2 caracteres, mismo umbral que ya aplica searchSalesOrdersForProjects
+  // en el servidor.
+  const busquedaHabilitada = gestionandoProyectos && busquedaProyectos.trim().length >= 2;
+  const busquedaProyectosQ = useQuery({
+    queryKey: ["kpi-project-orders-search", busquedaProyectos.trim()],
+    queryFn: () => searchSalesOrdersForProjects(busquedaProyectos.trim()),
+    enabled: busquedaHabilitada,
   });
 
   // keepPreviousData en las cuatro consultas que dependen del ámbito: cambiar de
@@ -214,6 +254,7 @@ export function CommercialKpiTable({
   const historico = useMemo(() => historicoQ.data ?? [], [historicoQ.data]);
   const registros = useMemo<SalesRecord[]>(() => ventasQ.data ?? [], [ventasQ.data]);
   const categorias = useMemo<Category[]>(() => (categoriasQ.data as Category[]) ?? [], [categoriasQ.data]);
+  const ordenesProyecto = useMemo<OrdenProyecto[]>(() => proyectosQ.data ?? [], [proyectosQ.data]);
 
   const { filas, mensualesBreakdown, tratosBreakdown, ganadosBreakdown } = useMemo(() => {
     const porClave = new Map(metas.map((m) => [m.kpi_key, m]));
@@ -276,11 +317,20 @@ export function CommercialKpiTable({
         return construirFila(def, periodTotals(serie, def.period), meta, serie);
       }
       if (def.key === "incremento_st") return construirFila(def, st, meta, null);
+      if (def.key === "ingresos_proyectos") {
+        // date es un `date` de Postgres ('YYYY-MM-DD'), sin hora ni zona: se lee
+        // el mes con slice, nunca con new Date(...).getMonth(), que reinterpreta
+        // la fecha en la zona horaria local y puede desplazarla de mes.
+        const serie = sumByMonth(
+          ordenesProyecto.map((o) => ({ mes: Number(o.date.slice(5, 7)), importe: o.importe }))
+        );
+        return construirFila(def, periodTotals(serie, def.period), meta, serie);
+      }
       return construirFila(def, new Array(cubosDe(def)).fill(null), meta, null);
     });
 
     return { filas, mensualesBreakdown, tratosBreakdown, ganadosBreakdown };
-  }, [metas, mensuales, tratos, ganados, historico, registros, categorias, recordType, year]);
+  }, [metas, mensuales, tratos, ganados, historico, registros, categorias, ordenesProyecto, recordType, year]);
 
   const marcador = useMemo(
     () => scoreboard(filas.map((f) => ({ average: f.promedio, weight: f.peso }))),
@@ -290,7 +340,7 @@ export function CommercialKpiTable({
 
   const cargando =
     metasQ.isPending || mensualesQ.isPending || tratosQ.isPending || ganadosQ.isPending ||
-    historicoQ.isPending || ventasQ.isPending || categoriasQ.isPending;
+    historicoQ.isPending || ventasQ.isPending || categoriasQ.isPending || proyectosQ.isPending;
   const refrescando =
     metasQ.isPlaceholderData || mensualesQ.isPlaceholderData || tratosQ.isPlaceholderData ||
     ganadosQ.isPlaceholderData;
@@ -306,6 +356,35 @@ export function CommercialKpiTable({
   const detalleEnlaza = celda ? celda.def.key === "ventas_nuevos" || celda.def.key === "ventas_existentes" : false;
   const detalleTotal = detalle.reduce((s, r) => s + r.valor, 0);
   const tipoRegistroLabel = RECORD_TYPES.find((t) => t.value === recordType)?.label ?? recordType;
+
+  // Agregar y quitar comparten la misma invalidación: ["kpi-project-orders"]
+  // alimenta a la vez la lista de marcadas del diálogo y la fila de la tabla,
+  // así que una sola clave refresca las dos cosas.
+  const handleAgregarProyecto = async (hubOrderId: string) => {
+    setPendienteProyecto(hubOrderId);
+    try {
+      const res = await addProjectOrder(hubOrderId);
+      if (!res.ok) { toast.error(res.error); return; }
+      queryClient.invalidateQueries({ queryKey: ["kpi-project-orders"] });
+    } catch {
+      toast.error("Error de red. Inténtalo de nuevo.");
+    } finally {
+      setPendienteProyecto(null);
+    }
+  };
+
+  const handleQuitarProyecto = async (hubOrderId: string) => {
+    setPendienteProyecto(hubOrderId);
+    try {
+      const res = await removeProjectOrder(hubOrderId);
+      if (!res.ok) { toast.error(res.error); return; }
+      queryClient.invalidateQueries({ queryKey: ["kpi-project-orders"] });
+    } catch {
+      toast.error("Error de red. Inténtalo de nuevo.");
+    } finally {
+      setPendienteProyecto(null);
+    }
+  };
 
   return (
     <>
@@ -367,7 +446,20 @@ export function CommercialKpiTable({
                       return (
                         <tr key={f.def.key} className="border-b border-white/5">
                           <td className="sticky left-0 z-10 bg-card py-2 pr-3 align-top">
-                            <div className="font-medium">{f.def.label}</div>
+                            <div className="flex items-center gap-2">
+                              <div className="font-medium">{f.def.label}</div>
+                              {f.def.key === "ingresos_proyectos" && profile?.role === "admin" && (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-6 px-2 text-[11px]"
+                                  onClick={() => setGestionandoProyectos(true)}
+                                >
+                                  Gestionar
+                                </Button>
+                              )}
+                            </div>
                             <div className="text-muted-foreground">
                               {conMayuscula(f.def.period)} · {KPI_UNIT_LABEL[f.def.unit]}
                               {f.peso > 0 ? ` · peso ${formatPct(f.peso)}` : ""}
@@ -470,6 +562,110 @@ export function CommercialKpiTable({
               )}
             </>
           )}
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={gestionandoProyectos}
+        onOpenChange={(open) => {
+          setGestionandoProyectos(open);
+          if (!open) setBusquedaProyectos("");
+        }}
+      >
+        <DialogContent className="max-h-[80vh] overflow-auto sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Gestionar ingresos por proyectos</DialogTitle>
+            <p className="text-xs text-muted-foreground">
+              Marca las órdenes de venta que son ingresos de proyecto. El importe de cada una se
+              calcula siempre en vivo contra el hub, nunca se guarda aquí.
+            </p>
+          </DialogHeader>
+
+          <Command shouldFilter={false} className="rounded-lg border border-border/40">
+            <CommandInput
+              value={busquedaProyectos}
+              onValueChange={setBusquedaProyectos}
+              placeholder="Buscar por cliente u orden..."
+            />
+            <CommandList>
+              {busquedaProyectos.trim().length < 2 ? (
+                <CommandEmpty>Escribe al menos 2 caracteres para buscar.</CommandEmpty>
+              ) : busquedaProyectosQ.isPending ? (
+                <CommandEmpty>Buscando…</CommandEmpty>
+              ) : (busquedaProyectosQ.data ?? []).length === 0 ? (
+                <CommandEmpty>Sin resultados.</CommandEmpty>
+              ) : (
+                (busquedaProyectosQ.data ?? []).map((orden) => (
+                  <CommandItem
+                    key={orden.hub_order_id}
+                    value={orden.hub_order_id}
+                    onSelect={() => handleAgregarProyecto(orden.hub_order_id)}
+                    className="flex items-center justify-between gap-2"
+                  >
+                    <span className="truncate">
+                      {orden.customer_name} · {orden.date} · {formatUSD(orden.importe)}
+                    </span>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="shrink-0"
+                      disabled={pendienteProyecto === orden.hub_order_id}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleAgregarProyecto(orden.hub_order_id);
+                      }}
+                    >
+                      Agregar
+                    </Button>
+                  </CommandItem>
+                ))
+              )}
+            </CommandList>
+          </Command>
+
+          <div className="space-y-2 border-t border-border/40 pt-3">
+            <p className="text-xs font-medium text-muted-foreground">
+              Órdenes marcadas ({ordenesProyecto.length})
+            </p>
+            {proyectosQ.isPending ? (
+              <p className="text-sm text-muted-foreground">Cargando…</p>
+            ) : ordenesProyecto.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Ninguna orden marcada todavía.</p>
+            ) : (
+              <ul className="max-h-56 space-y-1 overflow-auto">
+                {ordenesProyecto.map((orden) => (
+                  <li key={orden.hub_order_id} className="flex items-center justify-between gap-2">
+                    <span className="truncate text-sm">
+                      {orden.customer_name} · {orden.date} · {formatUSD(orden.importe)}
+                    </span>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="shrink-0 text-destructive hover:text-destructive"
+                      disabled={pendienteProyecto === orden.hub_order_id}
+                      onClick={() => handleQuitarProyecto(orden.hub_order_id)}
+                    >
+                      Quitar
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div className="flex justify-end pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setGestionandoProyectos(false);
+                setBusquedaProyectos("");
+              }}
+            >
+              Cerrar
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </>
