@@ -199,3 +199,36 @@ test("con un comercial elegido la fila de tickets sigue siendo de compania", asy
   await expect(fila).toContainText("De compañía: no se filtra por comercial.");
   await expect(fila.getByRole("cell").nth(CELDA_FEBRERO)).toHaveText("60.0%");
 });
+
+test("pulsar el porcentaje de tickets de febrero abre el detalle de sus episodios", async ({ page }) => {
+  const card = await abrirComercial(page);
+
+  const fila = card.getByRole("row", { name: /Tickets de Servicio Técnico en plazo/ });
+  await fila.getByRole("cell").nth(CELDA_FEBRERO).getByRole("button").click();
+
+  const dialogo = page.getByRole("dialog", { name: /Tickets en plazo/ });
+  await expect(dialogo).toBeVisible();
+  await expect(dialogo).toContainText("Febrero");
+  // El pie repite el porcentaje de la celda con el mismo formato: es la
+  // autocomprobacion de que el detalle cuadra con la cifra pulsada.
+  await expect(dialogo.getByText("3 en plazo de 5 → 60.0%")).toBeVisible();
+
+  // Febrero de la semilla (e2e/db/seed-hub.mjs): cinco episodios que cuentan. Primero
+  // los fuera de plazo, de mas horas a menos; T-FICT-002 y el segundo episodio de
+  // T-FICT-005 empatan a 18 h y va antes el que entro primero, T-FICT-002.
+  const cuentan = dialogo.getByRole("table", { name: "Cuentan para el porcentaje" });
+  const filas = cuentan.locator("tbody tr");
+  await expect(filas).toHaveCount(5);
+  await expect(filas.first()).toContainText("#9002");
+  await expect(filas.first()).toContainText("Cliente Ficticio B");
+  await expect(filas.first()).toContainText("Fuera de plazo");
+  // T-FICT-003 no tiene cuenta en el hub: el LEFT JOIN lo deja en el KPI con cliente "—".
+  await expect(filas.filter({ hasText: "#9003" })).toContainText("—");
+
+  // El rechazo de T-FICT-004 no cuenta y sale aparte.
+  const noCuentan = dialogo.getByRole("region", { name: "No cuentan para el porcentaje" });
+  await expect(noCuentan.locator("tbody tr")).toHaveCount(1);
+  await expect(noCuentan).toContainText("#9004");
+  await expect(noCuentan).toContainText("Excluido (rechazo)");
+  await expect(noCuentan).toContainText("Por Facturar");
+});
