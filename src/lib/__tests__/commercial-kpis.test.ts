@@ -27,8 +27,8 @@ describe("catalogo de KPIs comerciales", () => {
       else expect(k.pendingReason).toBeUndefined();
     }
   });
-  it("hay exactamente 6 KPIs automaticos", () => {
-    expect(COMMERCIAL_KPIS.filter((k) => k.source === "auto")).toHaveLength(6);
+  it("hay exactamente 7 KPIs automaticos", () => {
+    expect(COMMERCIAL_KPIS.filter((k) => k.source === "auto")).toHaveLength(7);
   });
 });
 

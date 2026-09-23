@@ -177,6 +177,20 @@ export function toMonthlySeries(rows: MonthCountRow[]): number[] {
   return out;
 }
 
+export interface MonthAmountRow { mes: number; importe: number; }
+
+/** Suma un importe por mes. Misma forma que toMonthlySeries, pero con dinero en
+ *  vez de conteos: los nombres de campo lo dicen porque no son lo mismo. */
+export function sumByMonth(rows: MonthAmountRow[]): number[] {
+  const out = doceCeros();
+  for (const r of rows) {
+    const idx = r.mes - 1;
+    if (idx < 0 || idx >= MESES) continue;
+    out[idx] += r.importe;
+  }
+  return out;
+}
+
 const MESES_POR_CUBO: Record<KpiPeriod, number> = {
   mensual: 1,
   trimestral: 3,

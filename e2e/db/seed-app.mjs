@@ -27,7 +27,7 @@ const GROUPS = [
   { name: "Consultoria", categories: ["Suelos"], sort_order: 2 },
 ];
 
-async function seedUser(client, companyId, user, { approved }) {
+async function seedUser(client, companyId, user, { approved, role }) {
   // bcrypt cost 12, igual que auth.ts. NUNCA texto plano: ese fue el bug que
   // tumbo el login en produccion (13 caracteres planos donde iba un hash de 60).
   const hash = bcrypt.hashSync(user.password, 12);
@@ -47,10 +47,14 @@ async function seedUser(client, companyId, user, { approved }) {
     [row.id, row.id, hash],
   );
 
+  // role explicito solo cuando hace falta separarlo de approved (el lector
+  // aprobado de la Task 5): sin el, se deriva como siempre de approved.
+  const finalRole = role ?? (approved ? "admin" : "lector");
+
   await client.query(
     `INSERT INTO profiles (id, company_id, role, is_active, is_approved, is_rejected)
      VALUES ($1, $2, $3, true, $4, false)`,
-    [row.id, companyId, approved ? "admin" : "lector", approved],
+    [row.id, companyId, finalRole, approved],
   );
 
   return row.id;
@@ -115,9 +119,10 @@ export async function seedApp(connectionString) {
 
     await seedUser(client, company.id, USERS.approved, { approved: true });
     await seedUser(client, company.id, USERS.pending, { approved: false });
+    await seedUser(client, company.id, USERS.lector, { approved: true, role: "lector" });
 
     await client.query("COMMIT");
-    console.log(`  app sembrada: 1 empresa, ${CATEGORIES.length} categorias, ${GROUPS.length} grupos, 2 usuarios, ${HISTORICAL.rows.length} filas de historico`);
+    console.log(`  app sembrada: 1 empresa, ${CATEGORIES.length} categorias, ${GROUPS.length} grupos, 3 usuarios, ${HISTORICAL.rows.length} filas de historico`);
     return { companyId: company.id, categoryIds };
   } catch (err) {
     await client.query("ROLLBACK");
