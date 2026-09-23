@@ -6,6 +6,7 @@ import {
   detalleTicketsMes,
   episodiosNotificacionComercial,
   festivosColombia,
+  formatoInstanteBogota,
   horasLaborables,
   normalizarFase,
   ticketsEnPlazoPorMes,
@@ -477,5 +478,17 @@ describe("detalleTicketsMes", () => {
       const d = detalleTicketsMes(episodios, 2026, mes, AHORA);
       expect([d.enPlazo, d.total]).toEqual([enPlazo[mes - 1], enPlazo[mes - 1] + fueraDePlazo[mes - 1]]);
     }
+  });
+});
+
+describe("formatoInstanteBogota", () => {
+  it("pinta la hora de Bogota aunque el dia UTC sea otro", () => {
+    // 31 mar 22:00 en Bogota es 1 abr 03:00 UTC.
+    expect(formatoInstanteBogota(bog(2026, 3, 31, 22))).toBe("31/03 22:00");
+  });
+
+  it("rellena con ceros y pinta la medianoche como 00:00", () => {
+    expect(formatoInstanteBogota(bog(2026, 1, 5, 8, 5))).toBe("05/01 08:05");
+    expect(formatoInstanteBogota(bog(2026, 2, 2, 0))).toBe("02/02 00:00");
   });
 });

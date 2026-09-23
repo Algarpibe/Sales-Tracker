@@ -332,3 +332,29 @@ export function detalleTicketsMes(episodios: Episodio[], anio: number, mes: numb
     total: cuentan.length,
   };
 }
+
+// Se crea una vez: construir un DateTimeFormat es caro y el diálogo formatea dos
+// instantes por fila. timeZone fija Bogotá, así que no depende de la zona del proceso;
+// hourCycle h23 evita "24:00" a medianoche en algunos motores.
+const FORMATO_BOGOTA = new Intl.DateTimeFormat("es-CO", {
+  timeZone: "America/Bogota",
+  day: "2-digit",
+  month: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+});
+
+/**
+ * "dd/MM HH:mm" en hora de Bogotá. Se monta con formatToParts y no con format(): el
+ * separador entre fecha y hora de es-CO (coma, espacio duro...) cambia entre versiones
+ * de ICU, y el detalle tiene que verse igual en el servidor, el navegador y el CI.
+ * padStart es necesario porque, sin "year" en las opciones, algunas versiones de ICU
+ * dejan "day"/"month" sin ceros para es-CO (p. ej. "5/1" en vez de "05/01") aunque
+ * "2-digit" los pida.
+ */
+export function formatoInstanteBogota(ms: number): string {
+  const p = Object.fromEntries(FORMATO_BOGOTA.formatToParts(ms).map((x) => [x.type, x.value]));
+  const dosDigitos = (v: string) => v.padStart(2, "0");
+  return `${dosDigitos(p.day)}/${dosDigitos(p.month)} ${dosDigitos(p.hour)}:${dosDigitos(p.minute)}`;
+}
