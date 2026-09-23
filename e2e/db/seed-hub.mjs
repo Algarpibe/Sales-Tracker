@@ -74,6 +74,7 @@ function amountFor(year, month, itemIndex) {
 // esta repetido. Los demas nombres de fase tambien son los reales de Desk; los ids de
 // ticket y de evento son inventados.
 const FASE_NC = "Notificación Comercial";
+const FASE_NC_ZOHO = "Notificación  Comercial";
 
 // Instante ISO de una hora de pared de Bogota (UTC-5 fijo, sin horario de verano).
 function instanteBogota(anio, mes, dia, hora) {
@@ -103,8 +104,10 @@ function eventosTicketsFicticios(anio) {
   const filas = [
     // En plazo: 2 h. El cambio de prioridad y el paso a Por Facturar no tocan la fase
     // medida: la consulta tiene que descartarlos.
-    ["T-FICT-001", feb(0, 9), [estado("Notificado", FASE_NC)]],
-    ["T-FICT-001", feb(0, 11), [estado(FASE_NC, "Notificación cliente")]],
+    // Con el doble espacio con el que Zoho escribe de verdad esta fase: la consulta del
+    // hub tiene que reconocerla igual que la bien escrita.
+    ["T-FICT-001", feb(0, 9), [estado("Notificado", FASE_NC_ZOHO)]],
+    ["T-FICT-001", feb(0, 11), [estado(FASE_NC_ZOHO, "Notificación cliente")]],
     ["T-FICT-001", feb(0, 12), [{ propertyName: "Priority", propertyValue: { previousValue: "Media", updatedValue: "Alta" } }]],
     ["T-FICT-001", feb(1, 9), [estado("Notificación cliente", "Por Facturar")]],
     // Fuera de plazo: 18 h.

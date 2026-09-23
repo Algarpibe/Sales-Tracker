@@ -128,11 +128,23 @@ export interface Episodio {
 }
 
 /**
+ * Nombre de fase comparable. En Zoho la fase se llama "Notificación  Comercial", con
+ * dos espacios: los nombres del Blueprint los teclea una persona, así que se comparan
+ * con los espacios colapsados (incluido el duro), sin espacios en los extremos y con
+ * las tildes en su forma compuesta (NFC).
+ */
+export function normalizarFase(fase: string | null): string | null {
+  if (fase === null) return null;
+  return fase.normalize("NFC").replace(/\s+/g, " ").trim();
+}
+
+/**
  * Cada entrada en "Notificación Comercial" abre un episodio y la primera salida lo
  * cierra. Una entrada con un episodio ya abierto no reinicia el reloj, y una salida
  * sin entrada previa (un episodio que empezó antes de la ventana consultada) se ignora.
  */
-export function episodiosNotificacionComercial(cambios: CambioFase[]): Episodio[] {
+export function episodiosNotificacionComercial(cambiosCrudos: CambioFase[]): Episodio[] {
+  const cambios = cambiosCrudos.map((c) => ({ ...c, desde: normalizarFase(c.desde), hacia: normalizarFase(c.hacia) }));
   const porTicket = new Map<string, CambioFase[]>();
   for (const c of cambios) {
     const lista = porTicket.get(c.ticketId);
