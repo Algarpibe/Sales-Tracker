@@ -68,6 +68,73 @@ function amountFor(year, month, itemIndex) {
   return 100 + (year - FIRST_SEEDED_YEAR) * 50 + month * 10 + itemIndex * 7;
 }
 
+// Fase de Zoho Desk que mide el KPI de tickets en plazo. Tiene que coincidir LETRA POR
+// LETRA con FASE_NOTIFICACION_COMERCIAL de src/lib/kpi-tickets.ts: la consulta filtra
+// por ella. Este fichero es .mjs y no puede importar del TypeScript, asi que el literal
+// esta repetido. Los demas nombres de fase tambien son los reales de Desk; los ids de
+// ticket y de evento son inventados.
+const FASE_NC = "Notificación Comercial";
+
+// Instante ISO de una hora de pared de Bogota (UTC-5 fijo, sin horario de verano).
+function instanteBogota(anio, mes, dia, hora) {
+  return new Date(Date.UTC(anio, mes - 1, dia, hora + 5)).toISOString();
+}
+
+// Dia del mes del primer lunes de febrero. Febrero nunca tiene festivos en Colombia, asi
+// que una semana laborable de febrero da las mismas horas sea cual sea el anio.
+function primerLunesDeFebrero(anio) {
+  const diaSemana = new Date(Date.UTC(anio, 1, 1)).getUTCDay();
+  return 1 + ((8 - diaSemana) % 7);
+}
+
+/**
+ * Historial de tickets inventado del anio en curso. En febrero deja cinco episodios
+ * contables, tres en plazo y dos fuera (60,0 %), mas uno rechazado que no cuenta. El
+ * detalle, ticket a ticket, esta en el plan
+ * docs/superpowers/plans/2026-09-23-kpi-tickets-en-plazo-salestracker.md (Task 5).
+ */
+function eventosTicketsFicticios(anio) {
+  const lunes = primerLunesDeFebrero(anio);
+  const feb = (dias, hora) => instanteBogota(anio, 2, lunes + dias, hora);
+  const estado = (desde, hacia) => ({
+    propertyName: "Status",
+    propertyValue: { previousValue: desde, updatedValue: hacia },
+  });
+  const filas = [
+    // En plazo: 2 h. El cambio de prioridad y el paso a Por Facturar no tocan la fase
+    // medida: la consulta tiene que descartarlos.
+    ["T-FICT-001", feb(0, 9), [estado("Notificado", FASE_NC)]],
+    ["T-FICT-001", feb(0, 11), [estado(FASE_NC, "Notificación cliente")]],
+    ["T-FICT-001", feb(0, 12), [{ propertyName: "Priority", propertyValue: { previousValue: "Media", updatedValue: "Alta" } }]],
+    ["T-FICT-001", feb(1, 9), [estado("Notificación cliente", "Por Facturar")]],
+    // Fuera de plazo: 18 h.
+    ["T-FICT-002", feb(0, 9), [estado("Notificado", FASE_NC)]],
+    ["T-FICT-002", feb(2, 9), [estado(FASE_NC, "Notificación cliente")]],
+    // Ruta del SKU, en plazo: 8 h.
+    ["T-FICT-003", feb(0, 10), [estado("Notificado", FASE_NC)]],
+    ["T-FICT-003", feb(1, 9), [estado(FASE_NC, "En espera de SKU inventario")]],
+    // Rechazo: excluido, no hay cotizacion que medir.
+    ["T-FICT-004", feb(0, 9), [estado("Notificado", FASE_NC)]],
+    ["T-FICT-004", feb(0, 12), [estado(FASE_NC, "Por Facturar")]],
+    // Re-cotizacion: dos episodios, 1 h (en plazo) y 18 h (fuera).
+    ["T-FICT-005", feb(0, 9), [estado("Notificado", FASE_NC)]],
+    ["T-FICT-005", feb(0, 10), [estado(FASE_NC, "Notificación cliente")]],
+    ["T-FICT-005", feb(0, 11), [estado("Notificación cliente", "Continuación del proceso")]],
+    ["T-FICT-005", feb(3, 9), [estado("Continuación del proceso", FASE_NC)]],
+    ["T-FICT-005", feb(7, 9), [estado(FASE_NC, "Notificación cliente")]],
+    // Entra el anio anterior, fuera de la ventana: su salida de enero se ignora y enero
+    // queda sin dato, no a 0 %.
+    ["T-FICT-006", instanteBogota(anio - 1, 12, 30, 9), [estado("Notificado", FASE_NC)]],
+    ["T-FICT-006", instanteBogota(anio, 1, 15, 9), [estado(FASE_NC, "Notificación cliente")]],
+  ];
+  return filas.map(([ticketId, eventTime, eventInfo], i) => ({
+    id: `HIST-FICT-${String(i + 1).padStart(3, "0")}`,
+    ticketId,
+    eventTime,
+    raw: { eventName: "TicketUpdated", eventTime, eventInfo },
+  }));
+}
+
 export async function seedHub(connectionString) {
   const client = new pg.Client({ connectionString });
   await client.connect();
@@ -191,8 +258,17 @@ export async function seedHub(connectionString) {
       deals += tratos.length;
     }
 
+    const eventosTickets = eventosTicketsFicticios(CURRENT_YEAR);
+    for (const ev of eventosTickets) {
+      await client.query(
+        `INSERT INTO desk.ticket_history (id, ticket_id, event_name, event_time, raw)
+         VALUES ($1, $2, $3, $4, $5::jsonb)`,
+        [ev.id, ev.ticketId, ev.raw.eventName, ev.eventTime, JSON.stringify(ev.raw)],
+      );
+    }
+
     await client.query("COMMIT");
-    console.log(`  hub sembrado: ${ITEMS.length} items, ${orders} pedidos, ${invoices} facturas, ${deals} tratos`);
+    console.log(`  hub sembrado: ${ITEMS.length} items, ${orders} pedidos, ${invoices} facturas, ${deals} tratos, ${eventosTickets.length} eventos de tickets`);
   } catch (err) {
     await client.query("ROLLBACK");
     throw err;
