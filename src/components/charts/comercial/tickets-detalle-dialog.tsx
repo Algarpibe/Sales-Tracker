@@ -3,6 +3,8 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { MONTHS, formatPct } from "@/lib/constants";
 import {
+  HORA_FIN,
+  HORA_INICIO,
   formatoInstanteBogota,
   type DetalleTicketsMes,
   type EstadoPlazo,
@@ -95,7 +97,7 @@ export function TicketsDetalleDialog({
                 Tickets en plazo · {MONTHS[mes - 1].full} {anio}
               </DialogTitle>
               <p className="text-xs text-muted-foreground">
-                De compañía · horas laborables de lunes a viernes, de 8:00 a 17:00 en Bogotá, sin festivos.
+                De compañía · horas laborables de lunes a viernes, de {HORA_INICIO}:00 a {HORA_FIN}:00 en Bogotá, sin festivos.
               </p>
             </DialogHeader>
             {detalle.cuentan.length === 0 ? (

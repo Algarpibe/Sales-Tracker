@@ -579,6 +579,9 @@ export function CommercialKpiTable({
                                 <button
                                   type="button"
                                   onClick={() => setCeldaTickets({ mes: i + 1 })}
+                                  // Sin etiqueta, un lector de pantalla solo anunciaría "60.0%",
+                                  // sin decir de qué fila ni de qué mes es.
+                                  aria-label={`Detalle de ${f.def.label}, ${MONTHS[i].full}`}
                                   className={CLASE_CELDA_PULSABLE}
                                 >
                                   {formatValor(v, f.def.unit)}
