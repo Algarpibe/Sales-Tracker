@@ -144,15 +144,28 @@ export function episodiosNotificacionComercial(cambios: CambioFase[]): Episodio[
   for (const [ticketId, lista] of porTicket) {
     const ordenados = [...lista].sort((a, b) => a.instante - b.instante);
     let abierto: number | null = null;
-    for (const c of ordenados) {
+    const procesar = (c: CambioFase) => {
       if (c.desde === FASE_NOTIFICACION_COMERCIAL) {
-        if (abierto === null) continue;
+        if (abierto === null) return;
         const medible = c.hacia !== null && FASES_FIN_RELOJ.includes(c.hacia);
         episodios.push({ ticketId, inicio: abierto, fin: c.instante, estado: medible ? "medible" : "excluido" });
         abierto = null;
       } else if (c.hacia === FASE_NOTIFICACION_COMERCIAL && abierto === null) {
         abierto = c.instante;
       }
+    };
+    // Los cambios del mismo instante no traen un orden fiable. Se resuelven según el
+    // estado: con un episodio abierto va primero la salida (lo cierra) y después la
+    // entrada (abre otro); sin episodio, primero la entrada. Así una salida leída antes
+    // que su entrada no deja un episodio abierto para siempre.
+    for (let i = 0; i < ordenados.length; ) {
+      let j = i;
+      while (j < ordenados.length && ordenados[j].instante === ordenados[i].instante) j++;
+      const salidas = ordenados.slice(i, j).filter((c) => c.desde === FASE_NOTIFICACION_COMERCIAL);
+      const resto = ordenados.slice(i, j).filter((c) => c.desde !== FASE_NOTIFICACION_COMERCIAL);
+      const grupo = abierto === null ? [...resto, ...salidas] : [...salidas, ...resto];
+      for (const c of grupo) procesar(c);
+      i = j;
     }
     if (abierto !== null) episodios.push({ ticketId, inicio: abierto, fin: null, estado: "abierto" });
   }

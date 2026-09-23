@@ -118,6 +118,30 @@ describe("episodiosNotificacionComercial", () => {
     expect(e).toEqual([{ ticketId: "T-FICT-1", inicio: 100, fin: 200, estado: "excluido" }]);
   });
 
+  // Zoho puede fechar en el mismo instante la entrada y la salida (una automatización
+  // del Blueprint, o el redondeo al segundo), y el hub no garantiza en qué orden llegan.
+  // Si la salida se leyera primero, la entrada abriría un episodio que nunca se cierra y
+  // contaría fuera de plazo para siempre.
+  it("una entrada y su salida en el mismo instante cierran el episodio aunque la salida llegue antes", () => {
+    const e = episodiosNotificacionComercial([
+      cambio("T-FICT-1", 100, NC, "Notificación cliente"),
+      cambio("T-FICT-1", 100, "Notificado", NC),
+    ]);
+    expect(e).toEqual([{ ticketId: "T-FICT-1", inicio: 100, fin: 100, estado: "medible" }]);
+  });
+
+  it("con un episodio abierto, una salida y una re-entrada en el mismo instante son dos episodios", () => {
+    const e = episodiosNotificacionComercial([
+      cambio("T-FICT-1", 100, "Notificado", NC),
+      cambio("T-FICT-1", 200, "Continuación del proceso", NC),
+      cambio("T-FICT-1", 200, NC, "Notificación cliente"),
+    ]);
+    expect(e).toEqual([
+      { ticketId: "T-FICT-1", inicio: 100, fin: 200, estado: "medible" },
+      { ticketId: "T-FICT-1", inicio: 200, fin: null, estado: "abierto" },
+    ]);
+  });
+
   it("sin salida el episodio queda abierto", () => {
     const e = episodiosNotificacionComercial([cambio("T-FICT-1", 100, "Notificado", NC)]);
     expect(e).toEqual([{ ticketId: "T-FICT-1", inicio: 100, fin: null, estado: "abierto" }]);
