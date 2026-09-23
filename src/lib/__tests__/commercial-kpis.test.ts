@@ -27,8 +27,16 @@ describe("catalogo de KPIs comerciales", () => {
       else expect(k.pendingReason).toBeUndefined();
     }
   });
-  it("hay exactamente 7 KPIs automaticos", () => {
-    expect(COMMERCIAL_KPIS.filter((k) => k.source === "auto")).toHaveLength(7);
+  it("hay exactamente 8 KPIs automaticos", () => {
+    expect(COMMERCIAL_KPIS.filter((k) => k.source === "auto")).toHaveLength(8);
+  });
+  it("tickets en plazo es automatico y conserva clave, periodo y unidad", () => {
+    // Clave, periodo y unidad no pueden cambiar: las metas ya guardadas cuelgan de ellas.
+    const t = kpiDef("tickets_st");
+    expect(t?.source).toBe("auto");
+    expect(t?.period).toBe("mensual");
+    expect(t?.unit).toBe("pct");
+    expect(t?.pendingReason).toBeUndefined();
   });
 });
 

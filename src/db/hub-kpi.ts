@@ -1,6 +1,7 @@
 import { getHubPool } from "@/db/hub";
 import { isExcludedSalesperson, parseExcludedSalespeople, WON_DEAL_STAGES } from "@/lib/commercial-kpis";
 import type { DealMonthRow } from "@/lib/kpi-score";
+import { FASE_NOTIFICACION_COMERCIAL, type CambioFase } from "@/lib/kpi-tickets";
 import type { CustomerMonthRow, RecordType } from "@/types/database";
 
 // Vendedores que aparecen en el hub. Zoho los guarda dentro del JSON de la
@@ -179,5 +180,41 @@ export async function getHubOrdersByIds(ids: string[]): Promise<HubOrderRow[]> {
     customer_name: String(r.customer_name),
     date: String(r.date),
     importe: Number(r.importe),
+  }));
+}
+
+// Cambios de fase que entran en "Notificación Comercial" o salen de ella, leídos del
+// historial crudo de Zoho Desk que replica el worker hub-sync. Un cambio de fase es un
+// TicketUpdated con un elemento Status en eventInfo. La fase es una constante del
+// servidor, nunca entrada del usuario.
+// La ventana llega hasta el 31 de enero del año siguiente para que un episodio que
+// empieza a final de diciembre pueda cerrarse; el filtro por mes de entrada lo hace la
+// lógica pura de src/lib/kpi-tickets.ts.
+// El instante sale en milisegundos (float8) y no como timestamptz: node-postgres lo
+// convertiría en Date y la hora dependería de la zona del proceso.
+// El CASE protege el LATERAL: un eventInfo que no sea array haría fallar la consulta
+// entera por un solo evento raro, en vez de ignorarlo.
+export async function getHubCommercialNotificationChanges(anio: number): Promise<CambioFase[]> {
+  const sql = `
+    SELECT h.ticket_id AS "ticketId",
+           (extract(epoch from h.event_time) * 1000)::float8 AS instante,
+           s->'propertyValue'->>'previousValue' AS desde,
+           s->'propertyValue'->>'updatedValue' AS hacia
+    FROM desk.ticket_history h
+    CROSS JOIN LATERAL jsonb_array_elements(
+      CASE WHEN jsonb_typeof(h.raw->'eventInfo') = 'array' THEN h.raw->'eventInfo' ELSE '[]'::jsonb END
+    ) s
+    WHERE h.event_name = 'TicketUpdated'
+      AND s->>'propertyName' = 'Status'
+      AND $2::text IN (s->'propertyValue'->>'previousValue', s->'propertyValue'->>'updatedValue')
+      AND h.event_time >= make_timestamptz($1::int, 1, 1, 0, 0, 0, 'America/Bogota')
+      AND h.event_time <  make_timestamptz($1::int + 1, 2, 1, 0, 0, 0, 'America/Bogota')
+    ORDER BY h.ticket_id, h.event_time`;
+  const { rows } = await getHubPool().query(sql, [anio, FASE_NOTIFICACION_COMERCIAL]);
+  return rows.map((r) => ({
+    ticketId: String(r.ticketId),
+    instante: Number(r.instante),
+    desde: r.desde === null ? null : String(r.desde),
+    hacia: r.hacia === null ? null : String(r.hacia),
   }));
 }

@@ -64,3 +64,18 @@ CREATE TABLE crm.deals (
   -- Es date y no timestamptz: no arrastra zona horaria.
   closing_date date
 );
+
+-- El hub real replica tambien Zoho Desk. Aqui solo va el historial de tickets, con
+-- los tipos del esquema real (packages/zoho-sync/src/db/schema.sql de
+-- ambientalia-desk) y solo las columnas que consulta src/db/hub-kpi.ts.
+CREATE SCHEMA IF NOT EXISTS desk;
+
+CREATE TABLE desk.ticket_history (
+  id         text PRIMARY KEY,
+  ticket_id  text NOT NULL,
+  event_name text,
+  event_time timestamptz,
+  -- Evento de Zoho entero. Un cambio de fase es un TicketUpdated con un elemento
+  -- { propertyName: 'Status', propertyValue: { previousValue, updatedValue } } en eventInfo.
+  raw        jsonb
+);

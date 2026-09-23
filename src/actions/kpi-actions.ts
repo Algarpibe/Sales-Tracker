@@ -6,6 +6,7 @@ import { z } from "zod";
 import { db } from "@/db";
 import { kpiTargets, kpiProjectOrders } from "@/db/schema";
 import {
+  getHubCommercialNotificationChanges,
   getHubCustomerMonthByOwner,
   getHubDealsMonth,
   getHubSalespeople,
@@ -18,6 +19,7 @@ import { requireApproved, requireRole } from "@/lib/auth/guards";
 import { kpiTargetsSchema } from "@/lib/validation";
 import { runAction, type ActionResult } from "@/lib/errors";
 import type { DealMonthRow } from "@/lib/kpi-score";
+import type { CambioFase } from "@/lib/kpi-tickets";
 import type { CustomerMonthRow, RecordType } from "@/types/database";
 
 export interface KpiTargetRow {
@@ -172,4 +174,12 @@ export async function removeProjectOrder(hubOrderId: string): Promise<ActionResu
       .where(and(eq(kpiProjectOrders.company_id, profile.company_id), eq(kpiProjectOrders.hub_order_id, hubOrderId)));
     revalidatePath("/analytics");
   });
+}
+
+/** Cambios de fase de "Notificación Comercial" del año. De compañía: Desk no asigna
+ *  comercial al ticket, así que no hay ámbito que filtrar. Lectura: lanza en error. */
+export async function getKpiTicketsChanges(year: number): Promise<CambioFase[]> {
+  await requireApproved();
+  const anio = z.number().int().min(2000).max(2100).parse(year);
+  return getHubCommercialNotificationChanges(anio);
 }
