@@ -6,6 +6,7 @@ import {
   toMonthlySeries,
   sumByMonth,
   ofYear,
+  valorAlCierre,
   periodTotals,
   attainment,
   kpiAverage,
@@ -362,5 +363,33 @@ describe("ofYear", () => {
   });
   it("sin ordenes devuelve la lista vacia", () => {
     expect(ofYear([], 2026)).toEqual([]);
+  });
+});
+
+describe("valorAlCierre", () => {
+  // Incremento acumulado por trimestre: el valor que cuenta es el del trimestre
+  // en curso, no la media de los cuatro, que contaria varias veces las mismas ventas.
+  const serie = [106, 67, 26.4, -8.3];
+  it("en enero, febrero y marzo es el de marzo", () => {
+    expect(valorAlCierre(serie, 2026, new Date(2026, 0, 10))).toBe(106);
+    expect(valorAlCierre(serie, 2026, new Date(2026, 2, 31))).toBe(106);
+  });
+  it("en abril, mayo y junio es el de junio", () => {
+    expect(valorAlCierre(serie, 2026, new Date(2026, 3, 1))).toBe(67);
+  });
+  it("en septiembre es el de septiembre, aunque diciembre tenga valor", () => {
+    expect(valorAlCierre(serie, 2026, new Date(2026, 8, 22))).toBe(26.4);
+  });
+  it("en diciembre es el de diciembre", () => {
+    expect(valorAlCierre(serie, 2026, new Date(2026, 11, 31))).toBe(-8.3);
+  });
+  it("un anio ya cerrado usa diciembre", () => {
+    expect(valorAlCierre(serie, 2025, new Date(2026, 8, 22))).toBe(-8.3);
+  });
+  it("un anio futuro no tiene valor", () => {
+    expect(valorAlCierre(serie, 2027, new Date(2026, 8, 22))).toBeNull();
+  });
+  it("sin dato en ese trimestre no inventa uno", () => {
+    expect(valorAlCierre([10, null, 5, 5], 2026, new Date(2026, 4, 1))).toBeNull();
   });
 });

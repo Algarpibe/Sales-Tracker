@@ -192,6 +192,23 @@ export function ofYear<T extends { date: string }>(rows: T[], year: number): T[]
   return rows.filter((r) => r.date.startsWith(prefijo));
 }
 
+/**
+ * Valor de una serie trimestral acumulada al cierre del trimestre en curso: el de
+ * marzo en enero-marzo, el de junio en abril-junio, etc. En un año ya cerrado, el
+ * de diciembre; en uno futuro, ninguno. Para una variación acumulada es la cifra
+ * del año: promediar los cuatro trimestres contaría varias veces las mismas ventas.
+ */
+export function valorAlCierre(
+  serie: (number | null)[],
+  year: number,
+  hoy: Date
+): number | null {
+  const actual = hoy.getFullYear();
+  if (year > actual) return null;
+  const trimestre = year < actual ? 3 : Math.floor(hoy.getMonth() / 3);
+  return serie[trimestre] ?? null;
+}
+
 export function sumByMonth(rows: MonthAmountRow[]): number[] {
   const out = doceCeros();
   for (const r of rows) {
