@@ -12,6 +12,7 @@ import {
   getKpiMonthlySales,
   getKpiProjectOrders,
   getKpiTargets,
+  getKpiTicketsChanges,
   getKpiWonDealsMonthly,
   getSalespeople,
   removeProjectOrder,
@@ -28,6 +29,7 @@ import {
   type BreakdownInput,
 } from "@/lib/kpi-score";
 import { customerHref } from "@/lib/customer-detail";
+import { episodiosNotificacionComercial, ticketsEnPlazoPorMes } from "@/lib/kpi-tickets";
 import { stGrowthByQuarter } from "@/lib/tech-service";
 import { CHART_HELP } from "@/lib/chart-help";
 import { MONTHS, RECORD_TYPES, formatPct, formatUSD } from "@/lib/constants";
@@ -56,6 +58,11 @@ const TOTAL_LABEL = "Total compañía";
 const HISTORY_FIRST_YEAR = 2015;
 
 const MESES = MONTHS.length;
+
+/** KPIs que no se pueden filtrar por comercial: el Servicio Técnico no lleva
+ *  comercial en sus líneas, y Desk no asigna comercial al ticket. Con un comercial
+ *  elegido enseñan la cifra de compañía, y la fila lo dice. */
+const KPIS_DE_COMPANIA = new Set(["incremento_st", "tickets_st"]);
 
 /** Orden de venta con su importe neto calculado en vivo, tal y como la devuelven
  *  searchSalesOrdersForProjects y getKpiProjectOrders. Se deriva del tipo real de
@@ -268,6 +275,14 @@ export function CommercialKpiTable({
     queryFn: () => getKpiWonDealsMonthly(year, salesperson),
     placeholderData: keepPreviousData,
   });
+  // Tickets en plazo: de compañía y sin conmutador OV/FAC (Desk no tiene tal cosa),
+  // así que la clave solo lleva el año. keepPreviousData como las demás consultas del
+  // año: cambiar de año no debe desmontar la tabla entera.
+  const ticketsQ = useQuery({
+    queryKey: ["kpi-tickets", year],
+    queryFn: () => getKpiTicketsChanges(year),
+    placeholderData: keepPreviousData,
+  });
 
   // Misma clave exacta que /clientes y la ficha de cliente, para compartir su caché.
   const historicoQ = useQuery({
@@ -284,6 +299,12 @@ export function CommercialKpiTable({
   const mensuales = useMemo(() => mensualesQ.data ?? [], [mensualesQ.data]);
   const tratos = useMemo(() => tratosQ.data ?? [], [tratosQ.data]);
   const ganados = useMemo(() => ganadosQ.data ?? [], [ganadosQ.data]);
+  // Los episodios solo dependen de los cambios leídos: no se recalculan al cambiar de
+  // comercial ni de OV/FAC.
+  const episodiosTickets = useMemo(
+    () => episodiosNotificacionComercial(ticketsQ.data ?? []),
+    [ticketsQ.data]
+  );
   const historico = useMemo(() => historicoQ.data ?? [], [historicoQ.data]);
   const registros = useMemo<SalesRecord[]>(() => ventasQ.data ?? [], [ventasQ.data]);
   const categorias = useMemo<Category[]>(() => (categoriasQ.data as Category[]) ?? [], [categoriasQ.data]);
@@ -360,6 +381,13 @@ export function CommercialKpiTable({
       if (def.key === "incremento_st") {
         return construirFilaIncremento(def, st, meta, valorAlCierre(st, year, new Date()));
       }
+      if (def.key === "tickets_st") {
+        // El porcentaje ya viene por mes: son los doce periodos de una fila mensual y
+        // no hay serie aparte, así que construirFila lo pinta en su mes con el
+        // cumplimiento debajo. `ahora` decide qué episodios abiertos ya están fuera de
+        // plazo; new Date() como en el incremento de arriba.
+        return construirFila(def, ticketsEnPlazoPorMes(episodiosTickets, year, new Date().getTime()), meta, null);
+      }
       if (def.key === "ingresos_proyectos") {
         // date es un `date` de Postgres ('YYYY-MM-DD'), sin hora ni zona: se lee
         // el mes con slice, nunca con new Date(...).getMonth(), que reinterpreta
@@ -373,7 +401,7 @@ export function CommercialKpiTable({
     });
 
     return { filas, mensualesBreakdown, tratosBreakdown, ganadosBreakdown };
-  }, [metas, mensuales, tratos, ganados, historico, registros, categorias, ordenesProyectoAnio, recordType, year]);
+  }, [metas, mensuales, tratos, ganados, historico, registros, categorias, ordenesProyectoAnio, episodiosTickets, recordType, year]);
 
   const marcador = useMemo(
     () => scoreboard(filas.map((f) => ({ average: f.logro, weight: f.peso }))),
@@ -383,10 +411,11 @@ export function CommercialKpiTable({
 
   const cargando =
     metasQ.isPending || mensualesQ.isPending || tratosQ.isPending || ganadosQ.isPending ||
-    historicoQ.isPending || ventasQ.isPending || categoriasQ.isPending || proyectosQ.isPending;
+    historicoQ.isPending || ventasQ.isPending || categoriasQ.isPending || proyectosQ.isPending ||
+    ticketsQ.isPending;
   const refrescando =
     metasQ.isPlaceholderData || mensualesQ.isPlaceholderData || tratosQ.isPlaceholderData ||
-    ganadosQ.isPlaceholderData;
+    ganadosQ.isPlaceholderData || ticketsQ.isPlaceholderData;
   // Sin ventas del ámbito y sin metas, la tabla solo enseñaría guiones.
   const sinDatos = mensuales.length === 0 && metas.length === 0;
   const sinMetas = !metas.some((m) => m.weight_pct > 0);
@@ -510,7 +539,7 @@ export function CommercialKpiTable({
                             {f.def.pendingReason && (
                               <div className="text-muted-foreground">{f.def.pendingReason}</div>
                             )}
-                            {f.def.key === "incremento_st" && (
+                            {KPIS_DE_COMPANIA.has(f.def.key) && (
                               <div className="text-muted-foreground">De compañía: no se filtra por comercial.</div>
                             )}
                           </td>
