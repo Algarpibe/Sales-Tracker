@@ -109,6 +109,8 @@ ORDER BY h.ticket_id, h.event_time
 - `$2` es la constante `FASE_NOTIFICACION_COMERCIAL`, definida en el servidor y nunca tomada de la entrada del usuario.
 - **La ventana llega hasta el 31 de enero del año siguiente** para que un episodio que empieza a final de diciembre pueda cerrarse. El filtro por mes de inicio lo hace la lógica pura.
 - Una salida sin su entrada dentro de la ventana, de un episodio del año anterior, se ignora en la lógica pura.
+- **Limitación aceptada:** si un episodio de diciembre sale después del 31 de enero del año siguiente, al consultar ese año su salida queda fuera de la ventana y el episodio figura como abierto. Si la salida era medible no cambia nada, porque de diciembre a febrero ya pasan más de 12 horas laborables y habría contado fuera de plazo igualmente. Solo un Rechazo tan tardío cuenta como fuera de plazo en vez de excluido.
+- Los cambios con el mismo instante no llegan en un orden fiable. La lógica pura los desempata según el estado: si hay un episodio abierto, primero la salida; si no, primero la entrada.
 
 ### 4.2 Acción y consulta en la tabla
 
