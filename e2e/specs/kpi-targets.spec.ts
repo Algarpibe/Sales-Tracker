@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { APPROVED_STATE, SALESPEOPLE } from "../constants";
+import { APPROVED_STATE, LECTOR_STATE, SALESPEOPLE } from "../constants";
 
 test.use({ storageState: APPROVED_STATE });
 
@@ -56,4 +56,23 @@ test("la tabla dice qué es cada columna y en qué unidad va la meta", async ({ 
   // Y el propio campo la repite, que es donde mira quien está tecleando.
   await expect(card.getByLabel("Meta de Ventas clientes nuevos")).toHaveAttribute("placeholder", "USD");
   await expect(card.getByLabel("Meta de Tratos cerrados ganados")).toHaveAttribute("placeholder", "nº");
+});
+
+test.describe("lector", () => {
+  test.use({ storageState: LECTOR_STATE });
+
+  test("ve las metas pero no puede editarlas", async ({ page }) => {
+    await page.goto("/settings");
+    const card = page.locator('[data-slot="card"]', { hasText: "Metas de KPIs comerciales" });
+    await expect(card).toBeVisible();
+    await expect(card.getByText("Solo lectura.")).toBeVisible();
+
+    // Ve lo que hay guardado: la semilla deja 60 en este KPI.
+    const peso = card.getByLabel("Peso de Ventas clientes nuevos");
+    await expect(peso).toHaveValue("60");
+    await expect(peso).not.toBeEditable();
+    await expect(card.getByLabel("Meta de Ventas clientes nuevos")).not.toBeEditable();
+
+    await expect(card.getByRole("button", { name: "Guardar metas" })).toHaveCount(0);
+  });
 });

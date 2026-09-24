@@ -89,3 +89,11 @@ export function isExcludedSalesperson(nombre: string, excluidos: string[]): bool
     (excluido) => nombre.localeCompare(excluido, undefined, { sensitivity: "base" }) === 0
   );
 }
+
+/** Roles que pueden cambiar las metas. El lector las ve pero no las toca. Lo usan
+ *  la accion del servidor y el formulario, para que no puedan divergir. */
+export const ROLES_EDITAN_METAS = ["admin", "editor"] as const;
+
+export function puedeEditarMetas(role: string | null | undefined): boolean {
+  return (ROLES_EDITAN_METAS as readonly string[]).includes(role ?? "");
+}
