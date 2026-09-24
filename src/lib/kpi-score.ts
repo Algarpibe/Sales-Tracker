@@ -209,6 +209,21 @@ export function valorAlCierre(
   return serie[trimestre] ?? null;
 }
 
+/**
+ * Valor de la serie al cierre del año, el T4: la cifra anual de una variación
+ * acumulada. Se pide a valorAlCierre con el 31 de diciembre para no duplicar su
+ * lógica, pero antes se descarta el año futuro: con esa fecha, valorAlCierre lo
+ * tomaría por el año en curso y devolvería un T4 que todavía no ha pasado.
+ */
+export function valorAlCierreDelAnio(
+  serie: (number | null)[],
+  year: number,
+  hoy: Date
+): number | null {
+  if (year > hoy.getFullYear()) return null;
+  return valorAlCierre(serie, year, new Date(year, 11, 31));
+}
+
 export function sumByMonth(rows: MonthAmountRow[]): number[] {
   const out = doceCeros();
   for (const r of rows) {

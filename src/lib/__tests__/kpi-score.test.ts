@@ -7,6 +7,7 @@ import {
   sumByMonth,
   ofYear,
   valorAlCierre,
+  valorAlCierreDelAnio,
   periodTotals,
   periodosTranscurridos,
   attainment,
@@ -446,5 +447,21 @@ describe("promedio a la fecha", () => {
   });
   it("en un anio futuro no hay nada que promediar", () => {
     expect(aLaFecha(new Date(2025, 5, 15))).toBeNull();
+  });
+});
+
+describe("valorAlCierreDelAnio", () => {
+  // Es la cifra anual del incremento de Servicio Tecnico: la del T4, no la del
+  // trimestre en curso, que es la de a la fecha.
+  const serie = [106, 67, 26.4, -8.3];
+  it("en el anio en curso es el de diciembre aunque estemos en septiembre", () => {
+    expect(valorAlCierreDelAnio(serie, 2026, new Date(2026, 8, 24))).toBe(-8.3);
+  });
+  it("en un anio cerrado es el de diciembre, igual que a la fecha", () => {
+    expect(valorAlCierreDelAnio(serie, 2025, new Date(2026, 8, 24))).toBe(-8.3);
+    expect(valorAlCierre(serie, 2025, new Date(2026, 8, 24))).toBe(-8.3);
+  });
+  it("un anio futuro no tiene valor, aunque la serie traiga diciembre", () => {
+    expect(valorAlCierreDelAnio(serie, 2027, new Date(2026, 8, 24))).toBeNull();
   });
 });
