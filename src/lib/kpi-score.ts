@@ -275,6 +275,17 @@ export function attainment(value: number, target: number): number | null {
   return (value / target) * 100;
 }
 
+/**
+ * Cumplimiento de todo o nada: 100 si el valor alcanza la meta y 0 si no. Lo usa el
+ * incremento de Servicio Técnico, donde quedarse por debajo de la meta no aporta nada:
+ * con el cumplimiento proporcional, un 5 % frente a una meta del 10 % daba medio aporte
+ * y un incremento negativo restaba del TOTAL. Sin meta devuelve null, como attainment.
+ */
+export function attainmentTodoONada(value: number, target: number): number | null {
+  if (target <= 0) return null;
+  return value >= target ? 100 : 0;
+}
+
 /** Media simple de los periodos que sí se pudieron medir. */
 export function kpiAverage(values: (number | null)[]): number | null {
   const medibles = values.filter((v): v is number => v !== null);

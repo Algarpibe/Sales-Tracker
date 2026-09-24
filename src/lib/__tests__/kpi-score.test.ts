@@ -11,6 +11,7 @@ import {
   periodTotals,
   periodosTranscurridos,
   attainment,
+  attainmentTodoONada,
   kpiAverage,
   kpiContribution,
   scoreboard,
@@ -82,6 +83,23 @@ describe("periodTotals", () => {
 
   it("semestral agrupa de seis en seis", () => {
     expect(periodTotals(meses, "semestral")).toEqual([21, 57]);
+  });
+});
+
+describe("attainmentTodoONada", () => {
+  it("por debajo de la meta no cumple nada, aunque el valor sea positivo", () => {
+    expect(attainmentTodoONada(9.9, 10)).toBe(0);
+    expect(attainmentTodoONada(5, 10)).toBe(0);
+  });
+  it("un valor negativo no resta: cumple 0, no un porcentaje negativo", () => {
+    expect(attainmentTodoONada(-8.3, 10)).toBe(0);
+  });
+  it("alcanzar o superar la meta cumple el 100 %, sin pasarse", () => {
+    expect(attainmentTodoONada(10, 10)).toBe(100);
+    expect(attainmentTodoONada(26.4, 10)).toBe(100);
+  });
+  it("sin meta no hay con que comparar, igual que attainment", () => {
+    expect(attainmentTodoONada(26.4, 0)).toBeNull();
   });
 });
 
