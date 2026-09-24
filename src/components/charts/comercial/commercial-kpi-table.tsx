@@ -24,7 +24,7 @@ import { getSalesData } from "@/actions/sales-actions";
 import { firstYearByCustomer } from "@/lib/analytics-comercial";
 import { COMMERCIAL_KPIS, KPI_UNIT_LABEL, type KpiDef, type KpiUnit } from "@/lib/commercial-kpis";
 import {
-  attainment, esTratoDeClienteNuevo, esVentaDeClienteNuevo, kpiAverage, kpiContribution,
+  attainment, attainmentTodoONada, esTratoDeClienteNuevo, esVentaDeClienteNuevo, kpiAverage, kpiContribution,
   monthBreakdown, ofYear, periodosTranscurridos, periodTotals, valorAlCierre, valorAlCierreDelAnio, scoreboard,
   splitDealsNewExisting, splitNewExisting, sumByMonth, toMonthlySeries,
   type BreakdownInput,
@@ -185,8 +185,10 @@ function construirFilaIncremento(
   const anual = valorAlCierreDelAnio(trimestres, year, hoy);
   const aLaFecha = valorAlCierre(trimestres, year, hoy);
   const objetivo = meta?.target_value ?? 0;
-  const logro = anual === null ? null : attainment(anual, objetivo);
-  const logroFecha = aLaFecha === null ? null : attainment(aLaFecha, objetivo);
+  // Todo o nada frente a la meta: por debajo no aporta (ni resta), y alcanzarla aporta
+  // el peso entero. El mismo logro puntúa en el TOTAL, para que nota y aporte cuadren.
+  const logro = anual === null ? null : attainmentTodoONada(anual, objetivo);
+  const logroFecha = aLaFecha === null ? null : attainmentTodoONada(aLaFecha, objetivo);
   const peso = meta?.weight_pct ?? 0;
   return {
     def,
