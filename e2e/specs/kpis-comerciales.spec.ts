@@ -280,7 +280,8 @@ test("pulsar el porcentaje de tickets de febrero abre el detalle de sus episodio
  */
 const CELDA_PROMEDIO_ANUAL = 13;
 const CELDA_PROMEDIO_FECHA = 15;
-const CELDAS_RESUMEN_TOTAL = [2, 3, 4, 5];
+const CELDAS_PROMEDIO_TOTAL = [2, 4];
+const CELDAS_APORTE_TOTAL = [3, 5];
 /** Meses que cierran trimestre: bajo su importe va el cumplimiento del trimestre. */
 const CIERRES_TRIMESTRE = [3, 6, 9, 12];
 
@@ -306,10 +307,15 @@ test("la tabla separa el promedio y el aporte anuales de los de a la fecha", asy
 
   // Semilla (e2e/db/seed-app.mjs): ventas nuevos pesa 60 y no tiene ningun cliente nuevo,
   // asi que cumple 0 %; ventas existentes pesa 40 y supera su meta en todos los
-  // trimestres, topada al 100 %. Nota (0 * 60 + 100 * 40) / 100 = 40 % y aporte 0 + 40.
-  // Vale en cualquier mes: los dos KPIs tienen dato en todos los trimestres del anio.
+  // trimestres, topada al 100 %: el aporte suma 0 + 40. Vale en cualquier mes: los dos
+  // KPIs tienen dato en todos los trimestres del anio.
+  // Bajo los promedios el TOTAL va vacio: el usuario lo quito porque, con toda la
+  // cobertura, repetia la suma de aportes y se leia como un promedio mas.
   const total = card.getByRole("row", { name: /^TOTAL/ });
-  for (const i of CELDAS_RESUMEN_TOTAL) {
+  for (const i of CELDAS_PROMEDIO_TOTAL) {
+    await expect(total.getByRole("cell").nth(i)).toHaveText("");
+  }
+  for (const i of CELDAS_APORTE_TOTAL) {
     await expect(total.getByRole("cell").nth(i)).toHaveText("40.0%");
   }
   // Los mismos KPIs tienen dato y peso en los dos calculos: la cobertura sale una vez.

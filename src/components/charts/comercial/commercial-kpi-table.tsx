@@ -686,15 +686,14 @@ export function CommercialKpiTable({
                       <td colSpan={MESES} />
                       {/* Sin nada medible el aporte es «—» y no 0.0%: un cero se leería como
                           un suspenso, y en un año futuro a la fecha no hay nada que medir. */}
-                      <td className="px-1.5 py-2 text-right font-semibold tabular-nums align-top">
-                        {marcador.total === null ? "—" : formatPct(marcador.total)}
-                      </td>
+                      {/* Bajo los promedios no va nada: con toda la cobertura la nota
+                          renormalizada repetía la suma de aportes y se leía como un promedio
+                          más. El TOTAL es la suma de aportes. */}
+                      <td />
                       <td className="px-1.5 py-2 text-right font-semibold tabular-nums align-top">
                         {marcador.total === null ? "—" : formatPct(aporteTotal)}
                       </td>
-                      <td className="px-1.5 py-2 text-right font-semibold tabular-nums align-top">
-                        {marcadorFecha.total === null ? "—" : formatPct(marcadorFecha.total)}
-                      </td>
+                      <td />
                       <td className="px-1.5 py-2 text-right font-semibold tabular-nums align-top">
                         {marcadorFecha.total === null ? "—" : formatPct(aporteTotalFecha)}
                       </td>
