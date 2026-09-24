@@ -236,6 +236,22 @@ export function periodTotals(monthly: number[], period: KpiPeriod): number[] {
 }
 
 /**
+ * Cuántos periodos del año cuentan para el promedio a la fecha: los ya transcurridos,
+ * incluido el que está en curso. Durante el año, los periodos que aún no han llegado
+ * valen 0 y, promediados, hunden la nota sin decir nada del trabajo hecho. Un año
+ * cerrado cuenta todos (a la fecha coincide con el anual) y uno futuro ninguno.
+ * El mes se lee con getMonth(), en hora local, igual que valorAlCierre: las dos cifras
+ * de la tabla tienen que estar de acuerdo en qué trimestre es hoy.
+ */
+export function periodosTranscurridos(period: KpiPeriod, year: number, hoy: Date): number {
+  const paso = MESES_POR_CUBO[period];
+  const actual = hoy.getFullYear();
+  if (year < actual) return MESES / paso;
+  if (year > actual) return 0;
+  return Math.ceil((hoy.getMonth() + 1) / paso);
+}
+
+/**
  * Cumplimiento en porcentaje. Devuelve null cuando no hay meta con la que comparar:
  * un cero ahí significaría "no cumplió", y lo cierto es que no se puede saber.
  */
