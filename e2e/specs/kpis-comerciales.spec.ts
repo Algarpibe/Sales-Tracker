@@ -272,3 +272,78 @@ test("pulsar el porcentaje de tickets de febrero abre el detalle de sus episodio
   await expect(noCuentan).toContainText("Excluido (rechazo)");
   await expect(noCuentan).toContainText("Por Facturar");
 });
+
+/**
+ * Columnas de resumen, tras Dic. En una fila de KPI la celda 0 es la etiqueta y las 1-12
+ * son los meses, asi que el resumen va de la 13 a la 16. En la fila TOTAL los doce meses
+ * son una sola celda (colSpan), asi que alli van de la 2 a la 5.
+ */
+const CELDA_PROMEDIO_ANUAL = 13;
+const CELDA_PROMEDIO_FECHA = 15;
+const CELDAS_RESUMEN_TOTAL = [2, 3, 4, 5];
+/** Meses que cierran trimestre: bajo su importe va el cumplimiento del trimestre. */
+const CIERRES_TRIMESTRE = [3, 6, 9, 12];
+
+/** Ultimo porcentaje del texto de una celda: en un mes de cierre, el cumplimiento. */
+function ultimoPct(texto: string): number {
+  const pcts = [...texto.matchAll(/(-?[\d.]+)%/g)];
+  if (pcts.length === 0) throw new Error(`sin porcentaje en "${texto}"`);
+  return Number(pcts[pcts.length - 1][1]);
+}
+
+test("la tabla separa el promedio y el aporte anuales de los de a la fecha", async ({ page }) => {
+  const card = await abrirComercial(page);
+  await expect(card.getByText("TOTAL", { exact: true })).toBeVisible();
+
+  const cabeceras = await card.getByRole("columnheader").allInnerTexts();
+  expect(cabeceras.slice(-5)).toEqual([
+    "Dic",
+    "Promedio anual",
+    "Aporte anual",
+    "Promedio a la fecha",
+    "Aporte a la fecha",
+  ]);
+
+  // Semilla (e2e/db/seed-app.mjs): ventas nuevos pesa 60 y no tiene ningun cliente nuevo,
+  // asi que cumple 0 %; ventas existentes pesa 40 y supera su meta en todos los
+  // trimestres, topada al 100 %. Nota (0 * 60 + 100 * 40) / 100 = 40 % y aporte 0 + 40.
+  // Vale en cualquier mes: los dos KPIs tienen dato en todos los trimestres del anio.
+  const total = card.getByRole("row", { name: /^TOTAL/ });
+  for (const i of CELDAS_RESUMEN_TOTAL) {
+    await expect(total.getByRole("cell").nth(i)).toHaveText("40.0%");
+  }
+  // Los mismos KPIs tienen dato y peso en los dos calculos: la cobertura sale una vez.
+  await expect(total).toContainText("cobertura: 100.0% del peso");
+  await expect(total).not.toContainText("cobertura a la fecha");
+});
+
+test("el promedio a la fecha de ventas existentes solo cuenta los trimestres transcurridos", async ({ page }) => {
+  const card = await abrirComercial(page);
+  const celdas = card.getByRole("row", { name: /Ventas clientes existentes/ }).getByRole("cell");
+  // Espera a la tabla con datos antes de leer textos sueltos.
+  await expect(celdas.nth(CELDA_PROMEDIO_FECHA)).toHaveText(/%$/);
+
+  const cumplimientos: number[] = [];
+  for (const mes of CIERRES_TRIMESTRE) {
+    cumplimientos.push(ultimoPct(await celdas.nth(mes).innerText()));
+  }
+  const anual = ultimoPct(await celdas.nth(CELDA_PROMEDIO_ANUAL).innerText());
+  const fecha = ultimoPct(await celdas.nth(CELDA_PROMEDIO_FECHA).innerText());
+
+  // Mismo criterio que periodosTranscurridos para un KPI trimestral del anio en curso, con
+  // el reloj del sistema, que es tambien el del navegador: el test vale cualquier mes.
+  const transcurridos = Math.ceil((new Date().getMonth() + 1) / 3);
+  const media = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
+  // Cada cumplimiento de la celda llega redondeado a un decimal y el promedio de la tabla
+  // se calcula sin redondear: pueden separarse hasta 0.05, y se deja 0.1 de margen.
+  expect(Math.abs(anual - media(cumplimientos))).toBeLessThanOrEqual(0.1);
+  expect(Math.abs(fecha - media(cumplimientos.slice(0, transcurridos)))).toBeLessThanOrEqual(0.1);
+
+  // La semilla (e2e/db/seed-hub.mjs) tiene ventas tambien en los meses que aun no han
+  // llegado. Los trimestres no crecen de forma monotona (en facturas solo hay meses
+  // pares y T3 queda por debajo de T2), pero el T4 es el mayor y T3+T4 superan a T1+T2:
+  // por eso a la fecha queda por debajo del anual hasta el ultimo trimestre, en el que
+  // los dos cuentan lo mismo.
+  if (transcurridos < 4) expect(fecha).toBeLessThan(anual);
+  else expect(fecha).toBe(anual);
+});

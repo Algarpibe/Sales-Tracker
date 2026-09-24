@@ -209,6 +209,21 @@ export function valorAlCierre(
   return serie[trimestre] ?? null;
 }
 
+/**
+ * Valor de la serie al cierre del año, el T4: la cifra anual de una variación
+ * acumulada. Se pide a valorAlCierre con el 31 de diciembre para no duplicar su
+ * lógica, pero antes se descarta el año futuro: con esa fecha, valorAlCierre lo
+ * tomaría por el año en curso y devolvería un T4 que todavía no ha pasado.
+ */
+export function valorAlCierreDelAnio(
+  serie: (number | null)[],
+  year: number,
+  hoy: Date
+): number | null {
+  if (year > hoy.getFullYear()) return null;
+  return valorAlCierre(serie, year, new Date(year, 11, 31));
+}
+
 export function sumByMonth(rows: MonthAmountRow[]): number[] {
   const out = doceCeros();
   for (const r of rows) {
@@ -233,6 +248,22 @@ export function periodTotals(monthly: number[], period: KpiPeriod): number[] {
     out.push(monthly.slice(i, i + paso).reduce((a, b) => a + b, 0));
   }
   return out;
+}
+
+/**
+ * Cuántos periodos del año cuentan para el promedio a la fecha: los ya transcurridos,
+ * incluido el que está en curso. Durante el año, los periodos que aún no han llegado
+ * valen 0 y, promediados, hunden la nota sin decir nada del trabajo hecho. Un año
+ * cerrado cuenta todos (a la fecha coincide con el anual) y uno futuro ninguno.
+ * El mes se lee con getMonth(), en hora local, igual que valorAlCierre: las dos cifras
+ * de la tabla tienen que estar de acuerdo en qué trimestre es hoy.
+ */
+export function periodosTranscurridos(period: KpiPeriod, year: number, hoy: Date): number {
+  const paso = MESES_POR_CUBO[period];
+  const actual = hoy.getFullYear();
+  if (year < actual) return MESES / paso;
+  if (year > actual) return 0;
+  return Math.ceil((hoy.getMonth() + 1) / paso);
 }
 
 /**

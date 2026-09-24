@@ -7,7 +7,9 @@ import {
   sumByMonth,
   ofYear,
   valorAlCierre,
+  valorAlCierreDelAnio,
   periodTotals,
+  periodosTranscurridos,
   attainment,
   kpiAverage,
   kpiContribution,
@@ -391,5 +393,75 @@ describe("valorAlCierre", () => {
   });
   it("sin dato en ese trimestre no inventa uno", () => {
     expect(valorAlCierre([10, null, 5, 5], 2026, new Date(2026, 4, 1))).toBeNull();
+  });
+});
+
+describe("periodosTranscurridos", () => {
+  // Las fechas se construyen en hora local, igual que las lee la funcion con getMonth():
+  // es el mismo criterio que valorAlCierre.
+  const cuenta = (hoy: Date, year = 2026) => [
+    periodosTranscurridos("mensual", year, hoy),
+    periodosTranscurridos("trimestral", year, hoy),
+    periodosTranscurridos("semestral", year, hoy),
+  ];
+
+  it("un anio ya cerrado cuenta todos sus periodos", () => {
+    expect(cuenta(new Date(2026, 8, 24), 2025)).toEqual([12, 4, 2]);
+  });
+  it("un anio futuro no cuenta ninguno", () => {
+    expect(cuenta(new Date(2026, 8, 24), 2027)).toEqual([0, 0, 0]);
+  });
+  it("en enero cuenta el primer periodo de cada clase, que ya esta en curso", () => {
+    expect(cuenta(new Date(2026, 0, 1))).toEqual([1, 1, 1]);
+  });
+  it("el ultimo dia de marzo sigue en el primer trimestre", () => {
+    expect(cuenta(new Date(2026, 2, 31))).toEqual([3, 1, 1]);
+  });
+  it("el primer dia de abril ya cuenta el segundo trimestre", () => {
+    expect(cuenta(new Date(2026, 3, 1))).toEqual([4, 2, 1]);
+  });
+  it("el ultimo dia de junio sigue en el primer semestre", () => {
+    expect(cuenta(new Date(2026, 5, 30))).toEqual([6, 2, 1]);
+  });
+  it("el primer dia de julio ya cuenta el segundo semestre", () => {
+    expect(cuenta(new Date(2026, 6, 1))).toEqual([7, 3, 2]);
+  });
+  it("en diciembre cuenta todo el anio, igual que uno cerrado", () => {
+    expect(cuenta(new Date(2026, 11, 31))).toEqual([12, 4, 2]);
+  });
+});
+
+describe("promedio a la fecha", () => {
+  // Cumplimiento trimestral de un anio en curso: los dos trimestres que aun no han
+  // llegado valen 0 % y hunden la media anual.
+  const cumplimiento = [120, 80, 0, 0];
+  const aLaFecha = (hoy: Date, year = 2026) =>
+    kpiAverage(cumplimiento.slice(0, periodosTranscurridos("trimestral", year, hoy)));
+
+  it("excluye los periodos futuros que valen 0", () => {
+    expect(kpiAverage(cumplimiento)).toBe(50);
+    expect(aLaFecha(new Date(2026, 5, 15))).toBe(100);
+  });
+  it("en un anio cerrado es igual que el anual", () => {
+    expect(aLaFecha(new Date(2027, 1, 1))).toBe(kpiAverage(cumplimiento));
+  });
+  it("en un anio futuro no hay nada que promediar", () => {
+    expect(aLaFecha(new Date(2025, 5, 15))).toBeNull();
+  });
+});
+
+describe("valorAlCierreDelAnio", () => {
+  // Es la cifra anual del incremento de Servicio Tecnico: la del T4, no la del
+  // trimestre en curso, que es la de a la fecha.
+  const serie = [106, 67, 26.4, -8.3];
+  it("en el anio en curso es el de diciembre aunque estemos en septiembre", () => {
+    expect(valorAlCierreDelAnio(serie, 2026, new Date(2026, 8, 24))).toBe(-8.3);
+  });
+  it("en un anio cerrado es el de diciembre, igual que a la fecha", () => {
+    expect(valorAlCierreDelAnio(serie, 2025, new Date(2026, 8, 24))).toBe(-8.3);
+    expect(valorAlCierre(serie, 2025, new Date(2026, 8, 24))).toBe(-8.3);
+  });
+  it("un anio futuro no tiene valor, aunque la serie traiga diciembre", () => {
+    expect(valorAlCierreDelAnio(serie, 2027, new Date(2026, 8, 24))).toBeNull();
   });
 });

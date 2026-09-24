@@ -18,7 +18,7 @@ export const CHART_HELP = {
   bucketByClient: "Importe por cliente desglosado en las 4 macro-categorías, para ver el mix de cada cliente.",
   bucketMixAnual: "Evolución anual del reparto entre las 4 macro-categorías (barras apiladas).",
   clientePareto: "Clientes ordenados por importe con su % acumulado (regla 80/20): cuántos clientes concentran la mayoría de las ventas.",
-  kpisComerciales: "Cumplimiento de cada KPI frente a su meta, por periodo. El promedio es la media de los periodos medidos y el aporte aplica el peso, topado al 100%. El TOTAL se calcula solo sobre los KPIs que hoy tienen datos y la cobertura dice cuánto peso respalda esa nota.",
+  kpisComerciales: "Cumplimiento de cada KPI frente a su meta, por periodo. El promedio anual es la media de todos los periodos medidos del año; el promedio a la fecha, solo la de los ya transcurridos, incluido el que está en curso, para que los que aún no han llegado no resten. El aporte aplica el peso, topado al 100%. El TOTAL se calcula solo sobre los KPIs que hoy tienen datos y la cobertura dice cuánto peso respalda esa nota.",
   monthHeatmap: "Intensidad de ventas por cliente y mes: colores más fuertes = más importe. Ayuda a detectar estacionalidad por cliente.",
   nuevosVsRecurrentes: "Importe de clientes nuevos (primera compra en el año) frente a recurrentes, mes a mes.",
   estacionalidadCategoria: "Reparto mensual del importe por macro-categoría (barras apiladas): en qué meses pesa más cada tipo de negocio.",
