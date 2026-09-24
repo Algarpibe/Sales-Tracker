@@ -340,8 +340,10 @@ test("el promedio a la fecha de ventas existentes solo cuenta los trimestres tra
   expect(Math.abs(fecha - media(cumplimientos.slice(0, transcurridos)))).toBeLessThanOrEqual(0.1);
 
   // La semilla (e2e/db/seed-hub.mjs) tiene ventas tambien en los meses que aun no han
-  // llegado y cada mes factura mas que el anterior: a la fecha queda por debajo del anual
-  // hasta el ultimo trimestre, en el que los dos cuentan lo mismo.
+  // llegado. Los trimestres no crecen de forma monotona (en facturas solo hay meses
+  // pares y T3 queda por debajo de T2), pero el T4 es el mayor y T3+T4 superan a T1+T2:
+  // por eso a la fecha queda por debajo del anual hasta el ultimo trimestre, en el que
+  // los dos cuentan lo mismo.
   if (transcurridos < 4) expect(fecha).toBeLessThan(anual);
   else expect(fecha).toBe(anual);
 });
