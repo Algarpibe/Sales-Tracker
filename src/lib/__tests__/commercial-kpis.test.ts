@@ -8,6 +8,8 @@ import {
   isExcludedSalesperson,
   kpiDef,
   parseExcludedSalespeople,
+  puedeEditarMetas,
+  ROLES_EDITAN_METAS,
 } from "@/lib/commercial-kpis";
 
 describe("catalogo de KPIs comerciales", () => {
@@ -94,5 +96,25 @@ describe("fases ganadoras", () => {
   });
   it("ninguna fase ganadora esta vacia", () => {
     for (const f of WON_DEAL_STAGES) expect(f.trim()).not.toBe("");
+  });
+});
+
+describe("permisos sobre las metas de KPIs", () => {
+  it("admin y editor las editan", () => {
+    expect(puedeEditarMetas("admin")).toBe(true);
+    expect(puedeEditarMetas("editor")).toBe(true);
+  });
+
+  it("el lector solo las ve", () => {
+    expect(puedeEditarMetas("lector")).toBe(false);
+  });
+
+  it("sin perfil cargado no se edita", () => {
+    expect(puedeEditarMetas(undefined)).toBe(false);
+    expect(puedeEditarMetas(null)).toBe(false);
+  });
+
+  it("la accion del servidor admite exactamente los roles que editan", () => {
+    expect([...ROLES_EDITAN_METAS].sort()).toEqual(["admin", "editor"]);
   });
 });

@@ -11,7 +11,7 @@ import {
   type KpiScope,
   type KpiTargetRow,
 } from "@/actions/kpi-actions";
-import { COMMERCIAL_KPIS, KPI_UNIT_LABEL, getKpiYearRange } from "@/lib/commercial-kpis";
+import { COMMERCIAL_KPIS, KPI_UNIT_LABEL, getKpiYearRange, puedeEditarMetas } from "@/lib/commercial-kpis";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,11 +57,13 @@ function KpiTargetsFields({
   year,
   salesperson,
   rows,
+  editable,
   onSaved,
 }: {
   year: number;
   salesperson: KpiScope;
   rows: KpiTargetRow[];
+  editable: boolean;
   onSaved: () => void;
 }) {
   const [edits, setEdits] = useState<Draft>({});
@@ -126,6 +128,7 @@ function KpiTargetsFields({
               aria-label={`Meta de ${k.label}`}
               placeholder={KPI_UNIT_LABEL[k.unit]}
               inputMode="decimal"
+              readOnly={!editable}
               value={draft[k.key]?.target ?? ""}
               onChange={(e) => editar(k.key, "target", e.target.value)}
             />
@@ -133,20 +136,24 @@ function KpiTargetsFields({
               aria-label={`Peso de ${k.label}`}
               placeholder="%"
               inputMode="decimal"
+              readOnly={!editable}
               value={draft[k.key]?.weight ?? ""}
               onChange={(e) => editar(k.key, "weight", e.target.value)}
             />
           </div>
         ))}
       </div>
-      <div className="flex items-center justify-between gap-4 border-t border-white/10 pt-4">
-        <span className={valido ? "text-sm text-muted-foreground" : "text-sm text-destructive"}>
-          Suma de pesos: {Math.round(suma * 100) / 100}%
-        </span>
-        <Button onClick={guardar} disabled={!valido || saving}>
-          {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} Guardar metas
-        </Button>
-      </div>
+      {/* El lector solo consulta: sin botón, y la suma en rojo no le serviría de nada. */}
+      {editable && (
+        <div className="flex items-center justify-between gap-4 border-t border-white/10 pt-4">
+          <span className={valido ? "text-sm text-muted-foreground" : "text-sm text-destructive"}>
+            Suma de pesos: {Math.round(suma * 100) / 100}%
+          </span>
+          <Button onClick={guardar} disabled={!valido || saving}>
+            {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} Guardar metas
+          </Button>
+        </div>
+      )}
     </>
   );
 }
@@ -157,13 +164,16 @@ export function KpiTargetsForm() {
   const [year, setYear] = useState(() => new Date().getFullYear());
   const [scope, setScope] = useState<string>(TOTAL);
 
-  const esAdmin = profile?.role === "admin";
+  // Todo usuario aprobado ve las metas; editarlas depende del rol. El servidor
+  // aplica la misma regla, esto solo evita ofrecer lo que luego rechazaría.
+  const conPerfil = !!profile;
+  const editable = puedeEditarMetas(profile?.role);
   const salesperson: KpiScope = scope === TOTAL ? null : scope;
 
   const vendedoresQ = useQuery({
     queryKey: ["kpi-salespeople"],
     queryFn: () => getSalespeople(),
-    enabled: esAdmin,
+    enabled: conPerfil,
   });
 
   // `data` sin definir es el estado de carga fiable aquí: mientras la consulta
@@ -171,10 +181,10 @@ export function KpiTargetsForm() {
   const { data } = useQuery({
     queryKey: ["kpi-targets", year, scope],
     queryFn: () => getKpiTargets(year, salesperson),
-    enabled: esAdmin,
+    enabled: conPerfil,
   });
 
-  if (!esAdmin) return null;
+  if (!conPerfil) return null;
 
   return (
     <Card className="border-border/40 bg-card/30 backdrop-blur-sm">
@@ -184,7 +194,9 @@ export function KpiTargetsForm() {
             <Target className="size-4 text-primary" /> Metas de KPIs comerciales
           </CardTitle>
           <CardDescription>
-            Meta y peso de cada KPI para el año y el ámbito elegidos. Solo se guardan los KPIs con peso, y los pesos de cada ámbito deben sumar 100.
+            {editable
+              ? "Meta y peso de cada KPI para el año y el ámbito elegidos. Solo se guardan los KPIs con peso, y los pesos de cada ámbito deben sumar 100."
+              : "Meta y peso de cada KPI para el año y el ámbito elegidos. Solo lectura."}
           </CardDescription>
         </div>
         <div className="flex gap-2">
@@ -215,6 +227,7 @@ export function KpiTargetsForm() {
             year={year}
             salesperson={salesperson}
             rows={data}
+            editable={editable}
             onSaved={() => { queryClient.invalidateQueries({ queryKey: ["kpi-targets", year, scope] }); }}
           />
         )}

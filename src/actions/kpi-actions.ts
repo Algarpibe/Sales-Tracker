@@ -16,6 +16,7 @@ import {
   type HubOrderRow,
 } from "@/db/hub-kpi";
 import { requireApproved, requireRole } from "@/lib/auth/guards";
+import { ROLES_EDITAN_METAS } from "@/lib/commercial-kpis";
 import { kpiTargetsSchema } from "@/lib/validation";
 import { runAction, type ActionResult } from "@/lib/errors";
 import type { DealMonthRow } from "@/lib/kpi-score";
@@ -68,7 +69,7 @@ export async function saveKpiTargets(
   items: KpiTargetRow[]
 ): Promise<ActionResult> {
   return runAction(async () => {
-    const { profile } = await requireRole("admin");
+    const { profile } = await requireRole(...ROLES_EDITAN_METAS);
     const data = kpiTargetsSchema.parse({ year, salesperson, items });
     const keys = data.items.map((i) => i.kpi_key);
 
