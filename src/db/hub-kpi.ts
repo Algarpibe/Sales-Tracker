@@ -92,24 +92,32 @@ export async function getHubDealsMonth(f: {
   }));
 }
 
-// Tratos ganados por cuenta y mes. Se cuenta por closing_date y no por created_time: es
-// la fecha de negocio del cierre, y al ser date no arrastra zona horaria. El filtro por
-// fase es imprescindible: las fases abiertas llevan fecha de cierre PREVISTA, que cae
-// en el futuro, y sin filtrar contaminarian el conteo.
+// Tratos ganados por cuenta y mes. Se cuenta por stage_modified_time, el instante en que
+// el trato entro en su fase actual segun Zoho CRM, y no por closing_date: esa la rellena
+// el comercial a mano y puede caer en otro mes. Como solo se miran tratos que ESTAN en
+// una fase ganada, es la hora en que se gano; si sale de la fase deja de contar, y si
+// vuelve cuenta en el mes de la ultima entrada, porque Zoho reescribe esa hora.
+// El mes se toma en hora de Bogota: un trato ganado a las 21:00 del 31 es de ese mes
+// aunque en UTC ya sea el dia 1.
+// Un ganado con stage_modified_time nula NO cuenta y no se recurre a closing_date: la
+// columna la rellena el worker hub-sync de ambientalia-desk, y mezclar los dos criterios
+// ocultaria que el worker no ha terminado. Por eso esta consulta solo se despliega con
+// el barrido del worker a 0 pendientes.
 export async function getHubWonDealsMonth(f: {
   anio: number;
   owner: string | null;
 }): Promise<DealMonthRow[]> {
   const sql = `
     SELECT d.account_name,
-           extract(month from d.closing_date)::int AS mes,
+           extract(month from d.stage_modified_time AT TIME ZONE 'America/Bogota')::int AS mes,
            count(*)::int AS tratos
     FROM crm.deals d
-    WHERE extract(year from d.closing_date) = $1
+    WHERE d.stage_modified_time IS NOT NULL
+      AND extract(year from d.stage_modified_time AT TIME ZONE 'America/Bogota') = $1
       AND d.stage = ANY($2::text[])
       AND d.account_name IS NOT NULL
       AND ($3::text IS NULL OR d.owner_name = $3)
-    GROUP BY d.account_name, extract(month from d.closing_date)`;
+    GROUP BY d.account_name, extract(month from d.stage_modified_time AT TIME ZONE 'America/Bogota')`;
   const { rows } = await getHubPool().query(sql, [f.anio, [...WON_DEAL_STAGES], f.owner]);
   return rows.map((r) => ({
     account_name: String(r.account_name),
