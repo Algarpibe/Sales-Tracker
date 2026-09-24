@@ -263,21 +263,69 @@ export async function seedHub(connectionString) {
       // viendo exactamente un trato nuevo y uno existente por mes.
       const cierre = `${CURRENT_YEAR}-${String(month).padStart(2, "0")}-20`;
       const apertura = `${CURRENT_YEAR - 1}-${String(month).padStart(2, "0")}-15T10:00:00Z`;
+      // Hora en que el ganado entro en la fase: el dia 20 de su mes a las 10:00 de Bogota,
+      // el mismo mes que su closing_date, asi que estos doce no distinguen las reglas; eso
+      // lo hacen los GANADOS_ESPECIALES de abajo. Los abiertos y el perdido la llevan nula,
+      // como en el hub real, donde el worker solo la rellena en los ganados.
+      const entrada = instanteBogota(CURRENT_YEAR, month, 20, 10);
       const tratos = [
-        [`DEAL-E-${month}`, `Trato existente ${month}`, existente, "Negociacion", 1000, fecha, previsto],
-        [`DEAL-N-${month}`, `Trato nuevo ${month}`, CUENTA_NUEVA, "Negociacion", 2000, fecha, previsto],
-        [`DEAL-G-${month}`, `Trato ganado ${month}`, existente, FASE_GANADA, 3000, apertura, cierre],
-        [`DEAL-P-${month}`, `Trato perdido ${month}`, CUENTA_NUEVA, FASE_PERDIDA, 4000, apertura, cierre],
+        [`DEAL-E-${month}`, `Trato existente ${month}`, existente, "Negociacion", 1000, fecha, previsto, null],
+        [`DEAL-N-${month}`, `Trato nuevo ${month}`, CUENTA_NUEVA, "Negociacion", 2000, fecha, previsto, null],
+        [`DEAL-G-${month}`, `Trato ganado ${month}`, existente, FASE_GANADA, 3000, apertura, cierre, entrada],
+        [`DEAL-P-${month}`, `Trato perdido ${month}`, CUENTA_NUEVA, FASE_PERDIDA, 4000, apertura, cierre, null],
       ];
-      for (const [id, nombre, cuenta, fase, importe, creado, cerrado] of tratos) {
+      for (const [id, nombre, cuenta, fase, importe, creado, cerrado, entroEnFase] of tratos) {
         await client.query(
-          `INSERT INTO crm.deals (id, deal_name, account_name, owner_name, stage, amount, created_time, closing_date)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-          [id, nombre, cuenta, vendedor, fase, importe, creado, cerrado],
+          `INSERT INTO crm.deals (id, deal_name, account_name, owner_name, stage, amount, created_time, closing_date, stage_modified_time)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+          [id, nombre, cuenta, vendedor, fase, importe, creado, cerrado, entroEnFase],
         );
       }
       deals += tratos.length;
     }
+
+    // Tres ganados que separan la regla del KPI (mes de stage_modified_time en hora de
+    // Bogota) de la vieja (closing_date) y del mes UTC. Cuentas INVENTADAS: el
+    // repositorio es publico. Se crean el anio anterior, como los DEAL-G, para no tocar
+    // las filas de generacion de tratos. Los conteos esperados, mes a mes, estan en
+    // docs/superpowers/plans/2026-09-24-tratos-ganados-fase-crm-salestracker.md.
+    const GANADOS_ESPECIALES = [
+      // Entro en la fase el 1 de abril a las 02:00 UTC, que en Bogota son las 21:00 del
+      // 31 de marzo: cuenta en MARZO. Por closing_date y por el mes UTC seria de abril.
+      {
+        id: "DEAL-GX-FRONTERA",
+        nombre: "Trato ganado frontera",
+        cuenta: "Cuenta Ficticia Frontera",
+        cierre: `${CURRENT_YEAR}-04-01`,
+        entrada: new Date(Date.UTC(CURRENT_YEAR, 3, 1, 2)).toISOString(),
+      },
+      // El comercial puso cierre el 30 de junio, pero entro en la fase el 2 de julio:
+      // cuenta en JULIO. Es el caso que motiva el cambio: closing_date es manual.
+      {
+        id: "DEAL-GX-MES",
+        nombre: "Trato ganado mes distinto",
+        cuenta: "Cuenta Ficticia Mes Distinto",
+        cierre: `${CURRENT_YEAR}-06-30`,
+        entrada: instanteBogota(CURRENT_YEAR, 7, 2, 10),
+      },
+      // Ganado sin hora de entrada: el worker todavia no leyo su ficha. NO cuenta en
+      // ningun mes (regla 4 de la spec) aunque tenga closing_date de septiembre.
+      {
+        id: "DEAL-GX-SIN-HORA",
+        nombre: "Trato ganado sin hora",
+        cuenta: "Cuenta Ficticia Sin Hora",
+        cierre: `${CURRENT_YEAR}-09-15`,
+        entrada: null,
+      },
+    ];
+    for (const g of GANADOS_ESPECIALES) {
+      await client.query(
+        `INSERT INTO crm.deals (id, deal_name, account_name, owner_name, stage, amount, created_time, closing_date, stage_modified_time)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+        [g.id, g.nombre, g.cuenta, VENDEDORES[0], FASE_GANADA, 3000, `${CURRENT_YEAR - 1}-03-15T10:00:00Z`, g.cierre, g.entrada],
+      );
+    }
+    deals += GANADOS_ESPECIALES.length;
 
     for (const cuenta of CUENTAS_FICTICIAS) {
       await client.query(`INSERT INTO desk.accounts (id, name) VALUES ($1, $2)`, [cuenta.id, cuenta.name]);

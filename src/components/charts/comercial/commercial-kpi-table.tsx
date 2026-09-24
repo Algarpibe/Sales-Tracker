@@ -277,8 +277,9 @@ export function CommercialKpiTable({
     queryFn: () => getKpiDealsMonthly(year, salesperson),
     placeholderData: keepPreviousData,
   });
-  // Los ganados van aparte de los generados: se cuentan por fecha de cierre y
-  // filtrando por la fase ganadora, asi que no se pueden deducir de los de arriba.
+  // Los ganados van aparte de los generados: se cuentan por el mes (en hora de Bogota)
+  // en que el trato entro en la fase ganadora, filtrando por ella, asi que no se pueden
+  // deducir de los de arriba.
   const ganadosQ = useQuery({
     queryKey: ["kpi-won-deals", year, owner],
     queryFn: () => getKpiWonDealsMonthly(year, salesperson),

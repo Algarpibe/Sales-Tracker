@@ -60,9 +60,15 @@ CREATE TABLE crm.deals (
   stage        text,
   amount       numeric,
   created_time timestamptz,
-  -- Fecha de negocio del cierre, la que cuenta para el KPI de tratos ganados.
-  -- Es date y no timestamptz: no arrastra zona horaria.
-  closing_date date
+  -- Fecha de cierre que el comercial rellena a mano en Zoho CRM. El KPI de tratos
+  -- ganados ya NO la usa: la semilla la hace discrepar a proposito de
+  -- stage_modified_time para que los E2E distingan las dos reglas.
+  closing_date date,
+  -- Instante en que el trato entro en su fase actual (Stage_Modified_Time de Zoho).
+  -- El KPI de tratos ganados cuenta por su mes en hora de Bogota. En el hub real la
+  -- rellena el worker hub-sync solo en los tratos ganados; nula = todavia no leyo la
+  -- ficha del trato, y ese trato no cuenta.
+  stage_modified_time timestamptz
 );
 
 -- El hub real replica tambien Zoho Desk. Aqui solo va el historial de tickets, con
