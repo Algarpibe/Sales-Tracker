@@ -25,7 +25,8 @@ import { firstYearByCustomer } from "@/lib/analytics-comercial";
 import { COMMERCIAL_KPIS, KPI_UNIT_LABEL, type KpiDef, type KpiUnit } from "@/lib/commercial-kpis";
 import {
   attainment, esTratoDeClienteNuevo, esVentaDeClienteNuevo, kpiAverage, kpiContribution,
-  monthBreakdown, ofYear, periodTotals, valorAlCierre, scoreboard, splitDealsNewExisting, splitNewExisting, sumByMonth, toMonthlySeries,
+  monthBreakdown, ofYear, periodosTranscurridos, periodTotals, valorAlCierre, valorAlCierreDelAnio, scoreboard,
+  splitDealsNewExisting, splitNewExisting, sumByMonth, toMonthlySeries,
   type BreakdownInput,
 } from "@/lib/kpi-score";
 import { customerHref } from "@/lib/customer-detail";
@@ -98,24 +99,40 @@ interface FilaKpi {
   meses: (number | null)[];
   /** Cumplimiento del periodo, colgado del mes que lo cierra. */
   cierres: (number | null)[];
+  /** Sobre todos los periodos del año. */
   promedio: number | null;
   /** Cumplimiento que puntúa en el TOTAL. Coincide con `promedio` salvo en el
    *  incremento de Servicio Técnico, cuya columna enseña el incremento en sí. */
   logro: number | null;
+  /** Como `promedio`, pero solo sobre los periodos transcurridos: durante el año,
+   *  los que aún no han llegado no restan. */
+  promedioFecha: number | null;
+  /** Como `logro`, a la fecha. Puntúa en el TOTAL a la fecha. */
+  logroFecha: number | null;
   peso: number;
   aporte: number | null;
+  aporteFecha: number | null;
+}
+
+/** Lo que una fila suma al TOTAL. Sin logro o sin peso no aporta nada: un 0 diría
+ *  que se midió y no se cumplió. */
+function aporteDe(logro: number | null, peso: number): number | null {
+  return logro === null || peso <= 0 ? null : kpiContribution(logro, peso);
 }
 
 /**
  * Una fila de la tabla. `periodos` son los valores ya agregados por periodo y
  * `mensual` la serie de doce meses cuando el KPI la tiene; cuando no, el valor
- * del periodo se enseña en el mes que lo cierra.
+ * del periodo se enseña en el mes que lo cierra. `year` y `hoy` deciden cuántos
+ * periodos cuentan para el promedio a la fecha.
  */
 function construirFila(
   def: KpiDef,
   periodos: (number | null)[],
   meta: KpiTargetRow | undefined,
-  mensual: number[] | null
+  mensual: number[] | null,
+  year: number,
+  hoy: Date
 ): FilaKpi {
   // attainment devuelve null sin meta: un cero diría "no cumplió" y lo cierto es
   // que en ese ámbito no hay con qué comparar.
@@ -129,6 +146,9 @@ function construirFila(
     cierres[cierre] = cumplimiento[i];
   }
   const promedio = kpiAverage(cumplimiento);
+  // Solo los periodos transcurridos, incluido el que está en curso. Se reutiliza
+  // kpiAverage: con la lista vacía de un año futuro ya devuelve null, «—».
+  const promedioFecha = kpiAverage(cumplimiento.slice(0, periodosTranscurridos(def.period, year, hoy)));
   const peso = meta?.weight_pct ?? 0;
   return {
     def,
@@ -136,37 +156,49 @@ function construirFila(
     cierres,
     promedio,
     logro: promedio,
+    promedioFecha,
+    logroFecha: promedioFecha,
     peso,
-    aporte: promedio === null || peso <= 0 ? null : kpiContribution(promedio, peso),
+    aporte: aporteDe(promedio, peso),
+    aporteFecha: aporteDe(promedioFecha, peso),
   };
 }
 
 /**
  * Fila del incremento de Servicio Técnico. Es una variación acumulada, así que no
- * se promedia: la columna Promedio enseña el valor del trimestre en curso, y bajo
- * cada trimestre no se pinta el cumplimiento (el incremento dividido por la meta,
- * que multiplicaba la cifra y confundía). El aporte sí compara ese valor con la
- * meta, igual que el resto de filas, para que el TOTAL siga midiendo cumplimiento.
+ * se promedia: la columna anual enseña el valor al cierre del año (T4) y la de a la
+ * fecha el del trimestre en curso; en un año cerrado coinciden. Bajo cada trimestre
+ * no se pinta el cumplimiento (el incremento dividido por la meta, que multiplicaba
+ * la cifra y confundía). El aporte sí compara cada valor con la meta, igual que el
+ * resto de filas, para que los dos TOTALES sigan midiendo cumplimiento.
  */
 function construirFilaIncremento(
   def: KpiDef,
   trimestres: (number | null)[],
   meta: KpiTargetRow | undefined,
-  alCierre: number | null
+  year: number,
+  hoy: Date
 ): FilaKpi {
   const paso = MESES / trimestres.length;
   const meses: (number | null)[] = new Array(MESES).fill(null);
   for (const [i, valor] of trimestres.entries()) meses[(i + 1) * paso - 1] = valor;
-  const logro = alCierre === null ? null : attainment(alCierre, meta?.target_value ?? 0);
+  const anual = valorAlCierreDelAnio(trimestres, year, hoy);
+  const aLaFecha = valorAlCierre(trimestres, year, hoy);
+  const objetivo = meta?.target_value ?? 0;
+  const logro = anual === null ? null : attainment(anual, objetivo);
+  const logroFecha = aLaFecha === null ? null : attainment(aLaFecha, objetivo);
   const peso = meta?.weight_pct ?? 0;
   return {
     def,
     meses,
     cierres: new Array(MESES).fill(null),
-    promedio: alCierre,
+    promedio: anual,
     logro,
+    promedioFecha: aLaFecha,
+    logroFecha,
     peso,
-    aporte: logro === null || peso <= 0 ? null : kpiContribution(logro, peso),
+    aporte: aporteDe(logro, peso),
+    aporteFecha: aporteDe(logroFecha, peso),
   };
 }
 
@@ -368,40 +400,44 @@ export function CommercialKpiTable({
       nuevo: true,
     }));
 
-    // Un solo instante para la fila de tickets y su detalle: si el detalle calculara el
-    // suyo al pulsar, un episodio abierto que cruzara las 12 horas entre medias haría que
-    // el pie dijera otra cosa que la celda.
-    const ahoraTickets = new Date().getTime();
+    // Un solo instante para todas las filas y para el detalle de tickets. Las filas lo
+    // usan para decidir cuántos periodos van ya a la fecha: si cada una tomara el suyo,
+    // un cambio de mes entre medias dejaría filas contando periodos distintos. El
+    // detalle de tickets reutiliza el mismo: si calculara el suyo al pulsar, un episodio
+    // abierto que cruzara las 12 horas entre medias haría que el pie dijera otra cosa
+    // que la celda.
+    const hoy = new Date();
+    const ahoraTickets = hoy.getTime();
 
     const filas = COMMERCIAL_KPIS.map((def) => {
       const meta = porClave.get(def.key);
       if (def.key === "ventas_nuevos") {
-        return construirFila(def, periodTotals(split.nuevos, def.period), meta, split.nuevos);
+        return construirFila(def, periodTotals(split.nuevos, def.period), meta, split.nuevos, year, hoy);
       }
       if (def.key === "ventas_existentes") {
-        return construirFila(def, periodTotals(split.existentes, def.period), meta, split.existentes);
+        return construirFila(def, periodTotals(split.existentes, def.period), meta, split.existentes, year, hoy);
       }
       if (def.key === "tratos_nuevos") {
         const serie = tratosSplit.nuevos;
-        return construirFila(def, periodTotals(serie, def.period), meta, serie);
+        return construirFila(def, periodTotals(serie, def.period), meta, serie, year, hoy);
       }
       if (def.key === "tratos_existentes") {
         const serie = tratosSplit.existentes;
-        return construirFila(def, periodTotals(serie, def.period), meta, serie);
+        return construirFila(def, periodTotals(serie, def.period), meta, serie, year, hoy);
       }
       if (def.key === "tratos_ganados") {
         const serie = toMonthlySeries(ganados);
-        return construirFila(def, periodTotals(serie, def.period), meta, serie);
+        return construirFila(def, periodTotals(serie, def.period), meta, serie, year, hoy);
       }
       if (def.key === "incremento_st") {
-        return construirFilaIncremento(def, st, meta, valorAlCierre(st, year, new Date()));
+        return construirFilaIncremento(def, st, meta, year, hoy);
       }
       if (def.key === "tickets_st") {
         // El porcentaje ya viene por mes: son los doce periodos de una fila mensual y
         // no hay serie aparte, así que construirFila lo pinta en su mes con el
-        // cumplimiento debajo. `ahora` decide qué episodios abiertos ya están fuera de
-        // plazo; new Date() como en el incremento de arriba.
-        return construirFila(def, ticketsEnPlazoPorMes(episodiosTickets, year, ahoraTickets), meta, null);
+        // cumplimiento debajo. `ahoraTickets` decide qué episodios abiertos ya están
+        // fuera de plazo. Los meses sin episodios son null y tampoco cuentan a la fecha.
+        return construirFila(def, ticketsEnPlazoPorMes(episodiosTickets, year, ahoraTickets), meta, null, year, hoy);
       }
       if (def.key === "ingresos_proyectos") {
         // date es un `date` de Postgres ('YYYY-MM-DD'), sin hora ni zona: se lee
@@ -410,19 +446,25 @@ export function CommercialKpiTable({
         const serie = sumByMonth(
           ordenesProyectoAnio.map((o) => ({ mes: Number(o.date.slice(5, 7)), importe: o.importe }))
         );
-        return construirFila(def, periodTotals(serie, def.period), meta, serie);
+        return construirFila(def, periodTotals(serie, def.period), meta, serie, year, hoy);
       }
-      return construirFila(def, new Array(cubosDe(def)).fill(null), meta, null);
+      return construirFila(def, new Array(cubosDe(def)).fill(null), meta, null, year, hoy);
     });
 
     return { filas, mensualesBreakdown, tratosBreakdown, ganadosBreakdown, ahoraTickets };
   }, [metas, mensuales, tratos, ganados, historico, registros, categorias, ordenesProyectoAnio, episodiosTickets, recordType, year]);
 
+  // Dos TOTALES con la misma regla de renormalización: el anual y el de a la fecha.
   const marcador = useMemo(
     () => scoreboard(filas.map((f) => ({ average: f.logro, weight: f.peso }))),
     [filas]
   );
+  const marcadorFecha = useMemo(
+    () => scoreboard(filas.map((f) => ({ average: f.logroFecha, weight: f.peso }))),
+    [filas]
+  );
   const aporteTotal = useMemo(() => filas.reduce((s, f) => s + (f.aporte ?? 0), 0), [filas]);
+  const aporteTotalFecha = useMemo(() => filas.reduce((s, f) => s + (f.aporteFecha ?? 0), 0), [filas]);
 
   const cargando =
     metasQ.isPending || mensualesQ.isPending || tratosQ.isPending || ganadosQ.isPending ||
@@ -526,8 +568,10 @@ export function CommercialKpiTable({
                       {MONTHS.map((m) => (
                         <th key={m.value} className="px-1.5 py-1.5 text-right font-medium text-muted-foreground min-w-[72px]">{m.label}</th>
                       ))}
-                      <th className="px-1.5 py-1.5 text-right font-medium text-muted-foreground min-w-[80px]">Promedio</th>
-                      <th className="px-1.5 py-1.5 text-right font-medium text-muted-foreground min-w-[72px]">Aporte</th>
+                      <th className="px-1.5 py-1.5 text-right font-medium text-muted-foreground min-w-[80px]">Promedio anual</th>
+                      <th className="px-1.5 py-1.5 text-right font-medium text-muted-foreground min-w-[72px]">Aporte anual</th>
+                      <th className="px-1.5 py-1.5 text-right font-medium text-muted-foreground min-w-[80px]">Promedio a la fecha</th>
+                      <th className="px-1.5 py-1.5 text-right font-medium text-muted-foreground min-w-[72px]">Aporte a la fecha</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -603,6 +647,12 @@ export function CommercialKpiTable({
                           <td className="px-1.5 py-2 text-right tabular-nums align-top">
                             {f.aporte === null ? "—" : formatPct(f.aporte)}
                           </td>
+                          <td className="px-1.5 py-2 text-right tabular-nums align-top">
+                            {f.promedioFecha === null ? "—" : formatPct(f.promedioFecha)}
+                          </td>
+                          <td className="px-1.5 py-2 text-right tabular-nums align-top">
+                            {f.aporteFecha === null ? "—" : formatPct(f.aporteFecha)}
+                          </td>
                         </tr>
                       );
                     })}
@@ -611,16 +661,40 @@ export function CommercialKpiTable({
                     <tr className="border-t border-white/10">
                       <td className="sticky left-0 z-10 bg-card py-2 pr-3 align-top">
                         <span className="font-semibold">TOTAL</span>
-                        <span className="block text-muted-foreground">
-                          cobertura: {formatPct(marcador.coverage)} del peso
-                        </span>
+                        {/* La cobertura depende de qué KPIs tienen dato y peso, no del periodo:
+                            casi siempre es la misma y se enseña una vez. Solo difiere si algún
+                            KPI tiene dato únicamente en periodos que aún no han llegado, y
+                            entonces se enseñan las dos para que ninguna nota parezca más
+                            respaldada de lo que está. */}
+                        {marcadorFecha.coverage === marcador.coverage ? (
+                          <span className="block text-muted-foreground">
+                            cobertura: {formatPct(marcador.coverage)} del peso
+                          </span>
+                        ) : (
+                          <>
+                            <span className="block text-muted-foreground">
+                              cobertura anual: {formatPct(marcador.coverage)} del peso
+                            </span>
+                            <span className="block text-muted-foreground">
+                              cobertura a la fecha: {formatPct(marcadorFecha.coverage)} del peso
+                            </span>
+                          </>
+                        )}
                       </td>
                       <td colSpan={MESES} />
+                      {/* Sin nada medible el aporte es «—» y no 0.0%: un cero se leería como
+                          un suspenso, y en un año futuro a la fecha no hay nada que medir. */}
                       <td className="px-1.5 py-2 text-right font-semibold tabular-nums align-top">
                         {marcador.total === null ? "—" : formatPct(marcador.total)}
                       </td>
                       <td className="px-1.5 py-2 text-right font-semibold tabular-nums align-top">
-                        {formatPct(aporteTotal)}
+                        {marcador.total === null ? "—" : formatPct(aporteTotal)}
+                      </td>
+                      <td className="px-1.5 py-2 text-right font-semibold tabular-nums align-top">
+                        {marcadorFecha.total === null ? "—" : formatPct(marcadorFecha.total)}
+                      </td>
+                      <td className="px-1.5 py-2 text-right font-semibold tabular-nums align-top">
+                        {marcadorFecha.total === null ? "—" : formatPct(aporteTotalFecha)}
                       </td>
                     </tr>
                   </tfoot>
