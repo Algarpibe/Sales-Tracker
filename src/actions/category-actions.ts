@@ -1,11 +1,17 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { eq, and, asc } from "drizzle-orm";
+import { eq, and, asc, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { categories } from "@/db/schema";
 import { requireApproved, requireRole } from "@/lib/auth/guards";
-import { categoryCreateSchema, categoryUpdateSchema, uuidSchema } from "@/lib/validation";
+import { ROLES_EDITAN_METAS } from "@/lib/commercial-kpis";
+import {
+  categoryCreateSchema,
+  categoryUpdateSchema,
+  techServiceBucketsSchema,
+  uuidSchema,
+} from "@/lib/validation";
 import { runAction, type ActionResult } from "@/lib/errors";
 import type { TechServiceCategory } from "@/types/database";
 
@@ -107,5 +113,43 @@ export async function deleteCategory(id: string): Promise<ActionResult> {
       );
 
     revalidatePath("/categories");
+  });
+}
+
+/**
+ * Guarda de una vez los dos grupos de Servicio Técnico. Admin y Editor, la misma
+ * regla que las metas de KPIs, porque decide qué cuenta en el KPI de incremento.
+ * Primero se vacía la clasificación de toda la compañía y después se marcan los dos
+ * grupos: así, una categoría que ya no se envía deja de contar. Todo va en una
+ * transacción, para que nadie vea la compañía a medio clasificar. El filtro por
+ * company_id hace que un id de otra compañía no toque nada.
+ */
+export async function saveTechServiceBuckets(st: string[], cr: string[]): Promise<ActionResult> {
+  return runAction(async () => {
+    const { profile } = await requireRole(...ROLES_EDITAN_METAS);
+    const data = techServiceBucketsSchema.parse({ st, cr });
+
+    await db.transaction(async (tx) => {
+      await tx
+        .update(categories)
+        .set({ tech_service_bucket: null })
+        .where(eq(categories.company_id, profile.company_id));
+
+      if (data.st.length > 0) {
+        await tx
+          .update(categories)
+          .set({ tech_service_bucket: "st" })
+          .where(and(eq(categories.company_id, profile.company_id), inArray(categories.id, data.st)));
+      }
+      if (data.cr.length > 0) {
+        await tx
+          .update(categories)
+          .set({ tech_service_bucket: "cr" })
+          .where(and(eq(categories.company_id, profile.company_id), inArray(categories.id, data.cr)));
+      }
+    });
+
+    revalidatePath("/settings");
+    revalidatePath("/analytics");
   });
 }

@@ -104,3 +104,19 @@ export const kpiTargetsSchema = z
     (v) => Math.round(v.items.reduce((s, i) => s + i.weight_pct, 0) * 100) === 10000,
     { message: "Los pesos deben sumar 100", path: ["items"] }
   );
+
+// Clasificación de Servicio Técnico: ids de las categorías de cada grupo. Una
+// categoría no puede estar en los dos grupos: la columna solo guarda un valor, y
+// si llegase en los dos, el segundo UPDATE pisaría al primero sin avisar. Las listas
+// vacías valen, porque un grupo sin categorías suma 0.
+const idsDeCategoria = z
+  .array(uuidSchema)
+  .max(1000, "Demasiadas categorías")
+  .refine((ids) => new Set(ids).size === ids.length, "Hay categorías repetidas en un grupo");
+
+export const techServiceBucketsSchema = z
+  .object({ st: idsDeCategoria, cr: idsDeCategoria })
+  .refine((v) => !v.st.some((id) => v.cr.includes(id)), {
+    message: "Una categoría no puede estar en ST y en C&R a la vez",
+    path: ["cr"],
+  });
