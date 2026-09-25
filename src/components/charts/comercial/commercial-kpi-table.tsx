@@ -335,8 +335,9 @@ export function CommercialKpiTable({
   });
 
   // incremento_st no sale del hub: sale de sales_records cruzado con la clasificación
-  // de Servicio Técnico guardada en las categorías. Las dos claves son las que ya carga
-  // analytics/page.tsx, así que el KPI y el gráfico comparten caché y clasificación.
+  // de Servicio Técnico guardada en las categorías. Usa las mismas claves que
+  // analytics/page.tsx para esos datos, ["sales", {}] y ["categories", "servicio-tecnico"],
+  // así que el KPI y el gráfico comparten caché y clasificación.
   const ventasQ = useQuery({ queryKey: ["sales", {}], queryFn: () => getSalesData({}) });
   const categoriasQ = useQuery({
     queryKey: TECH_SERVICE_CATEGORIES_KEY,

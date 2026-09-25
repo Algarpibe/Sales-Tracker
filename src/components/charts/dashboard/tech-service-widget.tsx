@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getTechServiceCategories } from "@/actions/category-actions";
+import { Skeleton } from "@/components/ui/skeleton";
 import { TechServiceAnalysis } from "@/components/charts/tech-service-analysis";
 import {
   buildTechServiceData,
@@ -30,7 +31,7 @@ export function TechServiceWidget({
 }) {
   const [viewMode, setViewMode] = useState<TechServiceViewMode>("QUARTERLY");
   const [recordType, setRecordType] = useState<"SALES_ORDER" | "INVOICE">("INVOICE");
-  const { data: categorias } = useQuery({
+  const { data: categorias, isPending } = useQuery({
     queryKey: TECH_SERVICE_CATEGORIES_KEY,
     queryFn: () => getTechServiceCategories(),
   });
@@ -39,6 +40,10 @@ export function TechServiceWidget({
     () => buildTechServiceData(records, prevRecords, grupos, recordType, viewMode),
     [records, prevRecords, grupos, recordType, viewMode]
   );
+  // Sin la clasificación todas las ventas quedan fuera del mapa y el gráfico pintaría
+  // ST, C&R y totales a 0 para luego saltar a las cifras reales: mientras carga se
+  // muestra el mismo esqueleto que el resto de widgets del dashboard.
+  if (isPending) return <Skeleton className="h-full min-h-[400px] w-full" />;
   return (
     <TechServiceAnalysis
       data={data}
