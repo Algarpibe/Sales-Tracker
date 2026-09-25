@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo, Suspense } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import { getSalesData } from "@/actions/sales-actions";
-import { getCategories } from "@/actions/category-actions";
+import { getCategories, getTechServiceCategories } from "@/actions/category-actions";
 import { getYearRange } from "@/lib/constants";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -14,7 +14,7 @@ import dynamic from "next/dynamic";
 import { MeshBackground } from "@/components/ui/mesh-background";
 import { computeForecast } from "@/lib/forecast";
 import { monthlyTotals, historicalMatrix } from "@/lib/forecast-widget-data";
-import { buildTechServiceData } from "@/lib/tech-service";
+import { buildTechServiceData, gruposServicioTecnico, TECH_SERVICE_CATEGORIES_KEY } from "@/lib/tech-service";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { RecordTypeToggle } from "@/components/common/record-type-toggle";
 import { PeriodBar } from "@/components/common/period-bar";
@@ -153,7 +153,13 @@ function AnalyticsContent() {
     queryKey: ["categories"],
     queryFn: getCategories,
   });
-  const loading = l1 || l2;
+  // Clasificación ST / C&R guardada, incluidas las categorías inactivas: la misma
+  // consulta que usan el widget del dashboard y el KPI de la tabla comercial.
+  const { data: techCatsData, isLoading: l3 } = useQuery({
+    queryKey: TECH_SERVICE_CATEGORIES_KEY,
+    queryFn: () => getTechServiceCategories(),
+  });
+  const loading = l1 || l2 || l3;
 
   const allRecords: SalesRecord[] = useMemo(() => recordsData ?? [], [recordsData]);
   const categories = useMemo<Category[]>(() => (catsData as Category[]) ?? [], [catsData]);
@@ -176,15 +182,14 @@ function AnalyticsContent() {
     });
   }, [allRecords, yearA, yearB, recordType]);
 
-  // 2. Análisis de Servicio Técnico ST vs C&R: mismo lib puro que usa el widget del dashboard.
+  // 2. Análisis de Servicio Técnico ST vs C&R: mismo lib puro y misma clasificación
+  // guardada que el widget del dashboard y el KPI de la tabla comercial.
+  const gruposST = useMemo(() => gruposServicioTecnico(techCatsData ?? []), [techCatsData]);
   const techServiceData = useMemo(() => {
     const dataA = allRecords.filter((r: SalesRecord) => r.record_year === yearA);
     const dataB = allRecords.filter((r: SalesRecord) => r.record_year === yearB);
-    const catMap = new Map<string, string>(
-      categories.map((c) => [String(c.id), String(c.name)])
-    );
-    return buildTechServiceData(dataA, dataB, catMap, techServiceRecordType, techServiceViewMode);
-  }, [allRecords, categories, yearA, yearB, techServiceRecordType, techServiceViewMode]);
+    return buildTechServiceData(dataA, dataB, gruposST, techServiceRecordType, techServiceViewMode);
+  }, [allRecords, gruposST, yearA, yearB, techServiceRecordType, techServiceViewMode]);
 
   if (loading) {
     return (

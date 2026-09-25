@@ -1,19 +1,41 @@
 import { MONTHS } from "@/lib/constants";
-import type { SalesRecord, RecordType } from "@/types/database";
+import type { SalesRecord, RecordType, TechServiceBucket, TechServiceCategory } from "@/types/database";
 import type { TechServiceDataPoint } from "@/components/charts/tech-service-analysis";
+
+export type { TechServiceBucket } from "@/types/database";
 
 export type TechServiceViewMode = "MONTHLY" | "QUARTERLY" | "ANNUAL";
 
-export const ST_CATEGORIES = [
-  'Alquileres', 'CAL CO', 'CAL NOx', 'CAL O3', 'CAL PM', 'CAL SO2', 'ST',
-  'ST APMA', 'ST APNA', 'ST APOA', 'ST APSA', 'ST EDM 180'
-];
+/**
+ * Clave de react-query de las categorías con su grupo de Servicio Técnico. Cuelga de
+ * ["categories"] a propósito: invalidar ["categories"] (al guardar la clasificación
+ * en Configuración o al editar una categoría) refresca también esta consulta, porque
+ * react-query invalida por prefijo. No reutiliza ["categories"] tal cual porque
+ * getCategories() solo trae las activas, y aquí también hacen falta las inactivas.
+ */
+export const TECH_SERVICE_CATEGORIES_KEY = ["categories", "servicio-tecnico"] as const;
 
-export const CR_CATEGORIES = [
-  'C&R AP Series', 'C&R APMA-370', 'C&R APNA-370', 'C&R APOA-370', 'C&R APSA-370',
-  'C&R D-R 290', 'C&R EDM 180', 'C&R ENDA Series', 'C&R Enviro', 'C&R OCMA-500',
-  'C&R PG Series', 'C&R Series 6103', 'C&R Series 7000', 'C&R Shelter', 'C&R U-50 Series'
-];
+/**
+ * Grupo de Servicio Técnico de cada categoría clasificada, indexado por id. Entran
+ * también las inactivas, porque sus ventas históricas tienen que seguir contando al
+ * comparar años. Se indexa por id y no por nombre para que renombrar una categoría no
+ * la saque de su grupo sin avisar, que es lo que pasaba con las listas fijas. El
+ * gráfico, su widget y el KPI construyen el mapa con esta misma función, así que
+ * siempre clasifican igual.
+ */
+export function gruposServicioTecnico(
+  categorias: Pick<TechServiceCategory, "id" | "tech_service_bucket">[]
+): Map<string, TechServiceBucket> {
+  const grupos = new Map<string, TechServiceBucket>();
+  for (const c of categorias) {
+    // La columna tiene un CHECK, pero se filtra igual: un valor inesperado no debe
+    // colarse como grupo.
+    if (c.tech_service_bucket === "st" || c.tech_service_bucket === "cr") {
+      grupos.set(String(c.id), c.tech_service_bucket);
+    }
+  }
+  return grupos;
+}
 
 function slotsFor(viewMode: TechServiceViewMode): { label: string; months: number[] }[] {
   if (viewMode === "MONTHLY") return MONTHS.map((m) => ({ label: m.label, months: [m.value] }));
@@ -32,12 +54,13 @@ function slotsFor(viewMode: TechServiceViewMode): { label: string; months: numbe
  * Agrega las líneas ST (mano de obra) y C&R (consumibles) por slot temporal,
  * comparando el año A (`recordsA`) con el año B (`recordsB`) y llevando el
  * acumulado corriente de cada uno. Función pura: la usan tanto `analytics/page.tsx`
- * como el widget `TechServiceWidget` del dashboard configurable.
+ * como el widget `TechServiceWidget` del dashboard configurable. `grupos` sale de
+ * gruposServicioTecnico(): una categoría que no está en el mapa no cuenta.
  */
 export function buildTechServiceData(
   recordsA: SalesRecord[],
   recordsB: SalesRecord[],
-  catMap: Map<string, string>,
+  grupos: Map<string, TechServiceBucket>,
   recordType: RecordType,
   viewMode: TechServiceViewMode,
 ): TechServiceDataPoint[] {
@@ -51,10 +74,10 @@ export function buildTechServiceData(
     for (const r of records) {
       if (r.record_type !== recordType) continue;
       if (!months.includes(Number(r.record_month))) continue;
-      const catName = catMap.get(r.category_id);
+      const grupo = grupos.get(r.category_id);
       const amt = Number(r.amount_usd);
-      if (catName && ST_CATEGORIES.includes(catName)) st += amt;
-      else if (catName && CR_CATEGORIES.includes(catName)) cr += amt;
+      if (grupo === "st") st += amt;
+      else if (grupo === "cr") cr += amt;
     }
     return { st, cr };
   };
@@ -94,22 +117,20 @@ export function yoy(actual: number, anterior: number): number | null {
 
 /**
  * Ventas de Servicio Técnico en un periodo: ST (mano de obra) más C&R (consumibles),
- * el mismo total que suma buildTechServiceData. Antes solo contaba ST_CATEGORIES, y el
- * KPI de la tabla comercial no coincidía con "ACUMULADO ANUAL (YTD)" del Análisis de
- * Servicio Técnico, que siempre suma las dos.
+ * el mismo total que suma buildTechServiceData con el mismo mapa de grupos. Se
+ * exporta para el test de coherencia entre el gráfico y el KPI.
  */
-function acumuladoServicioTecnico(
+export function acumuladoServicioTecnico(
   records: SalesRecord[],
   meses: number[],
-  catMap: Map<string, string>,
+  grupos: Map<string, TechServiceBucket>,
   recordType: RecordType
 ): number {
   let total = 0;
   for (const r of records) {
     if (r.record_type !== recordType) continue;
     if (!meses.includes(Number(r.record_month))) continue;
-    const cat = catMap.get(r.category_id);
-    if (cat && (ST_CATEGORIES.includes(cat) || CR_CATEGORIES.includes(cat))) total += Number(r.amount_usd);
+    if (grupos.has(r.category_id)) total += Number(r.amount_usd);
   }
   return total;
 }
@@ -118,22 +139,22 @@ function acumuladoServicioTecnico(
  * Variación acumulada de las ventas de Servicio Técnico (ST + C&R) frente al mismo
  * periodo del año anterior, trimestre a trimestre. Es la misma cifra que la fila
  * "VAR. ACUMULADA VS AÑO ANTERIOR" del Análisis de Servicio Técnico para el mismo tipo
- * de registro y los mismos dos años: comparten yoy() y las mismas categorías. Es un KPI
- * de compañía: estas líneas no llevan comercial asignado, así que no se filtra por
- * vendedor.
+ * de registro y los mismos dos años: comparten yoy() y la misma clasificación
+ * guardada. Es un KPI de compañía: estas líneas no llevan comercial asignado, así que
+ * no se filtra por vendedor.
  */
 export function stGrowthByQuarter(
   recordsA: SalesRecord[],
   recordsB: SalesRecord[],
-  catMap: Map<string, string>,
+  grupos: Map<string, TechServiceBucket>,
   recordType: RecordType
 ): (number | null)[] {
   const out: (number | null)[] = [];
   let acumMeses: number[] = [];
   for (const trimestre of TRIMESTRES) {
     acumMeses = [...acumMeses, ...trimestre];
-    const a = acumuladoServicioTecnico(recordsA, acumMeses, catMap, recordType);
-    const b = acumuladoServicioTecnico(recordsB, acumMeses, catMap, recordType);
+    const a = acumuladoServicioTecnico(recordsA, acumMeses, grupos, recordType);
+    const b = acumuladoServicioTecnico(recordsB, acumMeses, grupos, recordType);
     out.push(yoy(a, b));
   }
   return out;

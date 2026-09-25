@@ -156,7 +156,7 @@ export const WIDGETS: WidgetDef[] = [
     defaultSize: { w: 12, h: 16 }, minSize: { w: 6, h: 10 },
     render: (c) => (
       <TechServiceWidget yearA={c.year} yearB={c.year - 1}
-        records={c.records} prevRecords={c.prevRecords} catMap={c.catMap} />
+        records={c.records} prevRecords={c.prevRecords} />
     ),
   },
   {
