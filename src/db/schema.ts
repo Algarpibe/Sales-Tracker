@@ -118,9 +118,19 @@ export const categories = pgTable("categories", {
   color: text("color").notNull().default("#3b82f6"),
   sort_order: integer("sort_order").notNull().default(0),
   is_active: boolean("is_active").notNull().default(true),
+  // Grupo de Servicio Técnico: 'st' (mano de obra), 'cr' (consumibles y repuestos)
+  // o NULL si no cuenta. Una sola columna impide que una categoría esté en los dos
+  // grupos. Migración 0011.
+  tech_service_bucket: text("tech_service_bucket").$type<"st" | "cr">(),
   created_at: timestamp("created_at", tsString).notNull().defaultNow(),
   updated_at: timestamp("updated_at", tsString).notNull().defaultNow(),
-}, (t) => [unique("categories_company_name_unique").on(t.company_id, t.name)]);
+}, (t) => [
+  unique("categories_company_name_unique").on(t.company_id, t.name),
+  check(
+    "categories_tech_service_bucket_check",
+    sql`${t.tech_service_bucket} IS NULL OR ${t.tech_service_bucket} IN ('st', 'cr')`
+  ),
+]);
 
 export const categoryGroups = pgTable("category_groups", {
   id: uuid("id").primaryKey().defaultRandom(),

@@ -7,6 +7,7 @@ import { categories } from "@/db/schema";
 import { requireApproved, requireRole } from "@/lib/auth/guards";
 import { categoryCreateSchema, categoryUpdateSchema, uuidSchema } from "@/lib/validation";
 import { runAction, type ActionResult } from "@/lib/errors";
+import type { TechServiceCategory } from "@/types/database";
 
 export async function getCategories() {
   const { profile } = await requireApproved();
@@ -24,6 +25,27 @@ export async function getCategories() {
     .orderBy(asc(categories.sort_order), asc(categories.name));
 
   return data;
+}
+
+/**
+ * Categorías de la compañía con su grupo de Servicio Técnico, activas e inactivas.
+ * A diferencia de getCategories(), no filtra por is_active: una categoría desactivada
+ * que sigue clasificada tiene ventas históricas que el gráfico y el KPI deben seguir
+ * contando al comparar años.
+ */
+export async function getTechServiceCategories(): Promise<TechServiceCategory[]> {
+  const { profile } = await requireApproved();
+  return db
+    .select({
+      id: categories.id,
+      name: categories.name,
+      color: categories.color,
+      is_active: categories.is_active,
+      tech_service_bucket: categories.tech_service_bucket,
+    })
+    .from(categories)
+    .where(eq(categories.company_id, profile.company_id))
+    .orderBy(asc(categories.sort_order), asc(categories.name));
 }
 
 export async function createCategory(cat: {
