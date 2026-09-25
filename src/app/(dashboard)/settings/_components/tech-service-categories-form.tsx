@@ -157,7 +157,7 @@ function TechServiceCategoriesFields({
 }: {
   categorias: TechServiceCategory[];
   editable: boolean;
-  onSaved: () => void;
+  onSaved: () => Promise<unknown>;
 }) {
   const inicial = useMemo(() => seleccionInicial(categorias), [categorias]);
   const [seleccion, setSeleccion] = useState<SeleccionServicioTecnico>(inicial);
@@ -178,7 +178,9 @@ function TechServiceCategoriesFields({
       const res = await saveTechServiceBuckets(seleccion.st, seleccion.cr);
       if (!res.ok) { toast.error(res.error); return; }
       toast.success("Clasificación guardada");
-      onSaved();
+      // Se espera la recarga: si «saving» volviera a false antes, el botón se
+      // reactivaría un instante comparando contra la selección inicial ya obsoleta.
+      await onSaved();
     } catch {
       toast.error("Error de red. Inténtalo de nuevo.");
     } finally {
@@ -254,7 +256,7 @@ export function TechServiceCategoriesForm() {
             editable={editable}
             // Invalida ["categories"] entero: por prefijo refresca esta consulta, la del
             // gráfico, la del widget y la del KPI, sin recargar la página.
-            onSaved={() => { queryClient.invalidateQueries({ queryKey: ["categories"] }); }}
+            onSaved={() => queryClient.invalidateQueries({ queryKey: ["categories"] })}
           />
         )}
       </CardContent>
