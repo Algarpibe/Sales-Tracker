@@ -16,10 +16,13 @@ const HISTORICAL = JSON.parse(await readFile(path.resolve(HERE, "../fixtures/his
 // quedarian partidos entre dos company_id.
 const COMPANY_NAME = "Ambientalia S.A.S.";
 
+// tech_service_bucket (migracion 0011): una categoria inventada en cada grupo de
+// Servicio Tecnico y otra sin clasificar. Debe coincidir con TECH_SERVICE_SEED de
+// e2e/constants.ts.
 const CATEGORIES = [
-  { name: "Aguas", color: "#2563eb", sort_order: 1 },
-  { name: "Aire", color: "#16a34a", sort_order: 2 },
-  { name: "Suelos", color: "#ca8a04", sort_order: 3 },
+  { name: "Aguas", color: "#2563eb", sort_order: 1, tech_service_bucket: "st" },
+  { name: "Aire", color: "#16a34a", sort_order: 2, tech_service_bucket: "cr" },
+  { name: "Suelos", color: "#ca8a04", sort_order: 3, tech_service_bucket: null },
 ];
 
 const GROUPS = [
@@ -74,9 +77,9 @@ export async function seedApp(connectionString) {
     const categoryIds = new Map();
     for (const cat of CATEGORIES) {
       const { rows: [row] } = await client.query(
-        `INSERT INTO categories (company_id, name, color, sort_order, is_active)
-         VALUES ($1, $2, $3, $4, true) RETURNING id`,
-        [company.id, cat.name, cat.color, cat.sort_order],
+        `INSERT INTO categories (company_id, name, color, sort_order, is_active, tech_service_bucket)
+         VALUES ($1, $2, $3, $4, true, $5) RETURNING id`,
+        [company.id, cat.name, cat.color, cat.sort_order, cat.tech_service_bucket],
       );
       categoryIds.set(cat.name, row.id);
     }

@@ -19,6 +19,12 @@ export const COMPANY_NAME = "Ambientalia S.A.S.";
 export const CATEGORIES = ["Aguas", "Aire", "Suelos"] as const;
 
 /**
+ * Clasificacion de Servicio Tecnico que deja e2e/db/seed-app.mjs: una categoria
+ * inventada en cada grupo y otra sin clasificar.
+ */
+export const TECH_SERVICE_SEED = { st: "Aguas", cr: "Aire", sinGrupo: "Suelos" } as const;
+
+/**
  * 2020 es un año PARCIAL sembrado a propósito, anterior al FIRST_YEAR = 2021
  * que usan los componentes. Un registro de este año es lo que reproduce el bug
  * del bucket inexistente (commit 9dc66ee): sin su guarda, annualGrouped[2020]
