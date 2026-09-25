@@ -168,8 +168,9 @@ Esperado: `columna: FALTA`. Después, el script termina con un error de `readFil
 -- Cambio aditivo. Aplicar a mano en la BD del app ANTES de desplegar:
 --   psql "$DATABASE_URL" -f drizzle/0011_tech_service_bucket.sql
 --
--- Los UPDATE copian las listas fijas de hoy para que las cifras no cambien al
--- desplegar. No volver a ejecutar despues de cambiar la clasificacion desde
+-- Los UPDATE copian las listas fijas de hoy. Solo cambian las cifras si alguna
+-- categoria inactiva lleva uno de estos nombres: antes no contaba y ahora si.
+-- No volver a ejecutar despues de cambiar la clasificacion desde
 -- Configuracion: los UPDATE la devolverian a las listas de partida.
 ALTER TABLE categories ADD COLUMN IF NOT EXISTS tech_service_bucket text;
 --> statement-breakpoint
