@@ -38,7 +38,7 @@ UPDATE categories SET tech_service_bucket = 'st' WHERE name IN (...12 nombres ST
 UPDATE categories SET tech_service_bucket = 'cr' WHERE name IN (...15 nombres C&R actuales...);
 ```
 
-- El `UPDATE` copia las listas fijas de hoy. Tras desplegar, las cifras no cambian.
+- El `UPDATE` copia las listas fijas de hoy. Las cifras solo cambian si alguna categoría **inactiva** lleva uno de esos 27 nombres, porque hoy las inactivas no cuentan y a partir de ahora sí (decisión del usuario, 2026-09-25). Antes de desplegar se ejecuta una consulta que lo detecta.
 - El `ADD CONSTRAINT` va dentro de `DO $$ BEGIN … EXCEPTION WHEN duplicate_object THEN null; END $$;`, el mismo patrón idempotente que `0005_favorites.sql`.
 - `src/db/schema.ts`: `tech_service_bucket: text("tech_service_bucket")`, con su `check`.
 - Tipo: `type TechServiceBucket = "st" | "cr"`.
@@ -48,7 +48,7 @@ UPDATE categories SET tech_service_bucket = 'cr' WHERE name IN (...15 nombres C&
 - Se eliminan `ST_CATEGORIES` y `CR_CATEGORIES`.
 - `gruposServicioTecnico(categorias): Map<string, TechServiceBucket>` recibe las categorías con `id` y `tech_service_bucket`. Devuelve solo las clasificadas, incluidas las inactivas, para que sus ventas históricas sigan contando.
 - `buildTechServiceData` y `stGrowthByQuarter` (a través de `acumuladoServicioTecnico`) reciben ese mapa en lugar del `catMap` de nombres. Siguen siendo funciones puras.
-- Los tres consumidores (`analytics/page.tsx`, `tech-service-widget.tsx` y `commercial-kpi-table.tsx`) construyen el mapa con la misma función, a partir de la consulta `["categories"]` que ya hacen.
+- `getCategories()` solo devuelve las categorías activas. Por eso hay una lectura nueva, `getTechServiceCategories()`, con la clave `["categories", "servicio-tecnico"]`, que incluye las inactivas clasificadas. Los tres consumidores (`analytics/page.tsx`, `tech-service-widget.tsx` y `commercial-kpi-table.tsx`) construyen el mapa con la misma función a partir de esa consulta. El widget deja de usar el `catMap` por nombre que recibe del dashboard.
 
 ## 5. Servidor (`src/actions/category-actions.ts`)
 
@@ -74,6 +74,7 @@ Una tarjeta nueva, «Categorías de Servicio Técnico», que se monta en `settin
 - Cada desplegable lista las categorías activas de la compañía.
 - Una categoría marcada en un grupo aparece desactivada en el otro, con la nota «en ST» o «en C&R».
 - Debajo de cada desplegable, las categorías marcadas se muestran como etiquetas. Una categoría inactiva ya clasificada sigue apareciendo como etiqueta.
+- Para Admin y Editor, cada etiqueta tiene una X para quitarla. Sin ella, una categoría inactiva clasificada no se podría desclasificar nunca, porque los desplegables solo muestran las activas.
 - El botón «Guardar» envía los dos grupos a la vez. Al terminar, invalida `["categories"]`, así que el gráfico y el KPI se recalculan sin recargar la página.
 - Se permiten listas vacías: un grupo sin categorías vale 0.
 - El Lector (`!puedeEditarMetas(role)`) ve solo las dos listas de etiquetas, sin desplegables ni botón. La descripción dice «Solo lectura».
