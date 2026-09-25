@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { getCategories } from "@/actions/category-actions";
+import { getTechServiceCategories } from "@/actions/category-actions";
 import { getCustomerSales } from "@/actions/customer-sales-actions";
 import {
   addProjectOrder,
@@ -31,7 +31,7 @@ import {
 } from "@/lib/kpi-score";
 import { customerHref } from "@/lib/customer-detail";
 import { detalleTicketsMes, episodiosNotificacionComercial, ticketsEnPlazoPorMes } from "@/lib/kpi-tickets";
-import { stGrowthByQuarter } from "@/lib/tech-service";
+import { gruposServicioTecnico, stGrowthByQuarter, TECH_SERVICE_CATEGORIES_KEY } from "@/lib/tech-service";
 import { CHART_HELP } from "@/lib/chart-help";
 import { MONTHS, RECORD_TYPES, formatPct, formatUSD } from "@/lib/constants";
 import { useAuth } from "@/components/providers/auth-provider";
@@ -47,7 +47,7 @@ import { TicketsDetalleDialog } from "@/components/charts/comercial/tickets-deta
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import type { Category, SalesRecord } from "@/types/database";
+import type { SalesRecord, TechServiceCategory } from "@/types/database";
 
 // Valor del selector para el total de la compañía: el ámbito real es null, pero
 // un Select necesita una cadena. Mismo centinela que la pantalla de Configuración.
@@ -334,10 +334,15 @@ export function CommercialKpiTable({
     queryFn: () => getCustomerSales({ tipo: "INVOICE", desdeAnio: HISTORY_FIRST_YEAR, hastaAnio: thisYear, includeHistory: true }),
   });
 
-  // incremento_st no sale del hub: sale de sales_records cruzado con las
-  // categorías. Las dos claves son las que ya carga analytics/page.tsx.
+  // incremento_st no sale del hub: sale de sales_records cruzado con la clasificación
+  // de Servicio Técnico guardada en las categorías. Usa las mismas claves que
+  // analytics/page.tsx para esos datos, ["sales", {}] y ["categories", "servicio-tecnico"],
+  // así que el KPI y el gráfico comparten caché y clasificación.
   const ventasQ = useQuery({ queryKey: ["sales", {}], queryFn: () => getSalesData({}) });
-  const categoriasQ = useQuery({ queryKey: ["categories"], queryFn: getCategories });
+  const categoriasQ = useQuery({
+    queryKey: TECH_SERVICE_CATEGORIES_KEY,
+    queryFn: () => getTechServiceCategories(),
+  });
 
   const metas = useMemo<KpiTargetRow[]>(() => metasQ.data ?? [], [metasQ.data]);
   const mensuales = useMemo(() => mensualesQ.data ?? [], [mensualesQ.data]);
@@ -351,7 +356,7 @@ export function CommercialKpiTable({
   );
   const historico = useMemo(() => historicoQ.data ?? [], [historicoQ.data]);
   const registros = useMemo<SalesRecord[]>(() => ventasQ.data ?? [], [ventasQ.data]);
-  const categorias = useMemo<Category[]>(() => (categoriasQ.data as Category[]) ?? [], [categoriasQ.data]);
+  const categorias = useMemo<TechServiceCategory[]>(() => categoriasQ.data ?? [], [categoriasQ.data]);
   const ordenesProyecto = useMemo<OrdenProyecto[]>(() => proyectosQ.data ?? [], [proyectosQ.data]);
   // Solo las del año seleccionado: alimentan la fila y la lista del diálogo, así
   // que las dos enseñan exactamente lo mismo.
@@ -369,12 +374,12 @@ export function CommercialKpiTable({
     const primerAnio = firstYearByCustomer(historico);
     const split = splitNewExisting(mensuales, primerAnio, year);
     const tratosSplit = splitDealsNewExisting(tratos, primerAnio, year);
-    const catMap = new Map<string, string>(categorias.map((c) => [String(c.id), String(c.name)]));
+    const grupos = gruposServicioTecnico(categorias);
     // De compañía a propósito: las líneas de Servicio Técnico no llevan comercial asignado.
     const st = stGrowthByQuarter(
       registros.filter((r) => r.record_year === year),
       registros.filter((r) => r.record_year === year - 1),
-      catMap,
+      grupos,
       recordType
     );
 

@@ -44,6 +44,9 @@ export interface Profile {
   updated_at: string;
 }
 
+/** Grupo de Servicio Técnico de una categoría: ST (mano de obra) o C&R (consumibles y repuestos). */
+export type TechServiceBucket = "st" | "cr";
+
 export interface Category {
   id: string;
   company_id: string;
@@ -52,8 +55,22 @@ export interface Category {
   color: string;
   sort_order: number;
   is_active: boolean;
+  tech_service_bucket: TechServiceBucket | null;
   created_at: string;
   updated_at: string;
+}
+
+/**
+ * Categoría tal como la necesitan el Análisis de Servicio Técnico, su widget, el KPI
+ * de incremento y la tarjeta de Configuración: solo lo imprescindible, incluidas las
+ * inactivas.
+ */
+export interface TechServiceCategory {
+  id: string;
+  name: string;
+  color: string;
+  is_active: boolean;
+  tech_service_bucket: TechServiceBucket | null;
 }
 
 export interface SalesRecord {
