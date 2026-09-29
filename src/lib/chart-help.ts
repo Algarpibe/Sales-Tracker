@@ -11,7 +11,7 @@ export const CHART_HELP = {
   cumulativeYoY: "Ventas acumuladas mes a mes del año actual frente al anterior. Si la línea va por encima, vas por delante del año pasado. Cambia OV/FAC con el selector.",
   executionMensual: "Ejecución de cada mes = Facturado ÷ Comprometido (FAC/OV). Muestra cómo evoluciona la conversión de venta a factura.",
   topClientesPareto: "Los 10 mayores clientes por importe (barras) y el % acumulado sobre el total (línea, regla 80/20). Cambia OV/FAC con el selector.",
-  mixCategoria: "Reparto del importe entre las 4 macro-categorías (Mano de obra, Consumos y repuestos, Equipos, Operaciones), según la clasificación de Configuración: lo que no está marcado cuenta como Equipos. Cambia OV/FAC con el selector.",
+  mixCategoria: "Reparto del importe entre las 4 macro-categorías (Mano de obra, Consumibles y repuestos, Equipos, Operaciones), según la clasificación de Configuración: lo que no está marcado cuenta como Equipos. Cambia OV/FAC con el selector.",
 
   // --- Análisis: Comercial ---
   brandMix: "Reparto del importe por marca. Muestra de qué marcas depende la facturación.",

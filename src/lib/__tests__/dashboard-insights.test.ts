@@ -33,7 +33,7 @@ describe("bucketMix", () => {
     const mapa = mapaMacroCategorias([{ name: "C&R Algo", macro_categoria: "cr" }]);
     const mix = bucketMix([rec("INVOICE", 1, 100, "c1"), rec("INVOICE", 2, 300, "c2"), rec("SALES_ORDER", 1, 999, "c1")], cats, mapa, "INVOICE");
     expect(mix).toHaveLength(4);
-    expect(mix.map((m) => m.label)).toEqual(["Mano de obra", "Consumos y repuestos", "Equipos", "Operaciones"]);
+    expect(mix.map((m) => m.label)).toEqual(["Mano de obra", "Consumibles y repuestos", "Equipos", "Operaciones"]);
     expect(mix.find((m) => m.bucket === "cr")!.amount).toBe(100);
     expect(mix.find((m) => m.bucket === "equipos")!.amount).toBe(300);
     expect(Math.round(mix.reduce((s, m) => s + m.pct, 0))).toBe(100);

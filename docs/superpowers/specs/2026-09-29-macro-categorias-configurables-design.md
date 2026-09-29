@@ -1,6 +1,6 @@
 # Macro-categorías configurables — Diseño
 
-**Goal:** Configurar desde Configuración qué categorías forman cada macro-categoría: **Mano de obra**, **Consumos y repuestos**, **Equipos** y **Operaciones**. Hoy las decide `bucketForCategory` (`src/lib/customer-item.ts:19-28`) a partir del nombre de cada categoría.
+**Goal:** Configurar desde Configuración qué categorías forman cada macro-categoría: **Mano de obra**, **Consumibles y repuestos**, **Equipos** y **Operaciones**. Hoy las decide `bucketForCategory` (`src/lib/customer-item.ts:19-28`) a partir del nombre de cada categoría.
 
 **Arquitectura:** una columna nueva, `categories.macro_categoria`, **independiente** de `tech_service_bucket` (decisión del usuario, 2026-09-29). Una función pura construye un mapa de nombre de categoría a macro-categoría. Todos los consumidores usan ese mapa, y una categoría sin marcar cuenta como **Equipos**.
 
@@ -32,7 +32,7 @@
 |---|---|
 | Relación con Servicio Técnico | Independiente: dos columnas y dos tarjetas, que pueden no coincidir. |
 | Categoría sin marcar | Cuenta como **Equipos**, igual que hoy. Equipos se puede marcar también de forma explícita. |
-| Nombres | En la tarjeta, los gráficos y las exportaciones se usan **Mano de obra**, **Consumos y repuestos**, **Equipos** y **Operaciones**. |
+| Nombres | En la tarjeta, los gráficos y las exportaciones se usan **Mano de obra**, **Consumibles y repuestos**, **Equipos** y **Operaciones**. |
 | Permisos | Lectura con `requireApproved()`. Escritura con `requireRole(...ROLES_EDITAN_METAS)`, es decir Admin y Editor. |
 | Ubicación | Configuración, debajo de «Categorías de Servicio Técnico». |
 | Inactivas | Conservan su macro-categoría, como en Servicio Técnico. |
@@ -56,7 +56,7 @@ Migración `drizzle/0013_macro_categoria.sql`:
 
 - En `src/lib/customer-item.ts`:
   - `type Bucket` se mantiene: `mano_obra`, `cr`, `equipos` y `operacion`;
-  - `BUCKET_LABELS` pasa a **Mano de obra**, **Consumos y repuestos**, **Equipos** y **Operaciones**.
+  - `BUCKET_LABELS` pasa a **Mano de obra**, **Consumibles y repuestos**, **Equipos** y **Operaciones**.
 - Hay una función nueva, `mapaMacroCategorias(categorias): Map<string, Bucket>`. La clave es el nombre de la categoría. Incluye solo las categorías clasificadas, activas e inactivas.
 - `bucketForCategory(nombre, mapa)` devuelve la entrada del mapa, o `equipos` si no la hay.
 - Los consumidores reciben el mapa como parámetro y siguen siendo funciones puras.

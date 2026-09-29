@@ -34,7 +34,7 @@ describe("BUCKET_LABELS", () => {
   it("usa los nombres de la spec en graficos y exportaciones", () => {
     expect(BUCKET_LABELS).toEqual({
       mano_obra: "Mano de obra",
-      cr: "Consumos y repuestos",
+      cr: "Consumibles y repuestos",
       equipos: "Equipos",
       operacion: "Operaciones",
     });
@@ -158,7 +158,7 @@ describe("customerItemToCsv", () => {
     const groups = groupByCustomer(rows, mapa);
     const csv = customerItemToCsv(groups, computeGrandTotals(groups), mapa);
     const lines = csv.split("\n");
-    expect(lines[0]).toBe("SKU;Marca;Nombre;Categoría;Cantidad;Mano de obra;Consumos y repuestos;Equipos;Operaciones");
+    expect(lines[0]).toBe("SKU;Marca;Nombre;Categoría;Cantidad;Mano de obra;Consumibles y repuestos;Equipos;Operaciones");
     expect(lines[1]).toBe("Alpha;;;;;0.00;0.00;500.00;50.00");
     expect(lines[2]).toBe("C;Grimm;EDM 180C;EDM180 Series;1;;;500.00;");
     expect(lines[lines.length - 1]).toBe("TOTAL;;;;;300.00;100.00;500.00;50.00");
@@ -180,7 +180,7 @@ describe("customerItemToExcel", () => {
     const grand = { mano_obra: 40, cr: 100, equipos: 0, operacion: 0 };
     const sheet = customerItemToExcel(groups, grand, mapa);
     expect(sheet.columns.map((c) => c.header)).toEqual([
-      "SKU", "Marca", "Nombre", "Categoría", "Cantidad", "Mano de obra", "Consumos y repuestos", "Equipos", "Operaciones",
+      "SKU", "Marca", "Nombre", "Categoría", "Cantidad", "Mano de obra", "Consumibles y repuestos", "Equipos", "Operaciones",
     ]);
     expect(sheet.rows[0].bold).toBe(true);
     expect(sheet.rows[0].cells).toEqual(["AGQ", "", "", "", "", 40, 100, 0, 0]);

@@ -26,7 +26,7 @@ export const TECH_SERVICE_SEED = { st: "Aguas", cr: "Aire", sinGrupo: "Suelos" }
 
 /**
  * Macro-categorías que deja e2e/db/seed-app.mjs: una categoría inventada en Mano de
- * obra, otra en Consumos y repuestos y otra sin marcar, que cuenta como Equipos.
+ * obra, otra en Consumibles y repuestos y otra sin marcar, que cuenta como Equipos.
  */
 export const MACRO_SEED = { mano_obra: "Aguas", cr: "Aire", sinMarcar: "Suelos" } as const;
 

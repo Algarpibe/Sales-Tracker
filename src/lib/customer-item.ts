@@ -15,7 +15,7 @@ export const BUCKETS: readonly Bucket[] = ["mano_obra", "cr", "equipos", "operac
  */
 export const BUCKET_LABELS: Record<Bucket, string> = {
   mano_obra: "Mano de obra",
-  cr: "Consumos y repuestos",
+  cr: "Consumibles y repuestos",
   equipos: "Equipos",
   operacion: "Operaciones",
 };
