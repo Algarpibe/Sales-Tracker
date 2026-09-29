@@ -70,6 +70,7 @@ EXCEPTION WHEN duplicate_object THEN null; END $$;
 - En el ámbito de un vendedor, ese campo no aparece.
 - El Lector ve el campo en solo lectura, igual que la meta y el peso.
 - El botón de guardar se desactiva si el plazo no es un número mayor que 0.
+- `saveKpiTargets` borra las filas de los KPIs sin peso. Por eso, un plazo distinto de 12 solo se puede guardar si «Tickets de Servicio Técnico en plazo» tiene meta y peso. Si no los tiene, el formulario lo avisa y bloquea el guardado, para que el plazo no se pierda en silencio.
 - La lógica de conversión del borrador (texto → número, valor por defecto) va en funciones puras con test, no dentro del componente.
 
 ## 8. Pruebas
