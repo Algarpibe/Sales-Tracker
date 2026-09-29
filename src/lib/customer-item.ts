@@ -58,15 +58,15 @@ export function mapaMacroCategorias(
   return mapa;
 }
 
-export function bucketForCategory(categoria: string | null): Bucket {
-  if (categoria) {
-    if (categoria.startsWith("C&R ")) return "cr";
-    if (categoria.startsWith("CAL ") || categoria === "ST" || categoria.startsWith("ST ") || categoria === "Alquileres") {
-      return "mano_obra";
-    }
-    if (categoria === "Operación de Redes" || categoria === "Consultoría") return "operacion";
-  }
-  return "equipos";
+/**
+ * Macro-categoría de una venta según el nombre de su categoría. `mapa` sale de
+ * mapaMacroCategorias(). Sin entrada cuenta como Equipos, igual que con las reglas de
+ * nombre de antes: categoría sin marcar, venta sin categoría o categoría del hub que no
+ * existe en la app.
+ */
+export function bucketForCategory(categoria: string | null, mapa: Map<string, Bucket>): Bucket {
+  if (!categoria) return "equipos";
+  return mapa.get(categoria.toLowerCase()) ?? "equipos";
 }
 
 export function filterRows(rows: CustomerItemRow[], search: string): CustomerItemRow[] {
@@ -84,7 +84,7 @@ function emptyTotals(): Record<Bucket, number> {
   return { mano_obra: 0, cr: 0, equipos: 0, operacion: 0 };
 }
 
-export function groupByCustomer(rows: CustomerItemRow[]): CustomerGroup[] {
+export function groupByCustomer(rows: CustomerItemRow[], mapa: Map<string, Bucket>): CustomerGroup[] {
   const map = new Map<string, CustomerGroup>();
   for (const r of rows) {
     let g = map.get(r.customer);
@@ -93,7 +93,7 @@ export function groupByCustomer(rows: CustomerItemRow[]): CustomerGroup[] {
       map.set(r.customer, g);
     }
     g.items.push(r);
-    g.totals[bucketForCategory(r.categoria)] += r.importe;
+    g.totals[bucketForCategory(r.categoria, mapa)] += r.importe;
   }
   const groups = [...map.values()];
   for (const g of groups) g.items.sort((a, b) => b.importe - a.importe);
@@ -117,7 +117,11 @@ function csvCell(v: string | number): string {
   return /[;"\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
-export function customerItemToCsv(groups: CustomerGroup[], grand: Record<Bucket, number>): string {
+export function customerItemToCsv(
+  groups: CustomerGroup[],
+  grand: Record<Bucket, number>,
+  mapa: Map<string, Bucket>
+): string {
   // Las cabeceras salen de BUCKET_LABELS para que la exportación diga lo mismo que la pantalla.
   const header = ["SKU", "Marca", "Nombre", "Categoría", "Cantidad", ...BUCKETS.map((b) => BUCKET_LABELS[b])];
   const lines: (string | number)[][] = [header];
@@ -125,7 +129,7 @@ export function customerItemToCsv(groups: CustomerGroup[], grand: Record<Bucket,
     lines.push(["", "", "", "", "", g.totals.mano_obra.toFixed(2), g.totals.cr.toFixed(2), g.totals.equipos.toFixed(2), g.totals.operacion.toFixed(2)]);
     lines[lines.length - 1][0] = g.customer;
     for (const it of g.items) {
-      const b = bucketForCategory(it.categoria);
+      const b = bucketForCategory(it.categoria, mapa);
       lines.push([
         it.sku ?? "",
         it.marca ?? "",
@@ -143,12 +147,16 @@ export function customerItemToCsv(groups: CustomerGroup[], grand: Record<Bucket,
   return lines.map((row) => row.map(csvCell).join(";")).join("\n");
 }
 
-export function customerItemToExcel(groups: CustomerGroup[], grand: Record<Bucket, number>): ExcelSheet {
+export function customerItemToExcel(
+  groups: CustomerGroup[],
+  grand: Record<Bucket, number>,
+  mapa: Map<string, Bucket>
+): ExcelSheet {
   const rows: ExcelRow[] = [];
   for (const g of groups) {
     rows.push({ cells: [g.customer, "", "", "", "", g.totals.mano_obra, g.totals.cr, g.totals.equipos, g.totals.operacion], bold: true });
     for (const it of g.items) {
-      const b = bucketForCategory(it.categoria);
+      const b = bucketForCategory(it.categoria, mapa);
       rows.push({
         cells: [
           it.sku ?? "", it.marca ?? "", it.nombre, it.categoria ?? "Sin categoría", it.cantidad,

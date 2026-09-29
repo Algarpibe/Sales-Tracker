@@ -1,4 +1,4 @@
-import { bucketForCategory, BUCKET_LABELS, type Bucket } from "@/lib/customer-item";
+import { BUCKETS, bucketForCategory, BUCKET_LABELS, type Bucket } from "@/lib/customer-item";
 
 export type InsightRecord = {
   category_id: string;
@@ -30,22 +30,26 @@ export function executionByMonth(
   }));
 }
 
+/**
+ * `catMap` traduce el id de categoría de cada venta a su nombre; `mapa` (de
+ * mapaMacroCategorias) traduce ese nombre a su macro-categoría.
+ */
 export function bucketMix(
   records: InsightRecord[],
   catMap: Map<string, string>,
+  mapa: Map<string, Bucket>,
   recordType: string
 ): { bucket: Bucket; label: string; amount: number; pct: number }[] {
-  const order: Bucket[] = ["mano_obra", "cr", "equipos", "operacion"];
-  const sums = new Map<Bucket, number>(order.map((b) => [b, 0]));
+  const sums = new Map<Bucket, number>(BUCKETS.map((b) => [b, 0]));
   let total = 0;
   for (const r of records) {
     if (r.record_type !== recordType) continue;
-    const b = bucketForCategory(catMap.get(r.category_id) ?? null);
+    const b = bucketForCategory(catMap.get(r.category_id) ?? null, mapa);
     const amt = Number(r.amount_usd);
     sums.set(b, (sums.get(b) ?? 0) + amt);
     total += amt;
   }
-  return order.map((b) => {
+  return BUCKETS.map((b) => {
     const amount = sums.get(b) ?? 0;
     return { bucket: b, label: BUCKET_LABELS[b], amount, pct: total > 0 ? (amount / total) * 100 : 0 };
   });

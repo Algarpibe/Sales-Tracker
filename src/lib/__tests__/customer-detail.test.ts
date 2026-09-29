@@ -5,6 +5,7 @@ import {
   customerHref,
 } from "@/lib/customer-detail";
 import type { CustomerYearRow, CustomerItemRow, CustomerMonthRow, MarginCustomerRow } from "@/types/database";
+import { mapaMacroCategorias } from "@/lib/customer-item";
 
 const years: CustomerYearRow[] = [
   { customer: "A", year: 2022, ventas: 100 },
@@ -73,8 +74,12 @@ const items: CustomerItemRow[] = [
 ];
 
 describe("customerBuckets", () => {
-  it("suma por bucket del cliente", () => {
-    expect(customerBuckets(items, "A")).toEqual({ mano_obra: 40, cr: 100, equipos: 200, operacion: 0, total: 340 });
+  it("suma por bucket del cliente segun el mapa; lo que no esta en el mapa es Equipos", () => {
+    const mapa = mapaMacroCategorias([
+      { name: "C&R EDM 180", macro_categoria: "cr" },
+      { name: "CAL PM", macro_categoria: "mano_obra" },
+    ]);
+    expect(customerBuckets(items, "A", mapa)).toEqual({ mano_obra: 40, cr: 100, equipos: 200, operacion: 0, total: 340 });
   });
 });
 describe("customerTopItems", () => {
