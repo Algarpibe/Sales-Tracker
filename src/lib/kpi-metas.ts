@@ -93,9 +93,13 @@ export function evaluarBorrador(draft: Draft, salesperson: KpiScope, plazoTexto:
   if (esTotal) {
     if (plazo === null) {
       avisoPlazo = AVISO_PLAZO_INVALIDO;
-    } else if (plazo !== PLAZO_HORAS_POR_DEFECTO && !items.some((i) => i.kpi_key === KPI_CON_PLAZO)) {
+    } else if (
+      plazo !== PLAZO_HORAS_POR_DEFECTO &&
+      !items.some((i) => i.kpi_key === KPI_CON_PLAZO && i.target_value > 0)
+    ) {
       // saveKpiTargets borra la fila de un KPI sin peso, y con ella su plazo: guardar
-      // otro plazo sin esa fila lo perdería sin avisar.
+      // otro plazo sin esa fila lo perdería sin avisar. Una fila con peso pero sin meta
+      // válida tampoco se guarda, y sin el aviso no se sabría qué le falta al plazo.
       avisoPlazo = AVISO_PLAZO_SIN_FILA;
     }
   }

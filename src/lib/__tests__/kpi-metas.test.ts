@@ -134,6 +134,20 @@ describe("evaluarBorrador", () => {
     expect(e.avisoPlazo).toBe(AVISO_PLAZO_SIN_FILA);
   });
 
+  // Con peso pero sin meta valida la fila tampoco se puede guardar: sin el aviso, quien
+  // cambia el plazo solo veria el boton desactivado sin saber que le falta la meta.
+  it("una fila de tickets con peso y sin meta valida tambien avisa del plazo", () => {
+    for (const metaTexto of ["", "0", "abc"]) {
+      const e = evaluarBorrador(
+        borrador({ ventas_nuevos: ["1000", "50"], ventas_existentes: ["2000", "40"], tickets_st: [metaTexto, "10"] }),
+        null,
+        "8"
+      );
+      expect(e.valido).toBe(false);
+      expect(e.avisoPlazo).toBe(AVISO_PLAZO_SIN_FILA);
+    }
+  });
+
   it("unos pesos que no suman 100 impiden guardar sin culpar al plazo", () => {
     const e = evaluarBorrador(borrador({ ventas_nuevos: ["1000", "10"], ventas_existentes: ["2000", "40"] }), null, "12");
     expect(e.suma).toBe(50);
