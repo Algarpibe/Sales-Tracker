@@ -25,8 +25,13 @@ async function restaurarMetas(page: Page) {
   await card.getByLabel("Peso de Ventas clientes nuevos", { exact: true }).fill("60");
   await card.getByLabel("Peso de Ventas clientes existentes", { exact: true }).fill("40");
   await card.getByLabel(`Plazo de ${TICKETS}`, { exact: true }).fill("12");
-  await card.getByRole("button", { name: "Guardar metas" }).click();
-  await expect(page.getByText("Metas guardadas")).toBeVisible();
+  // Si el test falló antes de guardar, la base ya está como la semilla y el botón,
+  // sin cambios que guardar, está apagado: no hay nada que restaurar.
+  const guardar = card.getByRole("button", { name: "Guardar metas" });
+  if (await guardar.isEnabled()) {
+    await guardar.click();
+    await expect(page.getByText("Metas guardadas")).toBeVisible();
+  }
 
   await page.reload();
   const tras = tarjetaMetas(page);
@@ -51,6 +56,8 @@ test("cambiar el plazo del anio cambia la cifra de tickets de la tabla y su deta
     await card.getByLabel(`Plazo de ${TICKETS}`, { exact: true }).fill("8");
     await card.getByRole("button", { name: "Guardar metas" }).click();
     await expect(page.getByText("Metas guardadas")).toBeVisible();
+    // Lo guardado ya es lo que se ve: el botón se apaga hasta el siguiente cambio.
+    await expect(card.getByRole("button", { name: "Guardar metas" })).toBeDisabled();
 
     await page.goto("/analytics");
     await page.getByRole("tab", { name: "Comercial" }).click();

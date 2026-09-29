@@ -105,3 +105,20 @@ export function evaluarBorrador(draft: Draft, salesperson: KpiScope, plazoTexto:
   }
   return { items, suma, pesosValidos, valido: pesosValidos && avisoPlazo === null, avisoPlazo };
 }
+
+/**
+ * Si lo que hay en pantalla difiere de lo guardado. Se compara lo que se enviaría al
+ * guardar, no el texto de los campos: "80.0" y "80" son la misma meta, y un plazo
+ * tecleado en el ámbito de un vendedor no viaja, así que tampoco es un cambio. Sin
+ * esto el botón quedaba activo aunque no hubiera nada nuevo que guardar.
+ */
+export function hayCambios(rows: KpiTargetRow[], draft: Draft, salesperson: KpiScope, plazoTexto: string): boolean {
+  const clave = (items: KpiTargetRow[]) =>
+    items
+      .map((i) => `${i.kpi_key}|${i.target_value}|${i.weight_pct}|${i.plazo_horas ?? ""}`)
+      .sort()
+      .join(";");
+  const guardado = evaluarBorrador(toDraft(rows), salesperson, plazoInicial(rows)).items;
+  const actual = evaluarBorrador(draft, salesperson, plazoTexto).items;
+  return clave(guardado) !== clave(actual);
+}

@@ -24,7 +24,13 @@ test("no deja guardar si los pesos no suman 100", async ({ page }) => {
   await expect(card.getByText("Suma de pesos: 50%")).toBeVisible();
   await expect(card.getByRole("button", { name: "Guardar metas" })).toBeDisabled();
 
+  // Volver a lo guardado deja los pesos bien, pero no hay nada nuevo que guardar.
   await peso.fill("60");
+  await expect(card.getByText("Suma de pesos: 100%")).toBeVisible();
+  await expect(card.getByRole("button", { name: "Guardar metas" })).toBeDisabled();
+
+  // Un cambio válido sí lo activa. El test no guarda: la base queda como estaba.
+  await card.getByLabel("Meta de Ventas clientes nuevos").fill("1500");
   await expect(card.getByRole("button", { name: "Guardar metas" })).toBeEnabled();
 });
 
@@ -83,7 +89,8 @@ test("no deja guardar un plazo invalido ni un plazo sin meta y peso de tickets",
   await expect(card.getByText("Suma de pesos: 100%")).toBeVisible();
   const plazo = card.getByLabel(PLAZO, { exact: true });
   const guardar = card.getByRole("button", { name: "Guardar metas" });
-  await expect(guardar).toBeEnabled();
+  // Recién cargada no hay cambios que guardar.
+  await expect(guardar).toBeDisabled();
 
   await plazo.fill("0");
   await expect(card.getByText(/mayor que 0/)).toBeVisible();
@@ -96,7 +103,8 @@ test("no deja guardar un plazo invalido ni un plazo sin meta y peso de tickets",
 
   // Nada se guarda en este test: volver al de por defecto deja la pantalla como estaba.
   await plazo.fill("12");
-  await expect(guardar).toBeEnabled();
+  await expect(card.getByText(/ponle meta y peso/)).toHaveCount(0);
+  await expect(guardar).toBeDisabled();
 });
 
 test.describe("lector", () => {
