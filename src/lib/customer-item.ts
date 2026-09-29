@@ -1,7 +1,12 @@
-import type { CustomerItemRow } from "@/types/database";
+import type { Bucket, CustomerItemRow } from "@/types/database";
 import type { ExcelSheet, ExcelRow } from "@/lib/excel-types";
 
-export type Bucket = "mano_obra" | "cr" | "equipos" | "operacion";
+// Bucket vive en types/database porque también tipa la columna macro_categoria. Se
+// reexporta aquí para que los consumidores lo sigan importando de donde siempre.
+export type { Bucket } from "@/types/database";
+
+/** Las cuatro macro-categorías, en el orden de columnas, series, leyendas y grupos. */
+export const BUCKETS: readonly Bucket[] = ["mano_obra", "cr", "equipos", "operacion"];
 
 export const BUCKET_LABELS: Record<Bucket, string> = {
   mano_obra: "Mano de Obra / Cal",

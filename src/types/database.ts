@@ -47,6 +47,13 @@ export interface Profile {
 /** Grupo de Servicio Técnico de una categoría: ST (mano de obra) o C&R (consumibles y repuestos). */
 export type TechServiceBucket = "st" | "cr";
 
+/**
+ * Macro-categoría de una categoría (columna macro_categoria, migración 0013): mano de
+ * obra, consumos y repuestos, equipos u operaciones. Una categoría sin marcar cuenta
+ * como Equipos.
+ */
+export type Bucket = "mano_obra" | "cr" | "equipos" | "operacion";
+
 export interface Category {
   id: string;
   company_id: string;
@@ -56,6 +63,7 @@ export interface Category {
   sort_order: number;
   is_active: boolean;
   tech_service_bucket: TechServiceBucket | null;
+  macro_categoria: Bucket | null;
   created_at: string;
   updated_at: string;
 }
@@ -71,6 +79,17 @@ export interface TechServiceCategory {
   color: string;
   is_active: boolean;
   tech_service_bucket: TechServiceBucket | null;
+}
+
+/**
+ * Categoría tal como la necesitan la tarjeta «Macro-categorías» y los gráficos que
+ * clasifican por macro-categoría: solo lo imprescindible, incluidas las inactivas.
+ */
+export interface MacroCategoria {
+  id: string;
+  name: string;
+  is_active: boolean;
+  macro_categoria: Bucket | null;
 }
 
 export interface SalesRecord {

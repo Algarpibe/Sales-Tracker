@@ -122,6 +122,10 @@ export const categories = pgTable("categories", {
   // o NULL si no cuenta. Una sola columna impide que una categoría esté en los dos
   // grupos. Migración 0011.
   tech_service_bucket: text("tech_service_bucket").$type<"st" | "cr">(),
+  // Macro-categoría: 'mano_obra', 'cr' (consumos y repuestos), 'equipos' u
+  // 'operacion'. NULL cuenta como Equipos. Independiente de tech_service_bucket:
+  // las dos clasificaciones pueden no coincidir. Migración 0013.
+  macro_categoria: text("macro_categoria").$type<"mano_obra" | "cr" | "equipos" | "operacion">(),
   created_at: timestamp("created_at", tsString).notNull().defaultNow(),
   updated_at: timestamp("updated_at", tsString).notNull().defaultNow(),
 }, (t) => [
@@ -129,6 +133,10 @@ export const categories = pgTable("categories", {
   check(
     "categories_tech_service_bucket_check",
     sql`${t.tech_service_bucket} IS NULL OR ${t.tech_service_bucket} IN ('st', 'cr')`
+  ),
+  check(
+    "categories_macro_categoria_check",
+    sql`${t.macro_categoria} IS NULL OR ${t.macro_categoria} IN ('mano_obra', 'cr', 'equipos', 'operacion')`
   ),
 ]);
 
