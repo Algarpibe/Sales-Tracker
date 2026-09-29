@@ -80,11 +80,80 @@ test("cambiar el plazo del anio cambia la cifra de tickets de la tabla y su deta
     await page.keyboard.press("Escape");
     await expect(dialogo).toBeHidden();
 
-    // Con un comercial elegido, sus metas no traen plazo: la tabla usa el del total.
+    // Con un comercial elegido manda su propio plazo, no el del total: la semilla no le
+    // guarda ninguno, así que vale el de por defecto (12 h) y febrero vuelve al 60 %.
     await tabla.getByLabel("Propietario").click();
     await page.getByRole("option", { name: SALESPEOPLE[0] }).click();
-    await expect(boton).toHaveText("40.0%");
+    await expect(boton).toHaveText("60.0%");
   } finally {
     await restaurarMetas(page);
+  }
+});
+
+/**
+ * Deja el plazo del comercial en el de por defecto. La pantalla no puede vaciar un
+ * ámbito (hay que enviar al menos un KPI), así que la fila de tickets se queda con su
+ * meta y su peso; con 12 h mide igual que sin plazo guardado. Ningún otro spec usa las
+ * metas de este comercial, y la ejecución completa resiembra la base antes de empezar.
+ */
+async function restaurarPlazoComercial(page: Page, comercial: string) {
+  await page.goto("/settings");
+  const card = tarjetaMetas(page);
+  await expect(card).toBeVisible();
+  await card.getByLabel("Ámbito").click();
+  await page.getByRole("option", { name: comercial }).click();
+  // Esperar a sus metas antes de tocar el campo: el formulario se remonta al cargarlas.
+  await expect(card.getByText(/Suma de pesos: (0|100)%/)).toBeVisible();
+  await card.getByLabel(`Plazo de ${TICKETS}`, { exact: true }).fill("12");
+  const guardar = card.getByRole("button", { name: "Guardar metas" });
+  if (await guardar.isEnabled()) {
+    await guardar.click();
+    await expect(page.getByText("Metas guardadas")).toBeVisible();
+  }
+}
+
+test("con un comercial elegido la cifra de tickets usa su plazo y no el del total", async ({ page }) => {
+  test.setTimeout(120_000);
+  // Otro comercial que el del test de arriba, para que cada uno mire su propio ámbito.
+  const comercial = SALESPEOPLE[1];
+  try {
+    await page.goto("/settings");
+    const card = tarjetaMetas(page);
+    await expect(card.getByText("Suma de pesos: 100%")).toBeVisible();
+    await card.getByLabel("Ámbito").click();
+    await page.getByRole("option", { name: comercial }).click();
+    await expect(card.getByText(/Suma de pesos: (0|100)%/)).toBeVisible();
+
+    // El plazo se guarda en la fila de tickets del comercial: meta y todo el peso.
+    await card.getByLabel(`Meta de ${TICKETS}`, { exact: true }).fill("80");
+    await card.getByLabel(`Peso de ${TICKETS}`, { exact: true }).fill("100");
+    await card.getByLabel(`Plazo de ${TICKETS}`, { exact: true }).fill("8");
+    await card.getByRole("button", { name: "Guardar metas" }).click();
+    await expect(page.getByText("Metas guardadas")).toBeVisible();
+    await expect(card.getByRole("button", { name: "Guardar metas" })).toBeDisabled();
+
+    await page.goto("/analytics");
+    await page.getByRole("tab", { name: "Comercial" }).click();
+    const tabla = page.locator('[data-slot="card"]', { hasText: "KPIs comerciales" });
+    await expect(tabla).toBeVisible();
+    const fila = tabla.getByRole("row", { name: /Tickets de Servicio Técnico en plazo/ });
+    const boton = fila.getByRole("cell").nth(CELDA_FEBRERO).getByRole("button");
+
+    // El total no tiene plazo guardado: 12 h, 3 de 5 en plazo en febrero (seed-hub.mjs).
+    await expect(boton).toHaveText("60.0%");
+
+    // Con el comercial, su plazo de 8 h: 2 de 5. Los tickets siguen siendo de compañía.
+    await tabla.getByLabel("Propietario").click();
+    await page.getByRole("option", { name: comercial }).click();
+    await expect(boton).toHaveText("40.0%");
+
+    await boton.click();
+    const dialogo = page.getByRole("dialog", { name: /Tickets en plazo/ });
+    await expect(dialogo).toContainText("menos de 8 h laborables");
+    await expect(dialogo.getByText("2 en plazo de 5 → 40.0%")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(dialogo).toBeHidden();
+  } finally {
+    await restaurarPlazoComercial(page, comercial);
   }
 });

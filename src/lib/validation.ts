@@ -113,11 +113,11 @@ export const kpiTargetsSchema = z
     (v) => Math.round(v.items.reduce((s, i) => s + i.weight_pct, 0) * 100) === 10000,
     { message: "Los pesos deben sumar 100", path: ["items"] }
   )
-  // El plazo solo tiene sentido en tickets_st del total: es el único ámbito en que se
-  // mide ese KPI. En otro sitio se guardaría un dato que nadie lee.
+  // El plazo solo tiene sentido en tickets_st: es el único KPI que lo lee. Cada ámbito
+  // (el total y cada vendedor) guarda el suyo; en otro KPI sería un dato que nadie lee.
   .refine(
-    (v) => v.items.every((i) => i.plazo_horas == null || (i.kpi_key === KPI_CON_PLAZO && v.salesperson === null)),
-    { message: "El plazo solo se configura en Tickets de Servicio Técnico en plazo del total de compañía", path: ["items"] }
+    (v) => v.items.every((i) => i.plazo_horas == null || i.kpi_key === KPI_CON_PLAZO),
+    { message: "El plazo solo se configura en Tickets de Servicio Técnico en plazo", path: ["items"] }
   );
 
 // Clasificación de Servicio Técnico: ids de las categorías de cada grupo. Una

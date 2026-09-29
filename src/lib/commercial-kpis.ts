@@ -30,8 +30,8 @@ export const COMMERCIAL_KPIS: KpiDef[] = [
 
 export const KPI_KEYS: string[] = COMMERCIAL_KPIS.map((k) => k.key);
 
-/** Único KPI con plazo configurable: «Tickets de Servicio Técnico en plazo». Solo se
- *  mide a nivel compañía, así que su plazo solo se guarda en las metas del total. */
+/** Único KPI con plazo configurable: «Tickets de Servicio Técnico en plazo». Cada ámbito
+ *  (el total y cada vendedor) guarda su propio plazo; los tickets son de compañía. */
 export const KPI_CON_PLAZO = "tickets_st";
 
 // Etiqueta corta de cada unidad. No todas las metas son importes: las de tratos

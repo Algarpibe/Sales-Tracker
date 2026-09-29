@@ -86,16 +86,18 @@ describe("kpiTargetsSchema: plazo de tickets", () => {
   it("acepta un plazo nulo", () => {
     expect(total(conPlazo(null))).toBe(true);
   });
-  // La pantalla envía plazo_horas: null en todos los KPIs de un vendedor.
   it("acepta plazos nulos en el ambito de un vendedor", () => {
     expect(vendedor(conPlazo(null))).toBe(true);
   });
   it("rechaza el plazo en otro KPI", () => {
     expect(total(conPlazo(8, "ventas_existentes"))).toBe(false);
   });
-  // El KPI de tickets solo se mide a nivel compañía: un plazo por vendedor no se usaría nunca.
-  it("rechaza el plazo en el ambito de un vendedor", () => {
-    expect(vendedor(conPlazo(8))).toBe(false);
+  // Cada comercial tiene su propio plazo, independiente del total.
+  it("acepta el plazo en tickets_st del ambito de un vendedor", () => {
+    expect(vendedor(conPlazo(8))).toBe(true);
+  });
+  it("en el ambito de un vendedor sigue rechazando el plazo en otro KPI", () => {
+    expect(vendedor(conPlazo(8, "ventas_existentes"))).toBe(false);
   });
   it("rechaza un plazo de 0 o negativo", () => {
     expect(total(conPlazo(0))).toBe(false);

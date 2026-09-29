@@ -242,8 +242,8 @@ export const kpiTargets = pgTable("kpi_targets", {
   salesperson: text("salesperson"),
   target_value: numeric("target_value", { precision: 15, scale: 2 }).notNull(),
   weight_pct: numeric("weight_pct", { precision: 5, scale: 2 }).notNull(),
-  // Horas laborables del plazo del KPI de tickets. Solo en la fila tickets_st del
-  // total; nulo = PLAZO_HORAS_POR_DEFECTO (12). Migración 0012.
+  // Horas laborables del plazo del KPI de tickets. Solo en la fila tickets_st, una
+  // por ámbito (total o vendedor); nulo = PLAZO_HORAS_POR_DEFECTO (12). Migración 0012.
   plazo_horas: numeric("plazo_horas", { precision: 6, scale: 2 }),
   updated_at: timestamp("updated_at", tsString).notNull().defaultNow(),
 }, (t) => [
