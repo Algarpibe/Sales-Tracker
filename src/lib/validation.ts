@@ -6,7 +6,7 @@ import {
   billingCycle,
   subscriptionStatus,
 } from "@/db/schema";
-import { KPI_FIRST_YEAR, KPI_KEYS } from "@/lib/commercial-kpis";
+import { KPI_CON_PLAZO, KPI_FIRST_YEAR, KPI_KEYS } from "@/lib/commercial-kpis";
 
 // Esquemas reutilizables para validar input de Server Actions en runtime
 // (TypeScript no valida en runtime). Los enums se derivan del schema Drizzle
@@ -96,6 +96,15 @@ export const kpiTargetsSchema = z
           kpi_key: z.string().refine((k) => KPI_KEYS.includes(k), "KPI desconocido"),
           target_value: z.number().positive("La meta debe ser mayor que cero").multipleOf(0.01, "La meta admite dos decimales como mucho"),
           weight_pct: z.number().min(0).max(100).multipleOf(0.01, "El peso admite dos decimales como mucho"),
+          // Horas laborables del plazo de tickets. Opcional y nulo en el resto de KPIs:
+          // la columna es numeric(6,2) y 999 h ya son meses de jornada.
+          plazo_horas: z
+            .number()
+            .positive("El plazo debe ser mayor que cero")
+            .max(999, "El plazo admite 999 horas como mucho")
+            .multipleOf(0.01, "El plazo admite dos decimales como mucho")
+            .nullable()
+            .optional(),
         })
       )
       .min(1, "Hay que enviar al menos un KPI"),
@@ -103,6 +112,12 @@ export const kpiTargetsSchema = z
   .refine(
     (v) => Math.round(v.items.reduce((s, i) => s + i.weight_pct, 0) * 100) === 10000,
     { message: "Los pesos deben sumar 100", path: ["items"] }
+  )
+  // El plazo solo tiene sentido en tickets_st del total: es el único ámbito en que se
+  // mide ese KPI. En otro sitio se guardaría un dato que nadie lee.
+  .refine(
+    (v) => v.items.every((i) => i.plazo_horas == null || (i.kpi_key === KPI_CON_PLAZO && v.salesperson === null)),
+    { message: "El plazo solo se configura en Tickets de Servicio Técnico en plazo del total de compañía", path: ["items"] }
   );
 
 // Clasificación de Servicio Técnico: ids de las categorías de cada grupo. Una

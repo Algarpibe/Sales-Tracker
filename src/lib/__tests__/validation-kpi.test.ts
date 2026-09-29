@@ -65,3 +65,47 @@ describe("kpiTargetsSchema", () => {
     ).toBe(true);
   });
 });
+
+describe("kpiTargetsSchema: plazo de tickets", () => {
+  // Pesos que suman 100 con tickets_st medido: solo cambia el plazo o en qué KPI va.
+  const conPlazo = (plazo_horas: number | null, kpi_key = "tickets_st") => [
+    { kpi_key: "ventas_nuevos", target_value: 100, weight_pct: 60, plazo_horas: null },
+    { kpi_key, target_value: 80, weight_pct: 40, plazo_horas },
+  ];
+  const total = (items: unknown[]) => kpiTargetsSchema.safeParse({ year, salesperson: null, items }).success;
+  const vendedor = (items: unknown[]) =>
+    kpiTargetsSchema.safeParse({ year, salesperson: "Vendedor Ficticio", items }).success;
+
+  it("acepta el plazo en tickets_st del total", () => {
+    expect(total(conPlazo(8))).toBe(true);
+  });
+  it("acepta un plazo con dos decimales", () => {
+    expect(total(conPlazo(4.5))).toBe(true);
+    expect(total(conPlazo(12.25))).toBe(true);
+  });
+  it("acepta un plazo nulo", () => {
+    expect(total(conPlazo(null))).toBe(true);
+  });
+  // La pantalla envía plazo_horas: null en todos los KPIs de un vendedor.
+  it("acepta plazos nulos en el ambito de un vendedor", () => {
+    expect(vendedor(conPlazo(null))).toBe(true);
+  });
+  it("rechaza el plazo en otro KPI", () => {
+    expect(total(conPlazo(8, "ventas_existentes"))).toBe(false);
+  });
+  // El KPI de tickets solo se mide a nivel compañía: un plazo por vendedor no se usaría nunca.
+  it("rechaza el plazo en el ambito de un vendedor", () => {
+    expect(vendedor(conPlazo(8))).toBe(false);
+  });
+  it("rechaza un plazo de 0 o negativo", () => {
+    expect(total(conPlazo(0))).toBe(false);
+    expect(total(conPlazo(-4))).toBe(false);
+  });
+  // numeric(6,2) redondearía al guardar: lo guardado no cuadraría con lo validado.
+  it("rechaza un plazo con mas de dos decimales", () => {
+    expect(total(conPlazo(4.125))).toBe(false);
+  });
+  it("rechaza un plazo de mas de 999 horas", () => {
+    expect(total(conPlazo(1000))).toBe(false);
+  });
+});
