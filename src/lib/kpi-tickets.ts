@@ -6,6 +6,9 @@
  * (el servidor, el navegador o el runner de CI).
  */
 
+import type { KpiTargetRow } from "@/actions/kpi-actions";
+import { KPI_CON_PLAZO } from "@/lib/commercial-kpis";
+
 /** Fase de Zoho Desk en la que Comercial tiene el ticket. Literal exacto de Desk.
  *  El mismo literal está repetido en e2e/db/seed-hub.mjs, que no puede importar de
  *  aquí por ser .mjs: si se cambia aquí, hay que cambiarlo allí. */
@@ -18,7 +21,9 @@ export const FASE_NOTIFICACION_COMERCIAL = "Notificación Comercial";
  */
 export const FASES_FIN_RELOJ: readonly string[] = ["Notificación cliente", "En espera de SKU inventario"];
 
-export const PLAZO_HORAS = 12;
+/** Plazo, en horas laborables, de un año sin plazo guardado en sus metas: el que había
+ *  fijo antes de hacerlo configurable, para que esos años no cambien de cifra. */
+export const PLAZO_HORAS_POR_DEFECTO = 12;
 export const HORA_INICIO = 8;
 export const HORA_FIN = 17;
 /** Colombia no cambia de horario: el desfase es fijo todo el año. */
@@ -226,17 +231,28 @@ export interface Clasificacion {
  * abierto, hasta `ahora`, y solo cuenta (fuera de plazo) cuando ya consumió el plazo
  * entero, porque antes todavía puede acabar en plazo. Cualquier otro caso se trata como
  * excluido, igual que hacía el contador antes de apoyarse en esta función.
+ * `plazoHoras` es obligatorio a propósito: ningún consumidor puede quedarse con el de
+ * por defecto sin darse cuenta.
  */
-export function clasificarEpisodio(e: Episodio, ahora: number): Clasificacion {
+export function clasificarEpisodio(e: Episodio, ahora: number, plazoHoras: number): Clasificacion {
   if (e.estado === "medible" && e.fin !== null) {
     const horas = horasLaborables(e.inicio, e.fin);
-    return { estado: horas < PLAZO_HORAS ? "en_plazo" : "fuera_de_plazo", horas };
+    return { estado: horas < plazoHoras ? "en_plazo" : "fuera_de_plazo", horas };
   }
   if (e.estado === "abierto") {
     const horas = horasLaborables(e.inicio, ahora);
-    return { estado: horas >= PLAZO_HORAS ? "fuera_de_plazo" : "abierto_sin_vencer", horas };
+    return { estado: horas >= plazoHoras ? "fuera_de_plazo" : "abierto_sin_vencer", horas };
   }
   return { estado: "excluido", horas: 0 };
+}
+
+/**
+ * Plazo del año a partir de las metas del TOTAL de la compañía: el KPI de tickets solo
+ * se mide a ese nivel, así que las metas de un vendedor no traen plazo. Sin fila de
+ * tickets o con el plazo nulo vale el de por defecto.
+ */
+export function plazoTicketsDelAnio(metasTotal: KpiTargetRow[]): number {
+  return metasTotal.find((m) => m.kpi_key === KPI_CON_PLAZO)?.plazo_horas ?? PLAZO_HORAS_POR_DEFECTO;
 }
 
 /** Mes de entrada (0-11) en hora de Bogotá, o null si el episodio entró otro año. */
@@ -251,13 +267,18 @@ function mesDeEntrada(e: Episodio, anio: number): number | null {
  * plazo, cuando ya ha consumido el plazo entero a fecha de `ahora`: antes de eso
  * todavía puede acabar en plazo.
  */
-export function contarTicketsEnPlazo(episodios: Episodio[], anio: number, ahora: number): ConteoTickets {
+export function contarTicketsEnPlazo(
+  episodios: Episodio[],
+  anio: number,
+  ahora: number,
+  plazoHoras: number
+): ConteoTickets {
   const enPlazo: number[] = new Array(12).fill(0);
   const fueraDePlazo: number[] = new Array(12).fill(0);
   for (const e of episodios) {
     const mes = mesDeEntrada(e, anio);
     if (mes === null) continue;
-    const { estado } = clasificarEpisodio(e, ahora);
+    const { estado } = clasificarEpisodio(e, ahora, plazoHoras);
     if (estado === "en_plazo") enPlazo[mes]++;
     else if (estado === "fuera_de_plazo") fueraDePlazo[mes]++;
   }
@@ -266,8 +287,13 @@ export function contarTicketsEnPlazo(episodios: Episodio[], anio: number, ahora:
 
 /** Porcentaje en plazo de cada mes; null en un mes sin episodios contables, no 0 %:
  *  un cero diría que Comercial incumplió todo, y lo cierto es que no hubo qué medir. */
-export function ticketsEnPlazoPorMes(episodios: Episodio[], anio: number, ahora: number): (number | null)[] {
-  const { enPlazo, fueraDePlazo } = contarTicketsEnPlazo(episodios, anio, ahora);
+export function ticketsEnPlazoPorMes(
+  episodios: Episodio[],
+  anio: number,
+  ahora: number,
+  plazoHoras: number
+): (number | null)[] {
+  const { enPlazo, fueraDePlazo } = contarTicketsEnPlazo(episodios, anio, ahora, plazoHoras);
   return enPlazo.map((dentro, i) => {
     const total = dentro + fueraDePlazo[i];
     return total === 0 ? null : (dentro / total) * 100;
@@ -301,12 +327,18 @@ export interface DetalleTicketsMes {
  * son los que piden explicación, y dentro de cada grupo de más horas a menos; a
  * igualdad de horas, por entrada y por ticket, para que el orden sea siempre el mismo.
  */
-export function detalleTicketsMes(episodios: Episodio[], anio: number, mes: number, ahora: number): DetalleTicketsMes {
+export function detalleTicketsMes(
+  episodios: Episodio[],
+  anio: number,
+  mes: number,
+  ahora: number,
+  plazoHoras: number
+): DetalleTicketsMes {
   const cuentan: FilaDetalleTicket[] = [];
   const noCuentan: FilaDetalleTicket[] = [];
   for (const e of episodios) {
     if (mesDeEntrada(e, anio) !== mes - 1) continue;
-    const { estado, horas } = clasificarEpisodio(e, ahora);
+    const { estado, horas } = clasificarEpisodio(e, ahora, plazoHoras);
     const fila: FilaDetalleTicket = {
       ticketId: e.ticketId,
       numero: e.numero,

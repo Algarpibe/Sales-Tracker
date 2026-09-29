@@ -30,7 +30,9 @@ import {
   type BreakdownInput,
 } from "@/lib/kpi-score";
 import { customerHref } from "@/lib/customer-detail";
-import { detalleTicketsMes, episodiosNotificacionComercial, ticketsEnPlazoPorMes } from "@/lib/kpi-tickets";
+import {
+  PLAZO_HORAS_POR_DEFECTO, detalleTicketsMes, episodiosNotificacionComercial, ticketsEnPlazoPorMes,
+} from "@/lib/kpi-tickets";
 import { gruposServicioTecnico, stGrowthByQuarter, TECH_SERVICE_CATEGORIES_KEY } from "@/lib/tech-service";
 import { CHART_HELP } from "@/lib/chart-help";
 import { MONTHS, RECORD_TYPES, formatPct, formatUSD } from "@/lib/constants";
@@ -444,7 +446,9 @@ export function CommercialKpiTable({
         // no hay serie aparte, así que construirFila lo pinta en su mes con el
         // cumplimiento debajo. `ahoraTickets` decide qué episodios abiertos ya están
         // fuera de plazo. Los meses sin episodios son null y tampoco cuentan a la fecha.
-        return construirFila(def, ticketsEnPlazoPorMes(episodiosTickets, year, ahoraTickets), meta, null, year, hoy);
+        return construirFila(
+          def, ticketsEnPlazoPorMes(episodiosTickets, year, ahoraTickets, PLAZO_HORAS_POR_DEFECTO), meta, null, year, hoy
+        );
       }
       if (def.key === "ingresos_proyectos") {
         // date es un `date` de Postgres ('YYYY-MM-DD'), sin hora ni zona: se lee
@@ -495,7 +499,7 @@ export function CommercialKpiTable({
   // Mismos episodios, mismo año y mismo `ahora` que la fila: el detalle sale de la misma
   // clasificación que la cifra pulsada.
   const detalleTickets = celdaTickets
-    ? detalleTicketsMes(episodiosTickets, year, celdaTickets.mes, ahoraTickets)
+    ? detalleTicketsMes(episodiosTickets, year, celdaTickets.mes, ahoraTickets, PLAZO_HORAS_POR_DEFECTO)
     : null;
 
   // Agregar y quitar comparten la misma invalidación: ["kpi-project-orders"]
