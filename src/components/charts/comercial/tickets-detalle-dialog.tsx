@@ -6,6 +6,7 @@ import {
   HORA_FIN,
   HORA_INICIO,
   formatoInstanteBogota,
+  textoPlazo,
   type DetalleTicketsMes,
   type EstadoPlazo,
   type FilaDetalleTicket,
@@ -77,6 +78,7 @@ export function TicketsDetalleDialog({
   anio,
   mes,
   detalle,
+  plazoHoras,
 }: {
   abierto: boolean;
   onCerrar: () => void;
@@ -84,6 +86,8 @@ export function TicketsDetalleDialog({
   /** 1-12. */
   mes: number;
   detalle: DetalleTicketsMes | null;
+  /** Plazo con el que la tabla clasificó los episodios: se enseña para que el detalle se explique solo. */
+  plazoHoras: number;
 }) {
   // Misma fórmula que ticketsEnPlazoPorMes, para que el redondeo de formatPct coincida.
   const pct = detalle && detalle.total > 0 ? formatPct((detalle.enPlazo / detalle.total) * 100) : "—";
@@ -97,7 +101,7 @@ export function TicketsDetalleDialog({
                 Tickets en plazo · {MONTHS[mes - 1].full} {anio}
               </DialogTitle>
               <p className="text-xs text-muted-foreground">
-                De compañía · horas laborables de lunes a viernes, de {HORA_INICIO}:00 a {HORA_FIN}:00 en Bogotá, sin festivos.
+                De compañía · en plazo: menos de {textoPlazo(plazoHoras)} h laborables · horas laborables de lunes a viernes, de {HORA_INICIO}:00 a {HORA_FIN}:00 en Bogotá, sin festivos.
               </p>
             </DialogHeader>
             {detalle.cuentan.length === 0 ? (

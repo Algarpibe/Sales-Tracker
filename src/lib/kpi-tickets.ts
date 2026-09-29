@@ -365,6 +365,11 @@ export function detalleTicketsMes(
   };
 }
 
+/** Plazo para leerlo en español: coma decimal y sin ceros de relleno ("12", "4,5"). */
+export function textoPlazo(horas: number): string {
+  return String(horas).replace(".", ",");
+}
+
 // Se crea una vez: construir un DateTimeFormat es caro y el diálogo formatea dos
 // instantes por fila. timeZone fija Bogotá, así que no depende de la zona del proceso;
 // hourCycle h23 evita "24:00" a medianoche en algunos motores.

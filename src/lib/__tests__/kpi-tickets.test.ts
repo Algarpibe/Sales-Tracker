@@ -12,6 +12,7 @@ import {
   horasLaborables,
   normalizarFase,
   plazoTicketsDelAnio,
+  textoPlazo,
   ticketsEnPlazoPorMes,
   type CambioFase,
   type Episodio,
@@ -569,5 +570,13 @@ describe("formatoInstanteBogota", () => {
   it("rellena con ceros y pinta la medianoche como 00:00", () => {
     expect(formatoInstanteBogota(bog(2026, 1, 5, 8, 5))).toBe("05/01 08:05");
     expect(formatoInstanteBogota(bog(2026, 2, 2, 0))).toBe("02/02 00:00");
+  });
+});
+
+describe("textoPlazo", () => {
+  it("pinta el plazo con coma decimal y sin ceros de relleno", () => {
+    expect(textoPlazo(12)).toBe("12");
+    expect(textoPlazo(4.5)).toBe("4,5");
+    expect(textoPlazo(7.25)).toBe("7,25");
   });
 });
