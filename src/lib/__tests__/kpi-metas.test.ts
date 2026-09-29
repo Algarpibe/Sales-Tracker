@@ -86,9 +86,11 @@ const CON_TICKETS = borrador({
 // Como la semilla de E2E: tickets sin meta ni peso.
 const SIN_TICKETS = borrador({ ventas_nuevos: ["1000", "60"], ventas_existentes: ["2000", "40"] });
 
+// evaluarBorrador y hayCambios no reciben el ámbito: el total y cada vendedor guardan
+// su propio plazo con las mismas reglas, así que lo que se prueba aquí vale para todos.
 describe("evaluarBorrador", () => {
-  it("en el total, el plazo viaja solo en la fila de tickets", () => {
-    const e = evaluarBorrador(CON_TICKETS, null, "8");
+  it("el plazo viaja solo en la fila de tickets, en cualquier ambito", () => {
+    const e = evaluarBorrador(CON_TICKETS, "8");
     expect(e.items).toEqual([
       { kpi_key: "ventas_nuevos", target_value: 1000, weight_pct: 50, plazo_horas: null },
       { kpi_key: "ventas_existentes", target_value: 2000, weight_pct: 40, plazo_horas: null },
@@ -100,21 +102,13 @@ describe("evaluarBorrador", () => {
   });
 
   it("acepta la coma decimal en el plazo", () => {
-    const tickets = evaluarBorrador(CON_TICKETS, null, "4,5").items.find((i) => i.kpi_key === "tickets_st");
+    const tickets = evaluarBorrador(CON_TICKETS, "4,5").items.find((i) => i.kpi_key === "tickets_st");
     expect(tickets?.plazo_horas).toBe(4.5);
-  });
-
-  // El KPI de tickets solo se mide a nivel compañía: el servidor rechaza un plazo de vendedor.
-  it("en el ambito de un vendedor no envia plazo aunque el campo tenga uno", () => {
-    const e = evaluarBorrador(CON_TICKETS, "Vendedor Ficticio", "8");
-    expect(e.items.every((i) => i.plazo_horas === null)).toBe(true);
-    expect(e.valido).toBe(true);
-    expect(e.avisoPlazo).toBeNull();
   });
 
   it("un plazo que no es un numero mayor que 0 impide guardar", () => {
     for (const texto of ["", "0", "-1", "abc", "4.125"]) {
-      const e = evaluarBorrador(CON_TICKETS, null, texto);
+      const e = evaluarBorrador(CON_TICKETS, texto);
       expect(e.valido).toBe(false);
       expect(e.pesosValidos).toBe(true);
       expect(e.avisoPlazo).toBe(AVISO_PLAZO_INVALIDO);
@@ -122,7 +116,7 @@ describe("evaluarBorrador", () => {
   });
 
   it("sin fila de tickets deja guardar con el plazo por defecto", () => {
-    const e = evaluarBorrador(SIN_TICKETS, null, "12");
+    const e = evaluarBorrador(SIN_TICKETS, "12");
     expect(e.valido).toBe(true);
     expect(e.avisoPlazo).toBeNull();
     expect(e.items.map((i) => i.kpi_key)).toEqual(["ventas_nuevos", "ventas_existentes"]);
@@ -130,7 +124,7 @@ describe("evaluarBorrador", () => {
 
   // saveKpiTargets borra la fila de un KPI sin peso: otro plazo se perdería sin avisar.
   it("sin fila de tickets no deja guardar otro plazo que el de por defecto", () => {
-    const e = evaluarBorrador(SIN_TICKETS, null, "8");
+    const e = evaluarBorrador(SIN_TICKETS, "8");
     expect(e.valido).toBe(false);
     expect(e.avisoPlazo).toBe(AVISO_PLAZO_SIN_FILA);
   });
@@ -141,7 +135,6 @@ describe("evaluarBorrador", () => {
     for (const metaTexto of ["", "0", "abc"]) {
       const e = evaluarBorrador(
         borrador({ ventas_nuevos: ["1000", "50"], ventas_existentes: ["2000", "40"], tickets_st: [metaTexto, "10"] }),
-        null,
         "8"
       );
       expect(e.valido).toBe(false);
@@ -150,7 +143,7 @@ describe("evaluarBorrador", () => {
   });
 
   it("unos pesos que no suman 100 impiden guardar sin culpar al plazo", () => {
-    const e = evaluarBorrador(borrador({ ventas_nuevos: ["1000", "10"], ventas_existentes: ["2000", "40"] }), null, "12");
+    const e = evaluarBorrador(borrador({ ventas_nuevos: ["1000", "10"], ventas_existentes: ["2000", "40"] }), "12");
     expect(e.suma).toBe(50);
     expect(e.pesosValidos).toBe(false);
     expect(e.valido).toBe(false);
@@ -158,7 +151,7 @@ describe("evaluarBorrador", () => {
   });
 
   it("un KPI con peso y sin meta impide guardar", () => {
-    const e = evaluarBorrador(borrador({ ventas_nuevos: ["", "60"], ventas_existentes: ["2000", "40"] }), null, "12");
+    const e = evaluarBorrador(borrador({ ventas_nuevos: ["", "60"], ventas_existentes: ["2000", "40"] }), "12");
     expect(e.pesosValidos).toBe(false);
     expect(e.valido).toBe(false);
   });
@@ -168,35 +161,36 @@ describe("hayCambios", () => {
   const rows: KpiTargetRow[] = [meta("ventas_nuevos", null), meta("tickets_st", 8)];
 
   it("recien cargado no hay nada que guardar", () => {
-    expect(hayCambios(rows, toDraft(rows), null, plazoInicial(rows))).toBe(false);
+    expect(hayCambios(rows, toDraft(rows), plazoInicial(rows))).toBe(false);
   });
 
   it("sin metas guardadas y sin tocar nada tampoco", () => {
-    expect(hayCambios([], toDraft([]), null, plazoInicial([]))).toBe(false);
+    expect(hayCambios([], toDraft([]), plazoInicial([]))).toBe(false);
   });
 
   it("compara numeros, no texto: 80.0 es la misma meta que 80", () => {
     const draft: Draft = { ...toDraft(rows), ventas_nuevos: { target: "80.0", weight: "40" } };
-    expect(hayCambios(rows, draft, null, "8,00")).toBe(false);
+    expect(hayCambios(rows, draft, "8,00")).toBe(false);
   });
 
   it("cambiar una meta o un peso es un cambio", () => {
     const draft: Draft = { ...toDraft(rows), ventas_nuevos: { target: "80", weight: "45" } };
-    expect(hayCambios(rows, draft, null, plazoInicial(rows))).toBe(true);
+    expect(hayCambios(rows, draft, plazoInicial(rows))).toBe(true);
   });
 
-  it("cambiar el plazo en el total es un cambio", () => {
-    expect(hayCambios(rows, toDraft(rows), null, "10")).toBe(true);
+  it("cambiar el plazo es un cambio", () => {
+    expect(hayCambios(rows, toDraft(rows), "10")).toBe(true);
   });
 
   it("volver a dejar lo guardado deja de ser un cambio", () => {
     const tocado: Draft = { ...toDraft(rows), ventas_nuevos: { target: "90", weight: "40" } };
     const devuelto: Draft = { ...tocado, ventas_nuevos: { target: "80", weight: "40" } };
-    expect(hayCambios(rows, devuelto, null, plazoInicial(rows))).toBe(false);
+    expect(hayCambios(rows, devuelto, plazoInicial(rows))).toBe(false);
   });
 
-  it("en el ambito de un vendedor el plazo no cuenta: no se envia", () => {
+  // Sin fila de tickets el plazo no tiene dónde guardarse: no es un cambio que enviar.
+  it("sin fila de tickets el plazo no cuenta", () => {
     const vendedor: KpiTargetRow[] = [{ kpi_key: "ventas_nuevos", target_value: 80, weight_pct: 100, plazo_horas: null }];
-    expect(hayCambios(vendedor, toDraft(vendedor), "Vendedor Ficticio", "10")).toBe(false);
+    expect(hayCambios(vendedor, toDraft(vendedor), "10")).toBe(false);
   });
 });

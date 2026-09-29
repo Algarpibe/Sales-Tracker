@@ -28,7 +28,7 @@ export interface KpiTargetRow {
   kpi_key: string;
   target_value: number;
   weight_pct: number;
-  /** Plazo en horas laborables. Solo en tickets_st del total; null = plazo por defecto. */
+  /** Plazo en horas laborables. Solo en tickets_st, uno por ámbito; null = plazo por defecto. */
   plazo_horas: number | null;
 }
 
@@ -75,7 +75,7 @@ export async function saveKpiTargets(
 
     await db.transaction(async (tx) => {
       for (const it of data.items) {
-        // Solo tickets_st del total trae plazo (lo garantiza kpiTargetsSchema); el resto
+        // Solo tickets_st trae plazo (lo garantiza kpiTargetsSchema), en cualquier ámbito; el resto
         // guarda nulo, que en la lectura vale el plazo por defecto.
         const plazo = it.plazo_horas == null ? null : String(it.plazo_horas);
         await tx

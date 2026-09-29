@@ -302,15 +302,6 @@ export function CommercialKpiTable({
     queryFn: () => getKpiTargets(year, salesperson),
     placeholderData: keepPreviousData,
   });
-  // El plazo de tickets vive en las metas del TOTAL del año: el KPI solo se mide a nivel
-  // compañía y las metas de un comercial no lo traen. Con el total elegido la clave es la
-  // misma que la de arriba y TanStack Query hace una sola petición; con un comercial, es
-  // una consulta aparte. La pantalla de metas invalida esta misma clave al guardar.
-  const metasTotalQ = useQuery({
-    queryKey: ["kpi-targets", year, TOTAL],
-    queryFn: () => getKpiTargets(year, null),
-    placeholderData: keepPreviousData,
-  });
   const mensualesQ = useQuery({
     queryKey: ["kpi-monthly", recordType, year, owner],
     queryFn: () => getKpiMonthlySales(recordType, year, salesperson),
@@ -356,7 +347,10 @@ export function CommercialKpiTable({
   });
 
   const metas = useMemo<KpiTargetRow[]>(() => metasQ.data ?? [], [metasQ.data]);
-  const plazoHoras = useMemo(() => plazoTicketsDelAnio(metasTotalQ.data ?? []), [metasTotalQ.data]);
+  // Cada ámbito tiene su propio plazo de tickets, guardado en sus metas: el del comercial
+  // elegido, o el de por defecto si no tiene. No hereda el del total. Los tickets que se
+  // cuentan siguen siendo los de toda la compañía.
+  const plazoHoras = useMemo(() => plazoTicketsDelAnio(metas), [metas]);
   const mensuales = useMemo(() => mensualesQ.data ?? [], [mensualesQ.data]);
   const tratos = useMemo(() => tratosQ.data ?? [], [tratosQ.data]);
   const ganados = useMemo(() => ganadosQ.data ?? [], [ganadosQ.data]);
@@ -487,14 +481,12 @@ export function CommercialKpiTable({
   const aporteTotal = useMemo(() => filas.reduce((s, f) => s + (f.aporte ?? 0), 0), [filas]);
   const aporteTotalFecha = useMemo(() => filas.reduce((s, f) => s + (f.aporteFecha ?? 0), 0), [filas]);
 
-  // metasTotalQ también cuenta: sin él la fila de tickets se pintaría un instante con el
-  // plazo por defecto y después saltaría al del año.
   const cargando =
-    metasQ.isPending || metasTotalQ.isPending || mensualesQ.isPending || tratosQ.isPending ||
+    metasQ.isPending || mensualesQ.isPending || tratosQ.isPending ||
     ganadosQ.isPending || historicoQ.isPending || ventasQ.isPending || categoriasQ.isPending ||
     proyectosQ.isPending || ticketsQ.isPending;
   const refrescando =
-    metasQ.isPlaceholderData || metasTotalQ.isPlaceholderData || mensualesQ.isPlaceholderData ||
+    metasQ.isPlaceholderData || mensualesQ.isPlaceholderData ||
     tratosQ.isPlaceholderData || ganadosQ.isPlaceholderData || ticketsQ.isPlaceholderData;
   // Sin ventas del ámbito y sin metas, la tabla solo enseñaría guiones.
   const sinDatos = mensuales.length === 0 && metas.length === 0;

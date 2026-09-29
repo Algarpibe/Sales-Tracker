@@ -29,10 +29,9 @@ const TOTAL = "__total__";
 const TOTAL_LABEL = "Total compañía";
 
 // Las columnas de cada fila. La cabecera y los campos comparten la rejilla para que
-// caigan alineados. El total lleva una cuarta, el plazo de tickets: ese KPI solo se
-// mide a nivel compañía, así que en un vendedor no hay plazo que configurar.
-const FILA = "grid grid-cols-1 gap-2 sm:grid-cols-[1fr_140px_120px] sm:items-center";
-const FILA_CON_PLAZO = "grid grid-cols-1 gap-2 sm:grid-cols-[1fr_140px_120px_110px] sm:items-center";
+// caigan alineados. La cuarta es el plazo de tickets: cada ámbito (el total y cada
+// vendedor) guarda el suyo.
+const FILA = "grid grid-cols-1 gap-2 sm:grid-cols-[1fr_140px_120px_110px] sm:items-center";
 
 /** "mensual" -> "Mensual". Se capitaliza aquí y no con CSS: `capitalize` tocaría
  *  también la unidad y dejaría "nº" como "Nº". */
@@ -65,8 +64,6 @@ function KpiTargetsFields({
 
   const guardados = useMemo(() => toDraft(rows), [rows]);
   const draft = useMemo(() => ({ ...guardados, ...edits }), [guardados, edits]);
-  const esTotal = salesperson === null;
-  const fila = esTotal ? FILA_CON_PLAZO : FILA;
   const plazoTexto = plazoEditado ?? plazoInicial(rows);
 
   const editar = (key: string, campo: "target" | "weight", valor: string) => {
@@ -78,12 +75,12 @@ function KpiTargetsFields({
 
   // Qué se envía y si se puede guardar sale de una función pura con tests: aquí solo se pinta.
   const { items: enviados, suma, pesosValidos, valido, avisoPlazo } = useMemo(
-    () => evaluarBorrador(draft, salesperson, plazoTexto),
-    [draft, salesperson, plazoTexto]
+    () => evaluarBorrador(draft, plazoTexto),
+    [draft, plazoTexto]
   );
   const cambiado = useMemo(
-    () => hayCambios(rows, draft, salesperson, plazoTexto),
-    [rows, draft, salesperson, plazoTexto]
+    () => hayCambios(rows, draft, plazoTexto),
+    [rows, draft, plazoTexto]
   );
 
   const guardar = async () => {
@@ -113,14 +110,14 @@ function KpiTargetsFields({
       <div className="space-y-3">
         {/* En movil la rejilla se apila y la cabecera no ayudaria: ahi orientan los
             marcadores de cada campo. */}
-        <div className={`${fila} hidden sm:grid px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground`}>
+        <div className={`${FILA} hidden sm:grid px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground`}>
           <span>KPI</span>
           <span>Meta</span>
           <span>Peso %</span>
-          {esTotal && <span>Plazo (h)</span>}
+          <span>Plazo (h)</span>
         </div>
         {COMMERCIAL_KPIS.map((k) => (
-          <div key={k.key} className={fila}>
+          <div key={k.key} className={FILA}>
             <div>
               <div className="text-sm font-medium">{k.label}</div>
               <div className="text-xs text-muted-foreground">
@@ -144,7 +141,7 @@ function KpiTargetsFields({
               onChange={(e) => editar(k.key, "weight", e.target.value)}
             />
             {/* Horas laborables: menos de este plazo cuenta como en plazo. */}
-            {esTotal && k.key === KPI_CON_PLAZO && (
+            {k.key === KPI_CON_PLAZO && (
               <div className="flex items-center gap-2">
                 <Input
                   aria-label={`Plazo de ${k.label}`}
@@ -218,7 +215,7 @@ export function KpiTargetsForm() {
           </CardTitle>
           <CardDescription>
             {editable
-              ? "Meta y peso de cada KPI para el año y el ámbito elegidos. Solo se guardan los KPIs con peso, y los pesos de cada ámbito deben sumar 100. En el total, el plazo de tickets son horas laborables: menos de ese plazo cuenta como en plazo."
+              ? "Meta y peso de cada KPI para el año y el ámbito elegidos. Solo se guardan los KPIs con peso, y los pesos de cada ámbito deben sumar 100. En cada ámbito, el plazo de tickets son horas laborables: menos de ese plazo cuenta como en plazo."
               : "Meta y peso de cada KPI para el año y el ámbito elegidos. Solo lectura."}
           </CardDescription>
         </div>

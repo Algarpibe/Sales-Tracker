@@ -247,12 +247,11 @@ export function clasificarEpisodio(e: Episodio, ahora: number, plazoHoras: numbe
 }
 
 /**
- * Plazo del año a partir de las metas del TOTAL de la compañía: el KPI de tickets solo
- * se mide a ese nivel, así que las metas de un vendedor no traen plazo. Sin fila de
- * tickets o con el plazo nulo vale el de por defecto.
+ * Plazo del año a partir de las metas de un ámbito: el total y cada vendedor guardan el
+ * suyo. Sin fila de tickets o con el plazo nulo vale el de por defecto, no el del total.
  */
-export function plazoTicketsDelAnio(metasTotal: KpiTargetRow[]): number {
-  return metasTotal.find((m) => m.kpi_key === KPI_CON_PLAZO)?.plazo_horas ?? PLAZO_HORAS_POR_DEFECTO;
+export function plazoTicketsDelAnio(metas: KpiTargetRow[]): number {
+  return metas.find((m) => m.kpi_key === KPI_CON_PLAZO)?.plazo_horas ?? PLAZO_HORAS_POR_DEFECTO;
 }
 
 /** Mes de entrada (0-11) en hora de Bogotá, o null si el episodio entró otro año. */

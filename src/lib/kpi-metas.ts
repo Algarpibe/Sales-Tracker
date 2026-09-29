@@ -3,7 +3,7 @@
  * borrador de la pantalla de Configuración. Vive fuera de la acción y del componente
  * para poder probarla con vitest, que corre en node sin librería de componentes.
  */
-import type { KpiScope, KpiTargetRow } from "@/actions/kpi-actions";
+import type { KpiTargetRow } from "@/actions/kpi-actions";
 import { COMMERCIAL_KPIS, KPI_CON_PLAZO } from "@/lib/commercial-kpis";
 import { PLAZO_HORAS_POR_DEFECTO, plazoTicketsDelAnio } from "@/lib/kpi-tickets";
 
@@ -75,50 +75,48 @@ export interface EstadoBorrador {
   avisoPlazo: string | null;
 }
 
-export function evaluarBorrador(draft: Draft, salesperson: KpiScope, plazoTexto: string): EstadoBorrador {
-  const esTotal = salesperson === null;
-  const plazo = esTotal ? parsePlazo(plazoTexto) : null;
+export function evaluarBorrador(draft: Draft, plazoTexto: string): EstadoBorrador {
+  // Cada ámbito (el total y cada vendedor) guarda su propio plazo, con las mismas reglas.
+  const plazo = parsePlazo(plazoTexto);
   // Solo cuentan los KPIs con peso: el resto no se mide en ese ámbito.
   const items: KpiTargetRow[] = COMMERCIAL_KPIS.map((k) => ({
     kpi_key: k.key,
     target_value: Number(draft[k.key]?.target ?? ""),
     weight_pct: Number(draft[k.key]?.weight ?? ""),
-    // El plazo solo viaja en la fila de tickets del total: el servidor lo rechaza en cualquier otra.
-    plazo_horas: esTotal && k.key === KPI_CON_PLAZO ? plazo : null,
+    // El plazo solo viaja en la fila de tickets: el servidor lo rechaza en cualquier otra.
+    plazo_horas: k.key === KPI_CON_PLAZO ? plazo : null,
   })).filter((i) => Number.isFinite(i.weight_pct) && i.weight_pct > 0);
   const suma = items.reduce((s, i) => s + i.weight_pct, 0);
   const pesosValidos = Math.round(suma * 100) === 10000 && items.every((i) => i.target_value > 0);
 
   let avisoPlazo: string | null = null;
-  if (esTotal) {
-    if (plazo === null) {
-      avisoPlazo = AVISO_PLAZO_INVALIDO;
-    } else if (
-      plazo !== PLAZO_HORAS_POR_DEFECTO &&
-      !items.some((i) => i.kpi_key === KPI_CON_PLAZO && i.target_value > 0)
-    ) {
-      // saveKpiTargets borra la fila de un KPI sin peso, y con ella su plazo: guardar
-      // otro plazo sin esa fila lo perdería sin avisar. Una fila con peso pero sin meta
-      // válida tampoco se guarda, y sin el aviso no se sabría qué le falta al plazo.
-      avisoPlazo = AVISO_PLAZO_SIN_FILA;
-    }
+  if (plazo === null) {
+    avisoPlazo = AVISO_PLAZO_INVALIDO;
+  } else if (
+    plazo !== PLAZO_HORAS_POR_DEFECTO &&
+    !items.some((i) => i.kpi_key === KPI_CON_PLAZO && i.target_value > 0)
+  ) {
+    // saveKpiTargets borra la fila de un KPI sin peso, y con ella su plazo: guardar
+    // otro plazo sin esa fila lo perdería sin avisar. Una fila con peso pero sin meta
+    // válida tampoco se guarda, y sin el aviso no se sabría qué le falta al plazo.
+    avisoPlazo = AVISO_PLAZO_SIN_FILA;
   }
   return { items, suma, pesosValidos, valido: pesosValidos && avisoPlazo === null, avisoPlazo };
 }
 
 /**
  * Si lo que hay en pantalla difiere de lo guardado. Se compara lo que se enviaría al
- * guardar, no el texto de los campos: "80.0" y "80" son la misma meta, y un plazo
- * tecleado en el ámbito de un vendedor no viaja, así que tampoco es un cambio. Sin
+ * guardar, no el texto de los campos: "80.0" y "80" son la misma meta, 8 y 8,00 el mismo plazo,
+ * y un plazo tecleado sin fila de tickets no viaja, así que tampoco es un cambio. Sin
  * esto el botón quedaba activo aunque no hubiera nada nuevo que guardar.
  */
-export function hayCambios(rows: KpiTargetRow[], draft: Draft, salesperson: KpiScope, plazoTexto: string): boolean {
+export function hayCambios(rows: KpiTargetRow[], draft: Draft, plazoTexto: string): boolean {
   const clave = (items: KpiTargetRow[]) =>
     items
       .map((i) => `${i.kpi_key}|${i.target_value}|${i.weight_pct}|${i.plazo_horas ?? ""}`)
       .sort()
       .join(";");
-  const guardado = evaluarBorrador(toDraft(rows), salesperson, plazoInicial(rows)).items;
-  const actual = evaluarBorrador(draft, salesperson, plazoTexto).items;
+  const guardado = evaluarBorrador(toDraft(rows), plazoInicial(rows)).items;
+  const actual = evaluarBorrador(draft, plazoTexto).items;
   return clave(guardado) !== clave(actual);
 }

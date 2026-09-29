@@ -67,7 +67,7 @@ test("la tabla dice qué es cada columna y en qué unidad va la meta", async ({ 
   await expect(card.getByLabel("Meta de Tratos cerrados ganados")).toHaveAttribute("placeholder", "nº");
 });
 
-test("el total muestra el plazo de tickets con su valor por defecto y un vendedor no lo tiene", async ({ page }) => {
+test("el total y cada vendedor muestran su plazo de tickets con el valor por defecto", async ({ page }) => {
   await page.goto("/settings");
   const card = page.locator('[data-slot="card"]', { hasText: "Metas de KPIs comerciales" });
   await expect(card.getByText("Suma de pesos: 100%")).toBeVisible();
@@ -76,11 +76,12 @@ test("el total muestra el plazo de tickets con su valor por defecto y un vendedo
   // La semilla no guarda plazo: se ve el de por defecto.
   await expect(card.getByLabel(PLAZO, { exact: true })).toHaveValue("12");
 
-  // El KPI de tickets solo se mide a nivel compañía: en un vendedor no hay plazo.
+  // Cada vendedor tiene su propio plazo: la semilla no le guarda ninguno, así que ve el de por defecto.
   await card.getByLabel("Ámbito").click();
   await page.getByRole("option", { name: SALESPEOPLE[0] }).click();
   await expect(card.getByText("Suma de pesos: 0%")).toBeVisible();
-  await expect(card.getByLabel(PLAZO, { exact: true })).toHaveCount(0);
+  await expect(card.getByText("Plazo (h)", { exact: true })).toBeVisible();
+  await expect(card.getByLabel(PLAZO, { exact: true })).toHaveValue("12");
 });
 
 test("no deja guardar un plazo invalido ni un plazo sin meta y peso de tickets", async ({ page }) => {
