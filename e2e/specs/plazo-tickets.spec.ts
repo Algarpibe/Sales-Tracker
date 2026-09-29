@@ -91,6 +91,21 @@ test("cambiar el plazo del anio cambia la cifra de tickets de la tabla y su deta
 });
 
 /**
+ * Espera a que el formulario enseñe las metas de ESE comercial antes de tocar un campo:
+ * el formulario se remonta al cargarlas y lo tecleado antes se perdería. La suma de pesos
+ * no sirve de señal, porque el total también suma 100. El selector cambia de nombre en el
+ * mismo render en que la consulta nueva empieza sin datos («Cargando metas…»), así que
+ * cuando ese texto desaparece lo que se ve ya es el ámbito del comercial.
+ */
+async function esperarMetasDe(page: Page, comercial: string) {
+  const card = tarjetaMetas(page);
+  // toContainText y no toHaveText: el disparador lleva además el icono de desplegar.
+  await expect(card.getByLabel("Ámbito")).toContainText(comercial);
+  await expect(card.getByText("Cargando metas…")).toHaveCount(0);
+  await expect(card.getByLabel(`Plazo de ${TICKETS}`, { exact: true })).toBeVisible();
+}
+
+/**
  * Deja el plazo del comercial en el de por defecto. La pantalla no puede vaciar un
  * ámbito (hay que enviar al menos un KPI), así que la fila de tickets se queda con su
  * meta y su peso; con 12 h mide igual que sin plazo guardado. Ningún otro spec usa las
@@ -102,8 +117,7 @@ async function restaurarPlazoComercial(page: Page, comercial: string) {
   await expect(card).toBeVisible();
   await card.getByLabel("Ámbito").click();
   await page.getByRole("option", { name: comercial }).click();
-  // Esperar a sus metas antes de tocar el campo: el formulario se remonta al cargarlas.
-  await expect(card.getByText(/Suma de pesos: (0|100)%/)).toBeVisible();
+  await esperarMetasDe(page, comercial);
   await card.getByLabel(`Plazo de ${TICKETS}`, { exact: true }).fill("12");
   const guardar = card.getByRole("button", { name: "Guardar metas" });
   if (await guardar.isEnabled()) {
@@ -122,7 +136,7 @@ test("con un comercial elegido la cifra de tickets usa su plazo y no el del tota
     await expect(card.getByText("Suma de pesos: 100%")).toBeVisible();
     await card.getByLabel("Ámbito").click();
     await page.getByRole("option", { name: comercial }).click();
-    await expect(card.getByText(/Suma de pesos: (0|100)%/)).toBeVisible();
+    await esperarMetasDe(page, comercial);
 
     // El plazo se guarda en la fila de tickets del comercial: meta y todo el peso.
     await card.getByLabel(`Meta de ${TICKETS}`, { exact: true }).fill("80");
