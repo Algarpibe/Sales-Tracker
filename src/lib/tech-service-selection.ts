@@ -1,64 +1,46 @@
 import type { TechServiceBucket, TechServiceCategory } from "@/types/database";
+import {
+  alternarCategoria as alternar,
+  grupoDe as grupoGenerico,
+  haCambiado as cambiado,
+  seleccionPorGrupo,
+  type Seleccion,
+} from "@/lib/seleccion-grupos";
 
-/**
- * Selección en curso de la tarjeta «Categorías de Servicio Técnico»: ids de categoría
- * de cada grupo. Vive fuera del componente para poder testearla: vitest corre en
- * node y no hay librería de tests de componentes.
- */
-export interface SeleccionServicioTecnico {
-  st: string[];
-  cr: string[];
-}
+// La lógica de grupos es común con «Macro-categorías» y vive en seleccion-grupos. Este
+// módulo conserva los nombres que ya usaban la tarjeta de Servicio Técnico y sus tests.
+
+/** Selección en curso de la tarjeta «Categorías de Servicio Técnico». */
+export type SeleccionServicioTecnico = Seleccion<TechServiceBucket>;
+
+/** Los dos grupos de Servicio Técnico, en el orden en que los pinta la tarjeta. */
+export const GRUPOS_SERVICIO_TECNICO: readonly TechServiceBucket[] = ["st", "cr"];
 
 /** Estado inicial a partir de lo guardado, en el orden en que llegan las categorías. */
 export function seleccionInicial(
   categorias: Pick<TechServiceCategory, "id" | "tech_service_bucket">[]
 ): SeleccionServicioTecnico {
-  const st: string[] = [];
-  const cr: string[] = [];
-  for (const c of categorias) {
-    if (c.tech_service_bucket === "st") st.push(c.id);
-    else if (c.tech_service_bucket === "cr") cr.push(c.id);
-  }
-  return { st, cr };
+  return seleccionPorGrupo(
+    GRUPOS_SERVICIO_TECNICO,
+    categorias.map((c) => ({ id: c.id, grupo: c.tech_service_bucket }))
+  );
 }
 
-/** Grupo en el que está marcada una categoría, o null si no está en ninguno. */
+// Envoltorios con el tipo fijado a los dos grupos de Servicio Técnico. Un simple
+// reexport dejaría el genérico libre y TypeScript inferiría el grupo a partir de la
+// llamada ("st" a secas), rompiendo la firma que ya tenían la tarjeta y sus tests.
 export function grupoDe(sel: SeleccionServicioTecnico, id: string): TechServiceBucket | null {
-  if (sel.st.includes(id)) return "st";
-  if (sel.cr.includes(id)) return "cr";
-  return null;
+  return grupoGenerico(sel, id);
 }
 
-/**
- * Marca o desmarca una categoría en un grupo. Si ya está en el otro grupo, devuelve
- * la misma selección sin tocarla. La interfaz ya la enseña desactivada, pero la regla
- * se aplica también aquí, porque la columna solo admite un grupo y el servidor
- * rechazaría la intersección. Para moverla de grupo hay que desmarcarla primero, así
- * nadie la cambia de grupo sin darse cuenta.
- *
- * La X de cada etiqueta (spec 2026-09-25) también pasa por esta función: se llama con
- * el grupo actual de la categoría, así que desmarca igual que el desplegable. Es el
- * único camino para desclasificar una categoría inactiva, porque los desplegables solo
- * listan las activas.
- */
 export function alternarCategoria(
   sel: SeleccionServicioTecnico,
   grupo: TechServiceBucket,
   id: string
 ): SeleccionServicioTecnico {
-  const actual = grupoDe(sel, id);
-  if (actual !== null && actual !== grupo) return sel;
-  const lista = sel[grupo];
-  const nueva = actual === grupo ? lista.filter((x) => x !== id) : [...lista, id];
-  return grupo === "st" ? { st: nueva, cr: sel.cr } : { st: sel.st, cr: nueva };
+  return alternar(sel, grupo, id);
 }
 
-/**
- * Si la selección difiere de la de partida. Se compara como conjuntos: el orden de
- * las etiquetas no es un cambio que merezca guardar.
- */
 export function haCambiado(inicial: SeleccionServicioTecnico, actual: SeleccionServicioTecnico): boolean {
-  const igual = (a: string[], b: string[]) => a.length === b.length && a.every((id) => b.includes(id));
-  return !igual(inicial.st, actual.st) || !igual(inicial.cr, actual.cr);
+  return cambiado(inicial, actual);
 }
