@@ -18,6 +18,7 @@ import {
 import { requireApproved, requireRole } from "@/lib/auth/guards";
 import { ROLES_EDITAN_METAS } from "@/lib/commercial-kpis";
 import { kpiTargetsSchema } from "@/lib/validation";
+import { filaDeMeta } from "@/lib/kpi-metas";
 import { runAction, type ActionResult } from "@/lib/errors";
 import type { DealMonthRow } from "@/lib/kpi-score";
 import type { CambioFase } from "@/lib/kpi-tickets";
@@ -27,6 +28,8 @@ export interface KpiTargetRow {
   kpi_key: string;
   target_value: number;
   weight_pct: number;
+  /** Plazo en horas laborables. Solo en tickets_st del total; null = plazo por defecto. */
+  plazo_horas: number | null;
 }
 
 /** Ámbito de las metas: null es el total de la compañía. */
@@ -44,6 +47,7 @@ export async function getKpiTargets(year: number, salesperson: KpiScope): Promis
       kpi_key: kpiTargets.kpi_key,
       target_value: kpiTargets.target_value,
       weight_pct: kpiTargets.weight_pct,
+      plazo_horas: kpiTargets.plazo_horas,
     })
     .from(kpiTargets)
     .where(
@@ -55,12 +59,8 @@ export async function getKpiTargets(year: number, salesperson: KpiScope): Promis
       )
     );
 
-  // numeric llega como string desde Drizzle.
-  return rows.map((r) => ({
-    kpi_key: r.kpi_key,
-    target_value: Number(r.target_value),
-    weight_pct: Number(r.weight_pct),
-  }));
+  // numeric llega como string desde Drizzle: filaDeMeta lo convierte sin volver 0 un plazo nulo.
+  return rows.map(filaDeMeta);
 }
 
 export async function saveKpiTargets(
@@ -75,6 +75,9 @@ export async function saveKpiTargets(
 
     await db.transaction(async (tx) => {
       for (const it of data.items) {
+        // Solo tickets_st del total trae plazo (lo garantiza kpiTargetsSchema); el resto
+        // guarda nulo, que en la lectura vale el plazo por defecto.
+        const plazo = it.plazo_horas == null ? null : String(it.plazo_horas);
         await tx
           .insert(kpiTargets)
           .values({
@@ -84,12 +87,14 @@ export async function saveKpiTargets(
             salesperson: data.salesperson,
             target_value: String(it.target_value),
             weight_pct: String(it.weight_pct),
+            plazo_horas: plazo,
           })
           .onConflictDoUpdate({
             target: [kpiTargets.company_id, kpiTargets.record_year, kpiTargets.kpi_key, kpiTargets.salesperson],
             set: {
               target_value: String(it.target_value),
               weight_pct: String(it.weight_pct),
+              plazo_horas: plazo,
               updated_at: new Date().toISOString(),
             },
           });

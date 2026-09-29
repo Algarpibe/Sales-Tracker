@@ -86,6 +86,7 @@ function KpiTargetsFields({
         kpi_key: k.key,
         target_value: Number(draft[k.key]?.target ?? ""),
         weight_pct: Number(draft[k.key]?.weight ?? ""),
+        plazo_horas: null,
       })).filter((i) => Number.isFinite(i.weight_pct) && i.weight_pct > 0),
     [draft]
   );
