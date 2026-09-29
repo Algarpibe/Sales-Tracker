@@ -25,6 +25,12 @@ export const CATEGORIES = ["Aguas", "Aire", "Suelos"] as const;
 export const TECH_SERVICE_SEED = { st: "Aguas", cr: "Aire", sinGrupo: "Suelos" } as const;
 
 /**
+ * Macro-categorías que deja e2e/db/seed-app.mjs: una categoría inventada en Mano de
+ * obra, otra en Consumos y repuestos y otra sin marcar, que cuenta como Equipos.
+ */
+export const MACRO_SEED = { mano_obra: "Aguas", cr: "Aire", sinMarcar: "Suelos" } as const;
+
+/**
  * 2020 es un año PARCIAL sembrado a propósito, anterior al FIRST_YEAR = 2021
  * que usan los componentes. Un registro de este año es lo que reproduce el bug
  * del bucket inexistente (commit 9dc66ee): sin su guarda, annualGrouped[2020]

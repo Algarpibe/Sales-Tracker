@@ -5,6 +5,7 @@ import { Hexagon, History } from "lucide-react";
 import { AccountSettingsForm } from "./_components/account-settings-form";
 import { KpiTargetsForm } from "./_components/kpi-targets-form";
 import { TechServiceCategoriesForm } from "./_components/tech-service-categories-form";
+import { MacroCategoriasForm } from "./_components/macro-categories-form";
 import { SecurityForm } from "./_components/security-form";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -58,6 +59,8 @@ export default function SettingsPage() {
       <KpiTargetsForm />
 
       <TechServiceCategoriesForm />
+
+      <MacroCategoriasForm />
     </div>
   );
 }

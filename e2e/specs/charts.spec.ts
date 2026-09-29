@@ -76,8 +76,8 @@ test("el Mix por macro-categoría se pinta con barras apiladas", async ({ page }
   await expect(mixCard).toBeVisible();
 
   // Primero se espera a que haya barras: garantiza que el gráfico ya se pintó.
-  // Con la semilla, todas las categorías caen en "Equipos", así que hay una
-  // barra de un solo tramo por año.
+  // Con la semilla (e2e/db/seed-app.mjs), Aguas es Mano de obra, Aire es Consumos y
+  // repuestos y Suelos, sin marcar, Equipos: cada año apila hasta tres tramos.
   await expect(async () => {
     expect(await mixCard.locator(".recharts-bar-rectangle").count()).toBeGreaterThan(0);
   }).toPass({ timeout: 15_000 });
