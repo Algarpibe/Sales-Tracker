@@ -1,4 +1,5 @@
 import { BUCKETS, bucketForCategory, BUCKET_LABELS, type Bucket } from "@/lib/customer-item";
+import type { MacroCategoria } from "@/types/database";
 
 export type InsightRecord = {
   category_id: string;
@@ -28,6 +29,22 @@ export function executionByMonth(
     month: m.month,
     pct: m.sales_orders > 0 ? (m.invoices / m.sales_orders) * 100 : 0,
   }));
+}
+
+/**
+ * Nombre de cada categoría por id para el mix por macro-categoría. El catMap del
+ * dashboard sale de getCategories(), que solo trae las activas: con él, las ventas de
+ * una categoría inactiva pero clasificada caerían en Equipos en el donut y no en el
+ * resto de gráficos. Por eso se completa con todas las categorías de getMacroCategorias,
+ * sin tocar el catMap que usan los demás widgets.
+ */
+export function nombresPorId(
+  categorias: Pick<MacroCategoria, "id" | "name">[],
+  catMap: Map<string, string>
+): Map<string, string> {
+  const nombres = new Map(catMap);
+  for (const c of categorias) nombres.set(c.id, c.name);
+  return nombres;
 }
 
 /**

@@ -6,7 +6,7 @@ import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from "recha
 import { getMacroCategorias } from "@/actions/category-actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { bucketMix, type InsightRecord } from "@/lib/dashboard-insights";
+import { bucketMix, nombresPorId, type InsightRecord } from "@/lib/dashboard-insights";
 import { MACRO_CATEGORIAS_KEY, mapaMacroCategorias } from "@/lib/customer-item";
 import { formatUSD } from "@/lib/constants";
 import { RecordTypeToggle } from "@/components/common/record-type-toggle";
@@ -47,9 +47,11 @@ export function CategoryMixDonut({
     queryFn: () => getMacroCategorias(),
   });
   const mapa = useMemo(() => mapaMacroCategorias(macro ?? []), [macro]);
+  // Los nombres salen también de las categorías inactivas: catMap solo trae las activas.
+  const nombres = useMemo(() => nombresPorId(macro ?? [], catMap), [macro, catMap]);
   const mix = useMemo(
-    () => bucketMix(records, catMap, mapa, tipo).filter((m) => m.amount > 0),
-    [records, catMap, mapa, tipo]
+    () => bucketMix(records, nombres, mapa, tipo).filter((m) => m.amount > 0),
+    [records, nombres, mapa, tipo]
   );
 
   return (
