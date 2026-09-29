@@ -43,7 +43,7 @@ Migración `drizzle/0013_macro_categoria.sql`:
 
 - `ALTER TABLE categories ADD COLUMN IF NOT EXISTS macro_categoria text;`
 - `CHECK (macro_categoria IS NULL OR macro_categoria IN ('mano_obra','cr','equipos','operacion'))`, dentro de `DO $$ … EXCEPTION WHEN duplicate_object`.
-- `UPDATE` que replica las reglas actuales, **solo sobre filas con `macro_categoria IS NULL`**. Así, si se vuelve a ejecutar, no pisa lo configurado en la app:
+- `UPDATE` que replica las reglas actuales, solo sobre filas con `macro_categoria IS NULL`. Eso **no basta** para volver a ejecutarla sin riesgo: una categoría desmarcada en la app también queda en nulo y la regla antigua la volvería a marcar. Por eso la 0013 se ejecuta **una sola vez**, como la 0011:
   - `name LIKE 'C&R %'` se marca como `cr`;
   - `name LIKE 'CAL %' OR name = 'ST' OR name LIKE 'ST %' OR name = 'Alquileres'` se marca como `mano_obra`;
   - `name IN ('Operación de Redes','Consultoría')` se marca como `operacion`.
@@ -105,7 +105,7 @@ Los componentes que hoy llaman, directa o indirectamente, a `bucketForCategory` 
 ## 9. Despliegue
 
 1. Consulta previa: listar las categorías de venta del hub que no existen en `categories` y cuyo nombre empieza por «C&R » o «CAL ».
-2. Ejecutar `drizzle/0013_macro_categoria.sql` en `sales_tracker`. Se puede volver a ejecutar, porque el `UPDATE` solo toca filas nulas.
+2. Ejecutar `drizzle/0013_macro_categoria.sql` en `sales_tracker` **una sola vez** (ver sección 3).
 3. Desplegar la app.
 
 ## 10. Fuera de alcance
