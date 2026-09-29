@@ -3,7 +3,7 @@ import { APPROVED_STATE, LECTOR_STATE, MACRO_SEED } from "../constants";
 
 // Nombres de los grupos: los de BUCKET_LABELS (src/lib/customer-item.ts).
 const MANO_OBRA = "Mano de obra";
-const CR = "Consumos y repuestos";
+const CR = "Consumibles y repuestos";
 const EQUIPOS = "Equipos";
 const OPERACIONES = "Operaciones";
 const GUARDAR = "Guardar macro-categorías";
@@ -102,7 +102,7 @@ test.describe("admin", () => {
       // Sin cambios no hay nada que guardar.
       await expect(guardar).toBeDisabled();
 
-      // La X la saca de Consumos y repuestos...
+      // La X la saca de Consumibles y repuestos...
       await card.getByRole("button", { name: `Quitar ${MACRO_SEED.cr} de ${CR}` }).click();
       await expect(card.getByRole("list", { name: CR }).getByText(MACRO_SEED.cr)).toHaveCount(0);
 
