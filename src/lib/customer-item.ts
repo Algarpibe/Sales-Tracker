@@ -1,4 +1,4 @@
-import type { Bucket, CustomerItemRow } from "@/types/database";
+import type { Bucket, CustomerItemRow, MacroCategoria } from "@/types/database";
 import type { ExcelSheet, ExcelRow } from "@/lib/excel-types";
 
 // Bucket vive en types/database porque también tipa la columna macro_categoria. Se
@@ -8,17 +8,54 @@ export type { Bucket } from "@/types/database";
 /** Las cuatro macro-categorías, en el orden de columnas, series, leyendas y grupos. */
 export const BUCKETS: readonly Bucket[] = ["mano_obra", "cr", "equipos", "operacion"];
 
+/**
+ * Nombre de cada macro-categoría en la tarjeta de Configuración, los gráficos y las
+ * exportaciones. Está en un solo sitio para que los nombres no vuelvan a divergir entre
+ * pantallas.
+ */
 export const BUCKET_LABELS: Record<Bucket, string> = {
-  mano_obra: "Mano de Obra / Cal",
-  cr: "C&R",
+  mano_obra: "Mano de obra",
+  cr: "Consumos y repuestos",
   equipos: "Equipos",
-  operacion: "Operación",
+  operacion: "Operaciones",
 };
+
+/**
+ * Clave de react-query de las categorías con su macro-categoría. Cuelga de
+ * ["categories"] a propósito: al guardar en Configuración se invalida ["categories"] y,
+ * por prefijo, se refrescan todos los gráficos que clasifican. No reutiliza
+ * ["categories"] tal cual porque getCategories() solo trae las activas.
+ */
+export const MACRO_CATEGORIAS_KEY = ["categories", "macro-categorias"] as const;
 
 export interface CustomerGroup {
   customer: string;
   items: CustomerItemRow[];
   totals: Record<Bucket, number>;
+}
+
+/**
+ * Macro-categoría de cada categoría marcada, indexada por nombre en minúsculas.
+ * - Va por nombre porque las ventas llegan del hub con el nombre de la categoría, no
+ *   con su id.
+ * - Va en minúsculas porque getSalesData ya casa así los nombres del hub con los de la
+ *   app; si no, un gráfico clasificaría distinto que otro.
+ * - Entran las inactivas: sus ventas de años anteriores tienen que seguir en su
+ *   macro-categoría.
+ * - Las no marcadas no entran, y bucketForCategory las cuenta como Equipos.
+ */
+export function mapaMacroCategorias(
+  categorias: Pick<MacroCategoria, "name" | "macro_categoria">[]
+): Map<string, Bucket> {
+  const mapa = new Map<string, Bucket>();
+  for (const c of categorias) {
+    // La columna tiene un CHECK, pero se filtra igual: un valor inesperado no debe
+    // colarse como macro-categoría.
+    if (c.macro_categoria !== null && (BUCKETS as readonly string[]).includes(c.macro_categoria)) {
+      mapa.set(c.name.toLowerCase(), c.macro_categoria);
+    }
+  }
+  return mapa;
 }
 
 export function bucketForCategory(categoria: string | null): Bucket {
@@ -81,7 +118,8 @@ function csvCell(v: string | number): string {
 }
 
 export function customerItemToCsv(groups: CustomerGroup[], grand: Record<Bucket, number>): string {
-  const header = ["SKU", "Marca", "Nombre", "Categoría", "Cantidad", "Mano de Obra/Cal", "C&R", "Equipos", "Operación"];
+  // Las cabeceras salen de BUCKET_LABELS para que la exportación diga lo mismo que la pantalla.
+  const header = ["SKU", "Marca", "Nombre", "Categoría", "Cantidad", ...BUCKETS.map((b) => BUCKET_LABELS[b])];
   const lines: (string | number)[][] = [header];
   for (const g of groups) {
     lines.push(["", "", "", "", "", g.totals.mano_obra.toFixed(2), g.totals.cr.toFixed(2), g.totals.equipos.toFixed(2), g.totals.operacion.toFixed(2)]);
@@ -131,10 +169,7 @@ export function customerItemToExcel(groups: CustomerGroup[], grand: Record<Bucke
       { header: "Nombre", width: 40 },
       { header: "Categoría", width: 20 },
       { header: "Cantidad", width: 12, numFmt: "#,##0" },
-      { header: "Mano de Obra/Cal", width: 16, numFmt: '"$"#,##0.00' },
-      { header: "C&R", width: 16, numFmt: '"$"#,##0.00' },
-      { header: "Equipos", width: 16, numFmt: '"$"#,##0.00' },
-      { header: "Operación", width: 16, numFmt: '"$"#,##0.00' },
+      ...BUCKETS.map((b) => ({ header: BUCKET_LABELS[b], width: 16, numFmt: '"$"#,##0.00' })),
     ],
     rows,
   };

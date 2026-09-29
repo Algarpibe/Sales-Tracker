@@ -1,13 +1,54 @@
 import { describe, it, expect } from "vitest";
 import {
+  BUCKET_LABELS,
   bucketForCategory,
   filterRows,
   groupByCustomer,
   computeGrandTotals,
   customerItemToCsv,
   customerItemToExcel,
+  mapaMacroCategorias,
+  type Bucket,
 } from "@/lib/customer-item";
-import type { CustomerItemRow } from "@/types/database";
+import type { CustomerItemRow, MacroCategoria } from "@/types/database";
+
+const cat = (name: string, macro_categoria: Bucket | null, is_active = true): MacroCategoria =>
+  ({ id: name, name, is_active, macro_categoria });
+
+describe("BUCKET_LABELS", () => {
+  it("usa los nombres de la spec en graficos y exportaciones", () => {
+    expect(BUCKET_LABELS).toEqual({
+      mano_obra: "Mano de obra",
+      cr: "Consumos y repuestos",
+      equipos: "Equipos",
+      operacion: "Operaciones",
+    });
+  });
+});
+
+describe("mapaMacroCategorias", () => {
+  it("incluye las marcadas, tambien las inactivas, y deja fuera las no marcadas", () => {
+    const m = mapaMacroCategorias([
+      cat("CAL PM", "mano_obra"),
+      cat("C&R Vieja", "cr", false),
+      cat("Accesorios", null),
+      cat("Equipos X", "equipos"),
+    ]);
+    expect(m.get("c&r vieja")).toBe("cr");
+    expect(m.get("equipos x")).toBe("equipos");
+    expect(m.has("accesorios")).toBe(false);
+    expect(m.size).toBe(3);
+  });
+
+  it("indexa por nombre en minusculas, como casa getSalesData los nombres del hub", () => {
+    const m = mapaMacroCategorias([cat("Operación de Redes", "operacion")]);
+    expect([...m.keys()]).toEqual(["operación de redes"]);
+  });
+
+  it("ignora un valor inesperado de la columna", () => {
+    expect(mapaMacroCategorias([cat("Rara", "xx" as never)]).size).toBe(0);
+  });
+});
 
 const rows: CustomerItemRow[] = [
   { customer: "Beta", sku: "A", marca: "Horiba Ltd.", nombre: "Scrubber", categoria: "C&R AP Series", cantidad: 1, importe: 100 },
@@ -61,7 +102,7 @@ describe("customerItemToCsv", () => {
     const groups = groupByCustomer(rows);
     const csv = customerItemToCsv(groups, computeGrandTotals(groups));
     const lines = csv.split("\n");
-    expect(lines[0]).toBe("SKU;Marca;Nombre;Categoría;Cantidad;Mano de Obra/Cal;C&R;Equipos;Operación");
+    expect(lines[0]).toBe("SKU;Marca;Nombre;Categoría;Cantidad;Mano de obra;Consumos y repuestos;Equipos;Operaciones");
     expect(lines[1]).toBe("Alpha;;;;;0.00;0.00;500.00;50.00");
     expect(lines[2]).toBe("C;Grimm;EDM 180C;EDM180 Series;1;;;500.00;");
     expect(lines[lines.length - 1]).toBe("TOTAL;;;;;300.00;100.00;500.00;50.00");
@@ -83,7 +124,7 @@ describe("customerItemToExcel", () => {
     const grand = { mano_obra: 40, cr: 100, equipos: 0, operacion: 0 };
     const sheet = customerItemToExcel(groups, grand);
     expect(sheet.columns.map((c) => c.header)).toEqual([
-      "SKU", "Marca", "Nombre", "Categoría", "Cantidad", "Mano de Obra/Cal", "C&R", "Equipos", "Operación",
+      "SKU", "Marca", "Nombre", "Categoría", "Cantidad", "Mano de obra", "Consumos y repuestos", "Equipos", "Operaciones",
     ]);
     expect(sheet.rows[0].bold).toBe(true);
     expect(sheet.rows[0].cells).toEqual(["AGQ", "", "", "", "", 40, 100, 0, 0]);
