@@ -1,4 +1,4 @@
-import { bucketForCategory } from "@/lib/customer-item";
+import { bucketForCategory, type Bucket } from "@/lib/customer-item";
 import type { CustomerYearRow, ItemSalesRow, CustomerItemRow, CustomerMonthRow, CategoryMonthRow } from "@/types/database";
 
 export interface BucketMixYear {
@@ -16,7 +16,8 @@ type MixRecord = {
   amount_usd: number;
 };
 
-export function buildBucketMixByYear(records: MixRecord[], tipo: string): BucketMixYear[] {
+/** `mapa` sale de mapaMacroCategorias(): lo que no está en él cuenta como Equipos. */
+export function buildBucketMixByYear(records: MixRecord[], tipo: string, mapa: Map<string, Bucket>): BucketMixYear[] {
   const map = new Map<number, BucketMixYear>();
   for (const r of records) {
     if (r.record_type !== tipo) continue;
@@ -26,7 +27,7 @@ export function buildBucketMixByYear(records: MixRecord[], tipo: string): Bucket
       row = { year: r.record_year, mano_obra: 0, cr: 0, equipos: 0, operacion: 0 };
       map.set(r.record_year, row);
     }
-    row[bucketForCategory(r.categories?.name ?? null)] += r.amount_usd;
+    row[bucketForCategory(r.categories?.name ?? null, mapa)] += r.amount_usd;
   }
   return [...map.values()].sort((a, b) => a.year - b.year);
 }
@@ -95,7 +96,7 @@ export interface BucketClientRow {
   total: number;
 }
 
-export function buildBucketByClient(rows: CustomerItemRow[]): BucketClientRow[] {
+export function buildBucketByClient(rows: CustomerItemRow[], mapa: Map<string, Bucket>): BucketClientRow[] {
   const map = new Map<string, BucketClientRow>();
   for (const r of rows) {
     let row = map.get(r.customer);
@@ -103,7 +104,7 @@ export function buildBucketByClient(rows: CustomerItemRow[]): BucketClientRow[] 
       row = { customer: r.customer, mano_obra: 0, cr: 0, equipos: 0, operacion: 0, total: 0 };
       map.set(r.customer, row);
     }
-    row[bucketForCategory(r.categoria)] += r.importe;
+    row[bucketForCategory(r.categoria, mapa)] += r.importe;
     row.total += r.importe;
   }
   return [...map.values()].sort((a, b) => b.total - a.total || a.customer.localeCompare(b.customer));
@@ -177,12 +178,12 @@ export function buildMonthHeatmap(rows: CustomerMonthRow[]): MonthHeatmapRow[] {
 
 export interface BucketSeasonRow { mes: number; mano_obra: number; cr: number; equipos: number; operacion: number }
 
-export function buildBucketSeason(rows: CategoryMonthRow[]): BucketSeasonRow[] {
+export function buildBucketSeason(rows: CategoryMonthRow[], mapa: Map<string, Bucket>): BucketSeasonRow[] {
   const months: BucketSeasonRow[] = Array.from({ length: 12 }, (_, i) => ({
     mes: i + 1, mano_obra: 0, cr: 0, equipos: 0, operacion: 0,
   }));
   for (const r of rows) {
-    if (r.mes >= 1 && r.mes <= 12) months[r.mes - 1][bucketForCategory(r.categoria)] += r.importe;
+    if (r.mes >= 1 && r.mes <= 12) months[r.mes - 1][bucketForCategory(r.categoria, mapa)] += r.importe;
   }
   return months;
 }

@@ -1,5 +1,5 @@
 import type { CustomerYearRow, CustomerItemRow, CustomerMonthRow, MarginCustomerRow } from "@/types/database";
-import { bucketForCategory } from "@/lib/customer-item";
+import { bucketForCategory, type Bucket } from "@/lib/customer-item";
 import { deriveMargin } from "@/lib/analytics-margin";
 
 export interface CustomerYearPoint { year: number; ventas: number }
@@ -40,11 +40,12 @@ export function customerTotalVentas(rows: CustomerYearRow[], customer: string): 
 
 export interface CustomerBuckets { mano_obra: number; cr: number; equipos: number; operacion: number; total: number }
 
-export function customerBuckets(rows: CustomerItemRow[], customer: string): CustomerBuckets {
+/** `mapa` sale de mapaMacroCategorias(): lo que no está en él cuenta como Equipos. */
+export function customerBuckets(rows: CustomerItemRow[], customer: string, mapa: Map<string, Bucket>): CustomerBuckets {
   const acc: CustomerBuckets = { mano_obra: 0, cr: 0, equipos: 0, operacion: 0, total: 0 };
   for (const r of rows) {
     if (r.customer !== customer) continue;
-    acc[bucketForCategory(r.categoria)] += r.importe;
+    acc[bucketForCategory(r.categoria, mapa)] += r.importe;
     acc.total += r.importe;
   }
   return acc;

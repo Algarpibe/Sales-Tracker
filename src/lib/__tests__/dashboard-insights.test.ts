@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { cumulativeSeries, executionByMonth, bucketMix, topCustomers, yoyChange } from "@/lib/dashboard-insights";
+import { cumulativeSeries, executionByMonth, bucketMix, nombresPorId, topCustomers, yoyChange } from "@/lib/dashboard-insights";
+import { mapaMacroCategorias } from "@/lib/customer-item";
 
 const rec = (record_type: string, record_month: number, amount_usd: number, category_id = "c1") =>
   ({ category_id, record_type, record_month, amount_usd });
@@ -29,11 +30,26 @@ describe("executionByMonth", () => {
 describe("bucketMix", () => {
   it("agrega por bucket; 4 entradas; pct suma ~100; filtra record_type", () => {
     const cats = new Map([["c1", "C&R Algo"], ["c2", "Equipos X"]]);
-    const mix = bucketMix([rec("INVOICE", 1, 100, "c1"), rec("INVOICE", 2, 300, "c2"), rec("SALES_ORDER", 1, 999, "c1")], cats, "INVOICE");
+    const mapa = mapaMacroCategorias([{ name: "C&R Algo", macro_categoria: "cr" }]);
+    const mix = bucketMix([rec("INVOICE", 1, 100, "c1"), rec("INVOICE", 2, 300, "c2"), rec("SALES_ORDER", 1, 999, "c1")], cats, mapa, "INVOICE");
     expect(mix).toHaveLength(4);
+    expect(mix.map((m) => m.label)).toEqual(["Mano de obra", "Consumos y repuestos", "Equipos", "Operaciones"]);
     expect(mix.find((m) => m.bucket === "cr")!.amount).toBe(100);
     expect(mix.find((m) => m.bucket === "equipos")!.amount).toBe(300);
     expect(Math.round(mix.reduce((s, m) => s + m.pct, 0))).toBe(100);
+  });
+
+  it("una categoria inactiva pero clasificada cuenta en su macro-categoria", () => {
+    // El catMap del dashboard solo trae las activas; los nombres salen de todas.
+    const macro = [
+      { id: "c1", name: "C&R Vieja", is_active: false, macro_categoria: "cr" as const },
+      { id: "c2", name: "Equipos X", is_active: true, macro_categoria: null },
+    ];
+    const activas = new Map([["c2", "Equipos X"]]);
+    const nombres = nombresPorId(macro, activas);
+    const mix = bucketMix([rec("INVOICE", 1, 100, "c1"), rec("INVOICE", 2, 300, "c2")], nombres, mapaMacroCategorias(macro), "INVOICE");
+    expect(mix.find((m) => m.bucket === "cr")!.amount).toBe(100);
+    expect(mix.find((m) => m.bucket === "equipos")!.amount).toBe(300);
   });
 });
 

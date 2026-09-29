@@ -3,7 +3,9 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getCustomerItemSales } from "@/actions/customer-item-actions";
+import { getMacroCategorias } from "@/actions/category-actions";
 import { customerBuckets } from "@/lib/customer-detail";
+import { BUCKET_LABELS, MACRO_CATEGORIAS_KEY, mapaMacroCategorias } from "@/lib/customer-item";
 import { formatUSD } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -11,10 +13,10 @@ import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from "recha
 import type { ChartTooltipProps } from "@/lib/chart-types";
 
 const SERIES = [
-  { key: "mano_obra", label: "Mano de Obra / Cal", color: "#6366f1" },
-  { key: "cr", label: "C&R", color: "#10b981" },
-  { key: "equipos", label: "Equipos", color: "#f59e0b" },
-  { key: "operacion", label: "Operación", color: "#ef4444" },
+  { key: "mano_obra", label: BUCKET_LABELS.mano_obra, color: "#6366f1" },
+  { key: "cr", label: BUCKET_LABELS.cr, color: "#10b981" },
+  { key: "equipos", label: BUCKET_LABELS.equipos, color: "#f59e0b" },
+  { key: "operacion", label: BUCKET_LABELS.operacion, color: "#ef4444" },
 ] as const;
 
 type Slice = { name: string; value: number; color: string };
@@ -37,19 +39,27 @@ export function CustomerBucketMixCard({ customer, recordType, year }: { customer
     queryKey: ["customer-item", { tipo: recordType, anio: year }],
     queryFn: () => getCustomerItemSales({ tipo: recordType, anio: year }),
   });
+  // Clasificación guardada en Configuración. Hasta que llega se ve el esqueleto, nunca
+  // un reparto con el mapa vacío (todo en Equipos). Si la consulta falla, el esqueleto
+  // se queda.
+  const { data: macro } = useQuery({
+    queryKey: MACRO_CATEGORIAS_KEY,
+    queryFn: () => getMacroCategorias(),
+  });
+  const mapa = useMemo(() => mapaMacroCategorias(macro ?? []), [macro]);
   const { slices, total } = useMemo(() => {
-    const b = customerBuckets(data ?? [], customer);
+    const b = customerBuckets(data ?? [], customer, mapa);
     return {
       slices: SERIES.map((s) => ({ name: s.label, value: b[s.key], color: s.color })).filter((s) => s.value > 0),
       total: b.total,
     };
-  }, [data, customer]);
+  }, [data, customer, mapa]);
 
   return (
     <Card className="border-border/40 bg-card/30 backdrop-blur-sm">
       <CardHeader><CardTitle className="text-base font-semibold">Mezcla por macro-categoría {year}</CardTitle></CardHeader>
       <CardContent>
-        {isLoading ? (
+        {isLoading || macro === undefined ? (
           <Skeleton className="h-[360px] w-full" />
         ) : slices.length === 0 ? (
           <p className="text-sm text-muted-foreground py-10 text-center">Sin datos.</p>

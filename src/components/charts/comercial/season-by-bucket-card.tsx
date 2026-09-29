@@ -3,7 +3,9 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getCategoryMonthSales } from "@/actions/category-month-actions";
+import { getMacroCategorias } from "@/actions/category-actions";
 import { buildBucketSeason } from "@/lib/analytics-comercial";
+import { BUCKET_LABELS, MACRO_CATEGORIAS_KEY, mapaMacroCategorias } from "@/lib/customer-item";
 import { formatUSD, formatCompactUSD } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -15,10 +17,10 @@ import type { ChartTooltipProps } from "@/lib/chart-types";
 const MESES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
 
 const SERIES = [
-  { key: "mano_obra", label: "Mano de Obra / Cal", color: "#6366f1" },
-  { key: "cr", label: "C&R", color: "#10b981" },
-  { key: "equipos", label: "Equipos", color: "#f59e0b" },
-  { key: "operacion", label: "Operación", color: "#ef4444" },
+  { key: "mano_obra", label: BUCKET_LABELS.mano_obra, color: "#6366f1" },
+  { key: "cr", label: BUCKET_LABELS.cr, color: "#10b981" },
+  { key: "equipos", label: BUCKET_LABELS.equipos, color: "#f59e0b" },
+  { key: "operacion", label: BUCKET_LABELS.operacion, color: "#ef4444" },
 ] as const;
 
 type SeasonPoint = { mesLabel: string; mano_obra: number; cr: number; equipos: number; operacion: number };
@@ -48,11 +50,19 @@ export function SeasonByBucketCard({ recordType, year }: { recordType: "SALES_OR
     queryKey: ["category-month", { tipo: recordType, anio: year }],
     queryFn: () => getCategoryMonthSales({ tipo: recordType, anio: year }),
   });
+  // Clasificación guardada en Configuración. Hasta que llega se ve el esqueleto, nunca
+  // un reparto con el mapa vacío (todo en Equipos). Si la consulta falla, el esqueleto
+  // se queda.
+  const { data: macro } = useQuery({
+    queryKey: MACRO_CATEGORIAS_KEY,
+    queryFn: () => getMacroCategorias(),
+  });
+  const mapa = useMemo(() => mapaMacroCategorias(macro ?? []), [macro]);
   const rows = useMemo(
-    () => buildBucketSeason(data ?? []).map((r) => ({
+    () => buildBucketSeason(data ?? [], mapa).map((r) => ({
       mesLabel: MESES[r.mes - 1], mano_obra: r.mano_obra, cr: r.cr, equipos: r.equipos, operacion: r.operacion,
     })),
-    [data]
+    [data, mapa]
   );
   const hasData = useMemo(() => rows.some((r) => r.mano_obra || r.cr || r.equipos || r.operacion), [rows]);
 
@@ -65,7 +75,7 @@ export function SeasonByBucketCard({ recordType, year }: { recordType: "SALES_OR
         </span>
       </CardHeader>
       <CardContent className="min-h-0 flex-1">
-        {isLoading ? (
+        {isLoading || macro === undefined ? (
           <Skeleton className="h-full min-h-[380px] w-full" />
         ) : !hasData ? (
           <p className="text-sm text-muted-foreground py-10 text-center">Sin datos.</p>

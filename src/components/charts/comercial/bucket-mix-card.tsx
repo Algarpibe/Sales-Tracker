@@ -3,8 +3,10 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getSalesData } from "@/actions/sales-actions";
+import { getMacroCategorias } from "@/actions/category-actions";
 import type { SalesRecord } from "@/types/database";
 import { buildBucketMixByYear } from "@/lib/analytics-comercial";
+import { BUCKET_LABELS, MACRO_CATEGORIAS_KEY, mapaMacroCategorias } from "@/lib/customer-item";
 import { formatUSD, formatCompactUSD } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -16,10 +18,10 @@ import {
 import type { ChartTooltipProps } from "@/lib/chart-types";
 
 const SERIES = [
-  { key: "mano_obra", label: "Mano de Obra / Cal", color: "#6366f1" },
-  { key: "cr", label: "C&R", color: "#10b981" },
-  { key: "equipos", label: "Equipos", color: "#f59e0b" },
-  { key: "operacion", label: "Operación", color: "#ef4444" },
+  { key: "mano_obra", label: BUCKET_LABELS.mano_obra, color: "#6366f1" },
+  { key: "cr", label: BUCKET_LABELS.cr, color: "#10b981" },
+  { key: "equipos", label: BUCKET_LABELS.equipos, color: "#f59e0b" },
+  { key: "operacion", label: BUCKET_LABELS.operacion, color: "#ef4444" },
 ] as const;
 
 type MixPoint = { year: number; mano_obra: number; cr: number; equipos: number; operacion: number };
@@ -41,9 +43,18 @@ function MixTooltip({ active, payload, label }: ChartTooltipProps<MixPoint>) {
 
 export function BucketMixCard({ recordType }: { recordType: "SALES_ORDER" | "INVOICE" }) {
   const { data, isLoading } = useQuery({ queryKey: ["sales", {}], queryFn: () => getSalesData({}) });
+  // Clasificación guardada en Configuración. Sin ella todo caería en Equipos y el
+  // gráfico saltaría después a las cifras buenas, así que hasta que llega se ve el
+  // esqueleto. Se mira `data` y no `isPending`: si la consulta falla, el esqueleto se
+  // queda en lugar de pintar un reparto equivocado.
+  const { data: macro } = useQuery({
+    queryKey: MACRO_CATEGORIAS_KEY,
+    queryFn: () => getMacroCategorias(),
+  });
+  const mapa = useMemo(() => mapaMacroCategorias(macro ?? []), [macro]);
   const rows = useMemo(
-    () => buildBucketMixByYear((data ?? []) as SalesRecord[], recordType),
-    [data, recordType]
+    () => buildBucketMixByYear((data ?? []) as SalesRecord[], recordType, mapa),
+    [data, recordType, mapa]
   );
 
   return (
@@ -55,7 +66,7 @@ export function BucketMixCard({ recordType }: { recordType: "SALES_ORDER" | "INV
         </span>
       </CardHeader>
       <CardContent className="min-h-0 flex-1">
-        {isLoading ? (
+        {isLoading || macro === undefined ? (
           <Skeleton className="h-full min-h-[340px] w-full" />
         ) : rows.length === 0 ? (
           <p className="text-sm text-muted-foreground py-10 text-center">Sin datos.</p>

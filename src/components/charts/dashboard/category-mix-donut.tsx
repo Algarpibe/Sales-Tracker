@@ -1,9 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import { getMacroCategorias } from "@/actions/category-actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { bucketMix, type InsightRecord } from "@/lib/dashboard-insights";
+import { Skeleton } from "@/components/ui/skeleton";
+import { bucketMix, nombresPorId, type InsightRecord } from "@/lib/dashboard-insights";
+import { MACRO_CATEGORIAS_KEY, mapaMacroCategorias } from "@/lib/customer-item";
 import { formatUSD } from "@/lib/constants";
 import { RecordTypeToggle } from "@/components/common/record-type-toggle";
 import { InfoTooltip } from "@/components/common/info-tooltip";
@@ -35,9 +39,19 @@ export function CategoryMixDonut({
   catMap: Map<string, string>;
 }) {
   const [tipo, setTipo] = useState<"SALES_ORDER" | "INVOICE">("INVOICE");
+  // La clasificación se carga aquí y no en el proveedor del dashboard: así solo la
+  // espera este widget, y el resto del dashboard no se retrasa. Hasta que llega se ve el
+  // esqueleto, nunca un reparto con el mapa vacío (todo en Equipos).
+  const { data: macro } = useQuery({
+    queryKey: MACRO_CATEGORIAS_KEY,
+    queryFn: () => getMacroCategorias(),
+  });
+  const mapa = useMemo(() => mapaMacroCategorias(macro ?? []), [macro]);
+  // Los nombres salen también de las categorías inactivas: catMap solo trae las activas.
+  const nombres = useMemo(() => nombresPorId(macro ?? [], catMap), [macro, catMap]);
   const mix = useMemo(
-    () => bucketMix(records, catMap, tipo).filter((m) => m.amount > 0),
-    [records, catMap, tipo]
+    () => bucketMix(records, nombres, mapa, tipo).filter((m) => m.amount > 0),
+    [records, nombres, mapa, tipo]
   );
 
   return (
@@ -54,7 +68,9 @@ export function CategoryMixDonut({
         <RecordTypeToggle value={tipo} onValueChange={setTipo} />
       </CardHeader>
       <CardContent className="min-h-0 flex-1">
-        {mix.length === 0 ? (
+        {macro === undefined ? (
+          <Skeleton className="h-full min-h-[340px] w-full" />
+        ) : mix.length === 0 ? (
           <p className="text-sm text-muted-foreground py-10 text-center">Sin datos en el año.</p>
         ) : (
           <ResponsiveContainer width="100%" height="100%" minHeight={340}>

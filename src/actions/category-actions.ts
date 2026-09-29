@@ -9,11 +9,13 @@ import { ROLES_EDITAN_METAS } from "@/lib/commercial-kpis";
 import {
   categoryCreateSchema,
   categoryUpdateSchema,
+  macroCategoriasSchema,
   techServiceBucketsSchema,
   uuidSchema,
 } from "@/lib/validation";
 import { runAction, type ActionResult } from "@/lib/errors";
-import type { TechServiceCategory } from "@/types/database";
+import { BUCKETS } from "@/lib/customer-item";
+import type { Bucket, MacroCategoria, TechServiceCategory } from "@/types/database";
 
 export async function getCategories() {
   const { profile } = await requireApproved();
@@ -151,5 +153,62 @@ export async function saveTechServiceBuckets(st: string[], cr: string[]): Promis
 
     revalidatePath("/settings");
     revalidatePath("/analytics");
+  });
+}
+
+/**
+ * Categorías de la compañía con su macro-categoría, activas e inactivas. Las inactivas
+ * hacen falta porque sus ventas de años anteriores siguen en los gráficos y deben caer
+ * en la misma macro-categoría que cuando estaban activas.
+ */
+export async function getMacroCategorias(): Promise<MacroCategoria[]> {
+  const { profile } = await requireApproved();
+  return db
+    .select({
+      id: categories.id,
+      name: categories.name,
+      is_active: categories.is_active,
+      macro_categoria: categories.macro_categoria,
+    })
+    .from(categories)
+    .where(eq(categories.company_id, profile.company_id))
+    .orderBy(asc(categories.sort_order), asc(categories.name));
+}
+
+/**
+ * Guarda de una vez las cuatro macro-categorías. Admin y Editor, la misma regla que la
+ * clasificación de Servicio Técnico. Primero se vacía la clasificación de toda la
+ * compañía y después se marca cada grupo: así, una categoría que ya no se envía vuelve
+ * a contar como Equipos. Todo va en una transacción, para que ningún gráfico vea la
+ * compañía a medio clasificar. El filtro por company_id hace que un id de otra
+ * compañía no toque nada.
+ */
+export async function saveMacroCategorias(grupos: Record<Bucket, string[]>): Promise<ActionResult> {
+  return runAction(async () => {
+    const { profile } = await requireRole(...ROLES_EDITAN_METAS);
+    const data = macroCategoriasSchema.parse(grupos);
+
+    await db.transaction(async (tx) => {
+      await tx
+        .update(categories)
+        .set({ macro_categoria: null })
+        .where(eq(categories.company_id, profile.company_id));
+
+      for (const bucket of BUCKETS) {
+        const ids = data[bucket];
+        if (ids.length === 0) continue;
+        await tx
+          .update(categories)
+          .set({ macro_categoria: bucket })
+          .where(and(eq(categories.company_id, profile.company_id), inArray(categories.id, ids)));
+      }
+    });
+
+    // Las pantallas leen con react-query y se refrescan al invalidar ["categories"] en
+    // el cliente. Esto solo descarta lo que Next.js tuviera cacheado de esas rutas.
+    revalidatePath("/settings");
+    revalidatePath("/analytics");
+    revalidatePath("/home");
+    revalidatePath("/cliente-articulo");
   });
 }

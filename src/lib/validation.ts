@@ -135,3 +135,22 @@ export const techServiceBucketsSchema = z
     message: "Una categoría no puede estar en ST y en C&R a la vez",
     path: ["cr"],
   });
+
+// Macro-categorías: ids de las categorías de cada una de las cuatro. Como en Servicio
+// Técnico, una categoría no puede estar en dos: la columna guarda un solo valor, y el
+// último UPDATE pisaría a los anteriores sin avisar. Las listas vacías valen: lo que no
+// está en ninguna cuenta como Equipos.
+export const macroCategoriasSchema = z
+  .object({
+    mano_obra: idsDeCategoria,
+    cr: idsDeCategoria,
+    equipos: idsDeCategoria,
+    operacion: idsDeCategoria,
+  })
+  .refine(
+    (v) => {
+      const todos = [...v.mano_obra, ...v.cr, ...v.equipos, ...v.operacion];
+      return new Set(todos).size === todos.length;
+    },
+    { message: "Una categoría no puede estar en dos macro-categorías a la vez", path: ["operacion"] }
+  );

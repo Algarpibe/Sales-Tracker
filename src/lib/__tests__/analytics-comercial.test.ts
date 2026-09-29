@@ -12,8 +12,30 @@ import {
   buildBucketSeason,
 } from "@/lib/analytics-comercial";
 import type { CustomerYearRow, ItemSalesRow, CustomerItemRow, CustomerMonthRow, CategoryMonthRow } from "@/types/database";
+import { mapaMacroCategorias } from "@/lib/customer-item";
+
+// Clasificación de prueba: la que sembraría la migración 0013 para estos nombres.
+const mapa = mapaMacroCategorias([
+  { name: "C&R EDM 180", macro_categoria: "cr" },
+  { name: "CAL PM", macro_categoria: "mano_obra" },
+  { name: "Operación de Redes", macro_categoria: "operacion" },
+]);
 
 describe("buildBucketMixByYear", () => {
+  it("clasifica con el mapa guardado, no por el nombre", () => {
+    const propio = mapaMacroCategorias([{ name: "EDM180 Series", macro_categoria: "operacion" }]);
+    const r = buildBucketMixByYear(
+      [
+        { categories: { name: "EDM180 Series" }, record_type: "INVOICE", record_year: 2024, amount_usd: 1000 },
+        { categories: { name: "C&R EDM 180" }, record_type: "INVOICE", record_year: 2024, amount_usd: 200 },
+      ],
+      "INVOICE",
+      propio
+    );
+    // «C&R EDM 180» no está en este mapa: cuenta como Equipos aunque empiece por «C&R ».
+    expect(r).toEqual([{ year: 2024, mano_obra: 0, cr: 0, equipos: 200, operacion: 1000 }]);
+  });
+
   it("filtra por tipo y año>=2021, clasifica buckets y agrega por año", () => {
     const records = [
       { categories: { name: "EDM180 Series" }, record_type: "INVOICE", record_year: 2024, amount_usd: 1000 },
@@ -23,7 +45,7 @@ describe("buildBucketMixByYear", () => {
       { categories: { name: "EDM180 Series" }, record_type: "SALES_ORDER", record_year: 2025, amount_usd: 999 },
       { categories: { name: "EDM180 Series" }, record_type: "INVOICE", record_year: 2019, amount_usd: 888 },
     ];
-    const r = buildBucketMixByYear(records, "INVOICE");
+    const r = buildBucketMixByYear(records, "INVOICE", mapa);
     expect(r).toEqual([
       { year: 2024, mano_obra: 0, cr: 200, equipos: 1000, operacion: 0 },
       { year: 2025, mano_obra: 500, cr: 0, equipos: 0, operacion: 300 },
@@ -95,7 +117,7 @@ describe("buildBucketByClient", () => {
       { customer: "A", sku: "2", marca: null, nombre: "n", categoria: "CAL PM", cantidad: 1, importe: 50 },
       { customer: "B", sku: "3", marca: null, nombre: "n", categoria: "EDM180 Series", cantidad: 1, importe: 500 },
     ];
-    const b = buildBucketByClient(rows);
+    const b = buildBucketByClient(rows, mapa);
     expect(b.map((x) => x.customer)).toEqual(["B", "A"]);
     expect(b[1]).toEqual({ customer: "A", mano_obra: 50, cr: 100, equipos: 0, operacion: 0, total: 150 });
     expect(b[0].equipos).toBe(500);
@@ -153,7 +175,7 @@ describe("buildBucketSeason", () => {
       { mes: 1, categoria: "C&R EDM 180", importe: 50 }, // cr
       { mes: 3, categoria: "EDM180", importe: 200 },     // equipos (default)
     ];
-    const s = buildBucketSeason(rows);
+    const s = buildBucketSeason(rows, mapa);
     expect(s).toHaveLength(12);
     expect(s[0]).toEqual({ mes: 1, mano_obra: 100, cr: 50, equipos: 0, operacion: 0 });
     expect(s[1]).toEqual({ mes: 2, mano_obra: 0, cr: 0, equipos: 0, operacion: 0 });
