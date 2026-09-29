@@ -242,11 +242,15 @@ export const kpiTargets = pgTable("kpi_targets", {
   salesperson: text("salesperson"),
   target_value: numeric("target_value", { precision: 15, scale: 2 }).notNull(),
   weight_pct: numeric("weight_pct", { precision: 5, scale: 2 }).notNull(),
+  // Horas laborables del plazo del KPI de tickets. Solo en la fila tickets_st del
+  // total; nulo = PLAZO_HORAS_POR_DEFECTO (12). Migración 0012.
+  plazo_horas: numeric("plazo_horas", { precision: 6, scale: 2 }),
   updated_at: timestamp("updated_at", tsString).notNull().defaultNow(),
 }, (t) => [
   unique("kpi_targets_unique").on(t.company_id, t.record_year, t.kpi_key, t.salesperson).nullsNotDistinct(),
   check("kpi_targets_target_check", sql`${t.target_value} > 0`),
   check("kpi_targets_weight_check", sql`${t.weight_pct} >= 0 AND ${t.weight_pct} <= 100`),
+  check("kpi_targets_plazo_horas_check", sql`${t.plazo_horas} IS NULL OR ${t.plazo_horas} > 0`),
 ]);
 
 export const kpiProjectOrders = pgTable("kpi_project_orders", {

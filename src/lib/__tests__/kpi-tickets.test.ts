@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
+import type { KpiTargetRow } from "@/actions/kpi-actions";
 import {
   FASE_NOTIFICACION_COMERCIAL,
+  PLAZO_HORAS_POR_DEFECTO,
   clasificarEpisodio,
   contarTicketsEnPlazo,
   detalleTicketsMes,
@@ -9,6 +11,8 @@ import {
   formatoInstanteBogota,
   horasLaborables,
   normalizarFase,
+  plazoTicketsDelAnio,
+  textoPlazo,
   ticketsEnPlazoPorMes,
   type CambioFase,
   type Episodio,
@@ -266,16 +270,19 @@ const episodio = (inicio: number, fin: number | null, estado: Episodio["estado"]
 // Lunes 2 mar 2026 a las 9:00 en Bogota: ninguna de las fechas de estos tests es festiva.
 const LUNES_MARZO = bog(2026, 3, 2, 9);
 const AHORA = bog(2026, 9, 23, 12);
+// Los tests que no hablan del plazo usan el de por defecto: sus cifras son las de
+// antes de hacerlo configurable.
+const PLAZO = PLAZO_HORAS_POR_DEFECTO;
 
 describe("ticketsEnPlazoPorMes", () => {
   it("un medible de menos de 12 horas laborables esta en plazo", () => {
-    const v = ticketsEnPlazoPorMes([episodio(LUNES_MARZO, bog(2026, 3, 2, 10), "medible")], 2026, AHORA);
+    const v = ticketsEnPlazoPorMes([episodio(LUNES_MARZO, bog(2026, 3, 2, 10), "medible")], 2026, AHORA, PLAZO);
     expect(v[2]).toBe(100);
   });
 
   it("12 horas laborables justas ya estan fuera de plazo", () => {
     // Lunes 9:00 -> martes 12:00: 8 h + 4 h. El plazo es "menos de 12".
-    const v = ticketsEnPlazoPorMes([episodio(LUNES_MARZO, bog(2026, 3, 3, 12), "medible")], 2026, AHORA);
+    const v = ticketsEnPlazoPorMes([episodio(LUNES_MARZO, bog(2026, 3, 3, 12), "medible")], 2026, AHORA, PLAZO);
     expect(v[2]).toBe(0);
   });
 
@@ -286,23 +293,24 @@ describe("ticketsEnPlazoPorMes", () => {
         episodio(LUNES_MARZO, bog(2026, 3, 4, 9), "medible"),
       ],
       2026,
-      AHORA
+      AHORA,
+      PLAZO
     );
     expect(v[2]).toBe(50);
   });
 
   it("los excluidos no cuentan y un mes sin contables vale null, no 0", () => {
-    const v = ticketsEnPlazoPorMes([episodio(LUNES_MARZO, bog(2026, 3, 2, 10), "excluido")], 2026, AHORA);
+    const v = ticketsEnPlazoPorMes([episodio(LUNES_MARZO, bog(2026, 3, 2, 10), "excluido")], 2026, AHORA, PLAZO);
     expect(v[2]).toBeNull();
   });
 
   it("un abierto que ya consumio el plazo cuenta como fuera de plazo", () => {
-    const v = ticketsEnPlazoPorMes([episodio(LUNES_MARZO, null, "abierto")], 2026, AHORA);
+    const v = ticketsEnPlazoPorMes([episodio(LUNES_MARZO, null, "abierto")], 2026, AHORA, PLAZO);
     expect(v[2]).toBe(0);
   });
 
   it("un abierto que aun no consumio el plazo todavia no cuenta", () => {
-    const v = ticketsEnPlazoPorMes([episodio(LUNES_MARZO, null, "abierto")], 2026, bog(2026, 3, 2, 15));
+    const v = ticketsEnPlazoPorMes([episodio(LUNES_MARZO, null, "abierto")], 2026, bog(2026, 3, 2, 15), PLAZO);
     expect(v[2]).toBeNull();
   });
 
@@ -311,19 +319,20 @@ describe("ticketsEnPlazoPorMes", () => {
     const v = ticketsEnPlazoPorMes(
       [episodio(bog(2026, 3, 31, 22), bog(2026, 4, 1, 9), "medible")],
       2026,
-      AHORA
+      AHORA,
+      PLAZO
     );
     expect(v[2]).toBe(100);
     expect(v[3]).toBeNull();
   });
 
   it("descarta los episodios de otros anios", () => {
-    const v = ticketsEnPlazoPorMes([episodio(bog(2025, 12, 30, 9), bog(2025, 12, 30, 10), "medible")], 2026, AHORA);
+    const v = ticketsEnPlazoPorMes([episodio(bog(2025, 12, 30, 9), bog(2025, 12, 30, 10), "medible")], 2026, AHORA, PLAZO);
     expect(v).toEqual(new Array(12).fill(null));
   });
 
   it("devuelve siempre doce valores", () => {
-    expect(ticketsEnPlazoPorMes([], 2026, AHORA)).toHaveLength(12);
+    expect(ticketsEnPlazoPorMes([], 2026, AHORA, PLAZO)).toHaveLength(12);
   });
 
   it("los contadores de los doce meses suman los episodios del anio que cuentan", () => {
@@ -335,39 +344,77 @@ describe("ticketsEnPlazoPorMes", () => {
       episodio(bog(2026, 9, 23, 11), null, "abierto"), // no cuenta todavia
       episodio(bog(2025, 7, 1, 9), bog(2025, 7, 1, 10), "medible"), // otro anio
     ];
-    const { enPlazo, fueraDePlazo } = contarTicketsEnPlazo(episodios, 2026, AHORA);
+    const { enPlazo, fueraDePlazo } = contarTicketsEnPlazo(episodios, 2026, AHORA, PLAZO);
     const suma = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
     expect(suma(enPlazo)).toBe(1);
     expect(suma(fueraDePlazo)).toBe(2);
   });
 });
 
+describe("ticketsEnPlazoPorMes con otro plazo", () => {
+  // La celda tiene que usar el plazo que recibe, no el de por defecto: con 8 horas el
+  // episodio de 8 h justas pasa de en plazo a fuera.
+  it("con plazo 8, un medible de 8 horas justas deja de contar en plazo", () => {
+    const episodios = [
+      episodio(LUNES_MARZO, bog(2026, 3, 2, 10), "medible"), // 1 h
+      episodio(LUNES_MARZO, bog(2026, 3, 2, 17), "medible"), // 8 h
+    ];
+    expect(ticketsEnPlazoPorMes(episodios, 2026, AHORA, 12)[2]).toBe(100);
+    expect(ticketsEnPlazoPorMes(episodios, 2026, AHORA, 8)[2]).toBe(50);
+  });
+});
+
 describe("clasificarEpisodio", () => {
   it("un medible de menos de 12 horas laborables esta en plazo y lleva sus horas", () => {
     // Lunes 9:00 -> martes 11:30: 8 h + 3,5 h.
-    expect(clasificarEpisodio(episodio(LUNES_MARZO, bog(2026, 3, 3, 11, 30), "medible"), AHORA))
+    expect(clasificarEpisodio(episodio(LUNES_MARZO, bog(2026, 3, 3, 11, 30), "medible"), AHORA, PLAZO))
       .toEqual({ estado: "en_plazo", horas: 11.5 });
   });
 
   it("un medible de 12 horas justas esta fuera de plazo", () => {
     // Lunes 9:00 -> martes 12:00: 8 h + 4 h. El plazo es "menos de 12".
-    expect(clasificarEpisodio(episodio(LUNES_MARZO, bog(2026, 3, 3, 12), "medible"), AHORA))
+    expect(clasificarEpisodio(episodio(LUNES_MARZO, bog(2026, 3, 3, 12), "medible"), AHORA, PLAZO))
       .toEqual({ estado: "fuera_de_plazo", horas: 12 });
   });
 
   it("un abierto que a fecha de ahora llega justo a 12 horas esta fuera de plazo", () => {
-    expect(clasificarEpisodio(episodio(LUNES_MARZO, null, "abierto"), bog(2026, 3, 3, 12)))
+    expect(clasificarEpisodio(episodio(LUNES_MARZO, null, "abierto"), bog(2026, 3, 3, 12), PLAZO))
       .toEqual({ estado: "fuera_de_plazo", horas: 12 });
   });
 
   it("un abierto con menos de 12 horas todavia no vence y cuenta sus horas hasta ahora", () => {
     // Lunes 9:00 -> lunes 15:00.
-    expect(clasificarEpisodio(episodio(LUNES_MARZO, null, "abierto"), bog(2026, 3, 2, 15)))
+    expect(clasificarEpisodio(episodio(LUNES_MARZO, null, "abierto"), bog(2026, 3, 2, 15), PLAZO))
       .toEqual({ estado: "abierto_sin_vencer", horas: 6 });
   });
 
+  // El plazo es configurable por año: la frontera se mueve con él y sigue siendo
+  // «menos de», tanto en los cerrados como en los abiertos.
+  it("con plazo 8, un medible de 8 horas justas esta fuera y uno de 7,5 en plazo", () => {
+    // Lunes 9:00 -> lunes 17:00: 8 h. Lunes 9:00 -> lunes 16:30: 7,5 h.
+    expect(clasificarEpisodio(episodio(LUNES_MARZO, bog(2026, 3, 2, 17), "medible"), AHORA, 8))
+      .toEqual({ estado: "fuera_de_plazo", horas: 8 });
+    expect(clasificarEpisodio(episodio(LUNES_MARZO, bog(2026, 3, 2, 16, 30), "medible"), AHORA, 8))
+      .toEqual({ estado: "en_plazo", horas: 7.5 });
+  });
+
+  it("con plazo 8, un abierto vence al llegar a 8 horas y no antes", () => {
+    expect(clasificarEpisodio(episodio(LUNES_MARZO, null, "abierto"), bog(2026, 3, 2, 17), 8))
+      .toEqual({ estado: "fuera_de_plazo", horas: 8 });
+    expect(clasificarEpisodio(episodio(LUNES_MARZO, null, "abierto"), bog(2026, 3, 2, 16, 30), 8))
+      .toEqual({ estado: "abierto_sin_vencer", horas: 7.5 });
+  });
+
+  it("con plazo 12, justo por debajo de 12 horas sigue en plazo o sin vencer", () => {
+    // Lunes 9:00 -> martes 11:30: 8 h + 3,5 h.
+    expect(clasificarEpisodio(episodio(LUNES_MARZO, bog(2026, 3, 3, 11, 30), "medible"), AHORA, 12))
+      .toEqual({ estado: "en_plazo", horas: 11.5 });
+    expect(clasificarEpisodio(episodio(LUNES_MARZO, null, "abierto"), bog(2026, 3, 3, 11, 30), 12))
+      .toEqual({ estado: "abierto_sin_vencer", horas: 11.5 });
+  });
+
   it("un excluido no mide horas", () => {
-    expect(clasificarEpisodio(episodio(LUNES_MARZO, bog(2026, 3, 4, 9), "excluido"), AHORA))
+    expect(clasificarEpisodio(episodio(LUNES_MARZO, bog(2026, 3, 4, 9), "excluido"), AHORA, PLAZO))
       .toEqual({ estado: "excluido", horas: 0 });
   });
 });
@@ -384,8 +431,8 @@ describe("detalleTicketsMes", () => {
       ep("T-FICT-ABR", bog(2026, 4, 1, 9), bog(2026, 4, 1, 10), "medible"),
       ep("T-FICT-2025", bog(2025, 3, 10, 9), bog(2025, 3, 10, 10), "medible"),
     ];
-    expect(detalleTicketsMes(episodios, 2026, 3, AHORA).cuentan.map((f) => f.ticketId)).toEqual(["T-FICT-MAR"]);
-    expect(detalleTicketsMes(episodios, 2026, 4, AHORA).cuentan.map((f) => f.ticketId)).toEqual(["T-FICT-ABR"]);
+    expect(detalleTicketsMes(episodios, 2026, 3, AHORA, PLAZO).cuentan.map((f) => f.ticketId)).toEqual(["T-FICT-MAR"]);
+    expect(detalleTicketsMes(episodios, 2026, 4, AHORA, PLAZO).cuentan.map((f) => f.ticketId)).toEqual(["T-FICT-ABR"]);
   });
 
   it("cuentan: primero los fuera de plazo y despues los en plazo, de mas horas a menos", () => {
@@ -400,7 +447,8 @@ describe("detalleTicketsMes", () => {
       ],
       2026,
       3,
-      AHORA
+      AHORA,
+      PLAZO
     );
     // A igualdad de horas desempata la entrada: el orden no puede depender de cómo
     // lleguen los cambios del hub.
@@ -421,7 +469,8 @@ describe("detalleTicketsMes", () => {
       ],
       2026,
       3,
-      ahora
+      ahora,
+      PLAZO
     );
     expect(d.noCuentan.map((f) => [f.ticketId, f.estado, f.horas])).toEqual([
       ["T-FICT-X0", "excluido", 0],
@@ -442,7 +491,7 @@ describe("detalleTicketsMes", () => {
       faseSalida: "Notificación cliente",
       estado: "medible",
     };
-    expect(detalleTicketsMes([e], 2026, 3, AHORA)).toEqual({
+    expect(detalleTicketsMes([e], 2026, 3, AHORA, PLAZO)).toEqual({
       cuentan: [
         {
           ticketId: "T-FICT-1",
@@ -461,6 +510,19 @@ describe("detalleTicketsMes", () => {
     });
   });
 
+  it("clasifica con el plazo recibido", () => {
+    const episodios = [
+      ep("T-FICT-1H", LUNES_MARZO, bog(2026, 3, 2, 10), "medible"), // 1 h
+      ep("T-FICT-8H", LUNES_MARZO, bog(2026, 3, 2, 17), "medible"), // 8 h
+    ];
+    const d = detalleTicketsMes(episodios, 2026, 3, AHORA, 8);
+    expect(d.cuentan.map((f) => [f.ticketId, f.estado])).toEqual([
+      ["T-FICT-8H", "fuera_de_plazo"],
+      ["T-FICT-1H", "en_plazo"],
+    ]);
+    expect([d.enPlazo, d.total]).toEqual([1, 2]);
+  });
+
   // La celda y el diálogo tienen que decir lo mismo: si esto falla, el pie del detalle
   // enseñaría un porcentaje distinto del de la celda pulsada.
   it("para cada mes, en plazo y total coinciden con los contadores de la celda", () => {
@@ -473,11 +535,29 @@ describe("detalleTicketsMes", () => {
       ep("T-FICT-F", bog(2026, 3, 31, 22), bog(2026, 4, 1, 9), "medible"),
       ep("T-FICT-G", bog(2025, 7, 1, 9), bog(2025, 7, 1, 10), "medible"),
     ];
-    const { enPlazo, fueraDePlazo } = contarTicketsEnPlazo(episodios, 2026, AHORA);
+    const { enPlazo, fueraDePlazo } = contarTicketsEnPlazo(episodios, 2026, AHORA, PLAZO);
     for (let mes = 1; mes <= 12; mes++) {
-      const d = detalleTicketsMes(episodios, 2026, mes, AHORA);
+      const d = detalleTicketsMes(episodios, 2026, mes, AHORA, PLAZO);
       expect([d.enPlazo, d.total]).toEqual([enPlazo[mes - 1], enPlazo[mes - 1] + fueraDePlazo[mes - 1]]);
     }
+  });
+});
+
+describe("plazoTicketsDelAnio", () => {
+  const meta = (kpi_key: string, plazo_horas: number | null): KpiTargetRow =>
+    ({ kpi_key, target_value: 80, weight_pct: 40, plazo_horas });
+
+  it("sin fila de tickets vale el plazo por defecto", () => {
+    expect(plazoTicketsDelAnio([])).toBe(12);
+    expect(plazoTicketsDelAnio([meta("ventas_nuevos", null)])).toBe(PLAZO_HORAS_POR_DEFECTO);
+  });
+
+  it("con la fila de tickets sin plazo guardado vale el plazo por defecto", () => {
+    expect(plazoTicketsDelAnio([meta("ventas_nuevos", null), meta("tickets_st", null)])).toBe(12);
+  });
+
+  it("con plazo guardado devuelve ese plazo", () => {
+    expect(plazoTicketsDelAnio([meta("ventas_nuevos", null), meta("tickets_st", 4.5)])).toBe(4.5);
   });
 });
 
@@ -490,5 +570,13 @@ describe("formatoInstanteBogota", () => {
   it("rellena con ceros y pinta la medianoche como 00:00", () => {
     expect(formatoInstanteBogota(bog(2026, 1, 5, 8, 5))).toBe("05/01 08:05");
     expect(formatoInstanteBogota(bog(2026, 2, 2, 0))).toBe("02/02 00:00");
+  });
+});
+
+describe("textoPlazo", () => {
+  it("pinta el plazo con coma decimal y sin ceros de relleno", () => {
+    expect(textoPlazo(12)).toBe("12");
+    expect(textoPlazo(4.5)).toBe("4,5");
+    expect(textoPlazo(7.25)).toBe("7,25");
   });
 });

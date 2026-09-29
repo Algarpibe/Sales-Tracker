@@ -30,7 +30,9 @@ import {
   type BreakdownInput,
 } from "@/lib/kpi-score";
 import { customerHref } from "@/lib/customer-detail";
-import { detalleTicketsMes, episodiosNotificacionComercial, ticketsEnPlazoPorMes } from "@/lib/kpi-tickets";
+import {
+  detalleTicketsMes, episodiosNotificacionComercial, plazoTicketsDelAnio, ticketsEnPlazoPorMes,
+} from "@/lib/kpi-tickets";
 import { gruposServicioTecnico, stGrowthByQuarter, TECH_SERVICE_CATEGORIES_KEY } from "@/lib/tech-service";
 import { CHART_HELP } from "@/lib/chart-help";
 import { MONTHS, RECORD_TYPES, formatPct, formatUSD } from "@/lib/constants";
@@ -300,6 +302,15 @@ export function CommercialKpiTable({
     queryFn: () => getKpiTargets(year, salesperson),
     placeholderData: keepPreviousData,
   });
+  // El plazo de tickets vive en las metas del TOTAL del año: el KPI solo se mide a nivel
+  // compañía y las metas de un comercial no lo traen. Con el total elegido la clave es la
+  // misma que la de arriba y TanStack Query hace una sola petición; con un comercial, es
+  // una consulta aparte. La pantalla de metas invalida esta misma clave al guardar.
+  const metasTotalQ = useQuery({
+    queryKey: ["kpi-targets", year, TOTAL],
+    queryFn: () => getKpiTargets(year, null),
+    placeholderData: keepPreviousData,
+  });
   const mensualesQ = useQuery({
     queryKey: ["kpi-monthly", recordType, year, owner],
     queryFn: () => getKpiMonthlySales(recordType, year, salesperson),
@@ -345,6 +356,7 @@ export function CommercialKpiTable({
   });
 
   const metas = useMemo<KpiTargetRow[]>(() => metasQ.data ?? [], [metasQ.data]);
+  const plazoHoras = useMemo(() => plazoTicketsDelAnio(metasTotalQ.data ?? []), [metasTotalQ.data]);
   const mensuales = useMemo(() => mensualesQ.data ?? [], [mensualesQ.data]);
   const tratos = useMemo(() => tratosQ.data ?? [], [tratosQ.data]);
   const ganados = useMemo(() => ganadosQ.data ?? [], [ganadosQ.data]);
@@ -411,8 +423,8 @@ export function CommercialKpiTable({
     // usan para decidir cuántos periodos van ya a la fecha: si cada una tomara el suyo,
     // un cambio de mes entre medias dejaría filas contando periodos distintos. El
     // detalle de tickets reutiliza el mismo: si calculara el suyo al pulsar, un episodio
-    // abierto que cruzara las 12 horas entre medias haría que el pie dijera otra cosa
-    // que la celda.
+    // abierto que cruzara el plazo entre medias haría que el pie dijera otra cosa que
+    // la celda.
     const hoy = new Date();
     const ahoraTickets = hoy.getTime();
 
@@ -444,7 +456,9 @@ export function CommercialKpiTable({
         // no hay serie aparte, así que construirFila lo pinta en su mes con el
         // cumplimiento debajo. `ahoraTickets` decide qué episodios abiertos ya están
         // fuera de plazo. Los meses sin episodios son null y tampoco cuentan a la fecha.
-        return construirFila(def, ticketsEnPlazoPorMes(episodiosTickets, year, ahoraTickets), meta, null, year, hoy);
+        return construirFila(
+          def, ticketsEnPlazoPorMes(episodiosTickets, year, ahoraTickets, plazoHoras), meta, null, year, hoy
+        );
       }
       if (def.key === "ingresos_proyectos") {
         // date es un `date` de Postgres ('YYYY-MM-DD'), sin hora ni zona: se lee
@@ -459,7 +473,7 @@ export function CommercialKpiTable({
     });
 
     return { filas, mensualesBreakdown, tratosBreakdown, ganadosBreakdown, ahoraTickets };
-  }, [metas, mensuales, tratos, ganados, historico, registros, categorias, ordenesProyectoAnio, episodiosTickets, recordType, year]);
+  }, [metas, mensuales, tratos, ganados, historico, registros, categorias, ordenesProyectoAnio, episodiosTickets, plazoHoras, recordType, year]);
 
   // Dos TOTALES con la misma regla de renormalización: el anual y el de a la fecha.
   const marcador = useMemo(
@@ -473,13 +487,15 @@ export function CommercialKpiTable({
   const aporteTotal = useMemo(() => filas.reduce((s, f) => s + (f.aporte ?? 0), 0), [filas]);
   const aporteTotalFecha = useMemo(() => filas.reduce((s, f) => s + (f.aporteFecha ?? 0), 0), [filas]);
 
+  // metasTotalQ también cuenta: sin él la fila de tickets se pintaría un instante con el
+  // plazo por defecto y después saltaría al del año.
   const cargando =
-    metasQ.isPending || mensualesQ.isPending || tratosQ.isPending || ganadosQ.isPending ||
-    historicoQ.isPending || ventasQ.isPending || categoriasQ.isPending || proyectosQ.isPending ||
-    ticketsQ.isPending;
+    metasQ.isPending || metasTotalQ.isPending || mensualesQ.isPending || tratosQ.isPending ||
+    ganadosQ.isPending || historicoQ.isPending || ventasQ.isPending || categoriasQ.isPending ||
+    proyectosQ.isPending || ticketsQ.isPending;
   const refrescando =
-    metasQ.isPlaceholderData || mensualesQ.isPlaceholderData || tratosQ.isPlaceholderData ||
-    ganadosQ.isPlaceholderData || ticketsQ.isPlaceholderData;
+    metasQ.isPlaceholderData || metasTotalQ.isPlaceholderData || mensualesQ.isPlaceholderData ||
+    tratosQ.isPlaceholderData || ganadosQ.isPlaceholderData || ticketsQ.isPlaceholderData;
   // Sin ventas del ámbito y sin metas, la tabla solo enseñaría guiones.
   const sinDatos = mensuales.length === 0 && metas.length === 0;
   const sinMetas = !metas.some((m) => m.weight_pct > 0);
@@ -492,10 +508,10 @@ export function CommercialKpiTable({
   const detalleEnlaza = celda ? celda.def.key === "ventas_nuevos" || celda.def.key === "ventas_existentes" : false;
   const detalleTotal = detalle.reduce((s, r) => s + r.valor, 0);
   const tipoRegistroLabel = RECORD_TYPES.find((t) => t.value === recordType)?.label ?? recordType;
-  // Mismos episodios, mismo año y mismo `ahora` que la fila: el detalle sale de la misma
-  // clasificación que la cifra pulsada.
+  // Mismos episodios, mismo año, mismo `ahora` y mismo plazo que la fila: el detalle sale
+  // de la misma clasificación que la cifra pulsada.
   const detalleTickets = celdaTickets
-    ? detalleTicketsMes(episodiosTickets, year, celdaTickets.mes, ahoraTickets)
+    ? detalleTicketsMes(episodiosTickets, year, celdaTickets.mes, ahoraTickets, plazoHoras)
     : null;
 
   // Agregar y quitar comparten la misma invalidación: ["kpi-project-orders"]
@@ -756,6 +772,7 @@ export function CommercialKpiTable({
         anio={year}
         mes={celdaTickets?.mes ?? 1}
         detalle={detalleTickets}
+        plazoHoras={plazoHoras}
       />
       <Dialog
         open={gestionandoProyectos}

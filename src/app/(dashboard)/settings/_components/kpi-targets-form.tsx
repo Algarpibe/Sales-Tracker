@@ -11,7 +11,10 @@ import {
   type KpiScope,
   type KpiTargetRow,
 } from "@/actions/kpi-actions";
-import { COMMERCIAL_KPIS, KPI_UNIT_LABEL, getKpiYearRange, puedeEditarMetas } from "@/lib/commercial-kpis";
+import {
+  COMMERCIAL_KPIS, KPI_CON_PLAZO, KPI_UNIT_LABEL, getKpiYearRange, puedeEditarMetas,
+} from "@/lib/commercial-kpis";
+import { evaluarBorrador, plazoInicial, toDraft, type Draft } from "@/lib/kpi-metas";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,27 +28,16 @@ import {
 const TOTAL = "__total__";
 const TOTAL_LABEL = "Total compañía";
 
-type Draft = Record<string, { target: string; weight: string }>;
-
-// Las tres columnas de cada fila. La cabecera y los campos comparten la rejilla
-// para que caigan alineados.
+// Las columnas de cada fila. La cabecera y los campos comparten la rejilla para que
+// caigan alineados. El total lleva una cuarta, el plazo de tickets: ese KPI solo se
+// mide a nivel compañía, así que en un vendedor no hay plazo que configurar.
 const FILA = "grid grid-cols-1 gap-2 sm:grid-cols-[1fr_140px_120px] sm:items-center";
+const FILA_CON_PLAZO = "grid grid-cols-1 gap-2 sm:grid-cols-[1fr_140px_120px_110px] sm:items-center";
 
 /** "mensual" -> "Mensual". Se capitaliza aquí y no con CSS: `capitalize` tocaría
  *  también la unidad y dejaría "nº" como "Nº". */
 function conMayuscula(texto: string): string {
   return texto.charAt(0).toUpperCase() + texto.slice(1);
-}
-
-/** Lo guardado, como texto editable. Los KPIs sin fila en ese ámbito van vacíos. */
-function toDraft(rows: KpiTargetRow[]): Draft {
-  const d: Draft = Object.fromEntries(
-    COMMERCIAL_KPIS.map((k) => [k.key, { target: "", weight: "" }])
-  );
-  for (const r of rows) {
-    if (d[r.kpi_key]) d[r.kpi_key] = { target: String(r.target_value), weight: String(r.weight_pct) };
-  }
-  return d;
 }
 
 /**
@@ -64,13 +56,18 @@ function KpiTargetsFields({
   salesperson: KpiScope;
   rows: KpiTargetRow[];
   editable: boolean;
-  onSaved: () => void;
+  onSaved: () => Promise<unknown>;
 }) {
   const [edits, setEdits] = useState<Draft>({});
+  // null = sin tocar: se ve lo guardado o el plazo por defecto, igual que con `edits`.
+  const [plazoEditado, setPlazoEditado] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   const guardados = useMemo(() => toDraft(rows), [rows]);
   const draft = useMemo(() => ({ ...guardados, ...edits }), [guardados, edits]);
+  const esTotal = salesperson === null;
+  const fila = esTotal ? FILA_CON_PLAZO : FILA;
+  const plazoTexto = plazoEditado ?? plazoInicial(rows);
 
   const editar = (key: string, campo: "target" | "weight", valor: string) => {
     setEdits((prev) => {
@@ -79,18 +76,11 @@ function KpiTargetsFields({
     });
   };
 
-  // Solo cuentan los KPIs con peso: el resto no se mide en ese ámbito.
-  const enviados = useMemo(
-    () =>
-      COMMERCIAL_KPIS.map((k) => ({
-        kpi_key: k.key,
-        target_value: Number(draft[k.key]?.target ?? ""),
-        weight_pct: Number(draft[k.key]?.weight ?? ""),
-      })).filter((i) => Number.isFinite(i.weight_pct) && i.weight_pct > 0),
-    [draft]
+  // Qué se envía y si se puede guardar sale de una función pura con tests: aquí solo se pinta.
+  const { items: enviados, suma, pesosValidos, valido, avisoPlazo } = useMemo(
+    () => evaluarBorrador(draft, salesperson, plazoTexto),
+    [draft, salesperson, plazoTexto]
   );
-  const suma = useMemo(() => enviados.reduce((s, i) => s + i.weight_pct, 0), [enviados]);
-  const valido = Math.round(suma * 100) === 10000 && enviados.every((i) => i.target_value > 0);
 
   const guardar = async () => {
     setSaving(true);
@@ -98,7 +88,12 @@ function KpiTargetsFields({
       const res = await saveKpiTargets(year, salesperson, enviados);
       if (!res.ok) { toast.error(res.error); return; }
       toast.success("Metas guardadas");
-      onSaved();
+      // Se espera la recarga antes de soltar lo tecleado: si no, el campo enseñaría un
+      // instante el plazo guardado antes, ya obsoleto.
+      await onSaved();
+      // El campo vuelve a enseñar lo guardado: si la fila de tickets se ha quitado, su
+      // plazo se fue con ella y lo honesto es ver el de por defecto.
+      setPlazoEditado(null);
     } catch {
       toast.error("Error de red. Inténtalo de nuevo.");
     } finally {
@@ -111,13 +106,14 @@ function KpiTargetsFields({
       <div className="space-y-3">
         {/* En movil la rejilla se apila y la cabecera no ayudaria: ahi orientan los
             marcadores de cada campo. */}
-        <div className={`${FILA} hidden sm:grid px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground`}>
+        <div className={`${fila} hidden sm:grid px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground`}>
           <span>KPI</span>
           <span>Meta</span>
           <span>Peso %</span>
+          {esTotal && <span>Plazo (h)</span>}
         </div>
         {COMMERCIAL_KPIS.map((k) => (
-          <div key={k.key} className={FILA}>
+          <div key={k.key} className={fila}>
             <div>
               <div className="text-sm font-medium">{k.label}</div>
               <div className="text-xs text-muted-foreground">
@@ -140,18 +136,38 @@ function KpiTargetsFields({
               value={draft[k.key]?.weight ?? ""}
               onChange={(e) => editar(k.key, "weight", e.target.value)}
             />
+            {/* Horas laborables: menos de este plazo cuenta como en plazo. */}
+            {esTotal && k.key === KPI_CON_PLAZO && (
+              <div className="flex items-center gap-2">
+                <Input
+                  aria-label={`Plazo de ${k.label}`}
+                  placeholder="h"
+                  inputMode="decimal"
+                  readOnly={!editable}
+                  value={plazoTexto}
+                  onChange={(e) => setPlazoEditado(e.target.value)}
+                />
+                {/* En móvil no hay cabecera y el campo siempre lleva valor, así que el
+                    marcador «h» nunca se ve: sin este sufijo, «12» no diría qué es. En
+                    escritorio ya lo dice la cabecera «Plazo (h)». */}
+                <span aria-hidden="true" className="text-xs text-muted-foreground sm:hidden">h laborables</span>
+              </div>
+            )}
           </div>
         ))}
       </div>
-      {/* El lector solo consulta: sin botón, y la suma en rojo no le serviría de nada. */}
+      {/* El lector solo consulta: sin botón, y los avisos en rojo no le servirían de nada. */}
       {editable && (
-        <div className="flex items-center justify-between gap-4 border-t border-white/10 pt-4">
-          <span className={valido ? "text-sm text-muted-foreground" : "text-sm text-destructive"}>
-            Suma de pesos: {Math.round(suma * 100) / 100}%
-          </span>
-          <Button onClick={guardar} disabled={!valido || saving}>
-            {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} Guardar metas
-          </Button>
+        <div className="space-y-2 border-t border-white/10 pt-4">
+          {avisoPlazo && <p className="text-sm text-destructive">{avisoPlazo}</p>}
+          <div className="flex items-center justify-between gap-4">
+            <span className={pesosValidos ? "text-sm text-muted-foreground" : "text-sm text-destructive"}>
+              Suma de pesos: {Math.round(suma * 100) / 100}%
+            </span>
+            <Button onClick={guardar} disabled={!valido || saving}>
+              {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} Guardar metas
+            </Button>
+          </div>
         </div>
       )}
     </>
@@ -195,7 +211,7 @@ export function KpiTargetsForm() {
           </CardTitle>
           <CardDescription>
             {editable
-              ? "Meta y peso de cada KPI para el año y el ámbito elegidos. Solo se guardan los KPIs con peso, y los pesos de cada ámbito deben sumar 100."
+              ? "Meta y peso de cada KPI para el año y el ámbito elegidos. Solo se guardan los KPIs con peso, y los pesos de cada ámbito deben sumar 100. En el total, el plazo de tickets son horas laborables: menos de ese plazo cuenta como en plazo."
               : "Meta y peso de cada KPI para el año y el ámbito elegidos. Solo lectura."}
           </CardDescription>
         </div>
@@ -228,7 +244,7 @@ export function KpiTargetsForm() {
             salesperson={salesperson}
             rows={data}
             editable={editable}
-            onSaved={() => { queryClient.invalidateQueries({ queryKey: ["kpi-targets", year, scope] }); }}
+            onSaved={() => queryClient.invalidateQueries({ queryKey: ["kpi-targets", year, scope] })}
           />
         )}
       </CardContent>

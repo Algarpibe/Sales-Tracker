@@ -3,6 +3,9 @@ import { APPROVED_STATE, LECTOR_STATE, SALESPEOPLE } from "../constants";
 
 test.use({ storageState: APPROVED_STATE });
 
+/** aria-label del campo de plazo. exact en getByLabel: sin él, la búsqueda es por subcadena. */
+const PLAZO = "Plazo de Tickets de Servicio Técnico en plazo";
+
 test("Configuración muestra las metas del total de compañía", async ({ page }) => {
   await page.goto("/settings");
   const card = page.locator('[data-slot="card"]', { hasText: "Metas de KPIs comerciales" });
@@ -58,6 +61,44 @@ test("la tabla dice qué es cada columna y en qué unidad va la meta", async ({ 
   await expect(card.getByLabel("Meta de Tratos cerrados ganados")).toHaveAttribute("placeholder", "nº");
 });
 
+test("el total muestra el plazo de tickets con su valor por defecto y un vendedor no lo tiene", async ({ page }) => {
+  await page.goto("/settings");
+  const card = page.locator('[data-slot="card"]', { hasText: "Metas de KPIs comerciales" });
+  await expect(card.getByText("Suma de pesos: 100%")).toBeVisible();
+
+  await expect(card.getByText("Plazo (h)", { exact: true })).toBeVisible();
+  // La semilla no guarda plazo: se ve el de por defecto.
+  await expect(card.getByLabel(PLAZO, { exact: true })).toHaveValue("12");
+
+  // El KPI de tickets solo se mide a nivel compañía: en un vendedor no hay plazo.
+  await card.getByLabel("Ámbito").click();
+  await page.getByRole("option", { name: SALESPEOPLE[0] }).click();
+  await expect(card.getByText("Suma de pesos: 0%")).toBeVisible();
+  await expect(card.getByLabel(PLAZO, { exact: true })).toHaveCount(0);
+});
+
+test("no deja guardar un plazo invalido ni un plazo sin meta y peso de tickets", async ({ page }) => {
+  await page.goto("/settings");
+  const card = page.locator('[data-slot="card"]', { hasText: "Metas de KPIs comerciales" });
+  await expect(card.getByText("Suma de pesos: 100%")).toBeVisible();
+  const plazo = card.getByLabel(PLAZO, { exact: true });
+  const guardar = card.getByRole("button", { name: "Guardar metas" });
+  await expect(guardar).toBeEnabled();
+
+  await plazo.fill("0");
+  await expect(card.getByText(/mayor que 0/)).toBeVisible();
+  await expect(guardar).toBeDisabled();
+
+  // La semilla no pesa el KPI de tickets: su fila no existe y el plazo no tendría dónde guardarse.
+  await plazo.fill("8");
+  await expect(card.getByText(/ponle meta y peso/)).toBeVisible();
+  await expect(guardar).toBeDisabled();
+
+  // Nada se guarda en este test: volver al de por defecto deja la pantalla como estaba.
+  await plazo.fill("12");
+  await expect(guardar).toBeEnabled();
+});
+
 test.describe("lector", () => {
   test.use({ storageState: LECTOR_STATE });
 
@@ -74,5 +115,15 @@ test.describe("lector", () => {
     await expect(card.getByLabel("Meta de Ventas clientes nuevos")).not.toBeEditable();
 
     await expect(card.getByRole("button", { name: "Guardar metas" })).toHaveCount(0);
+  });
+
+  test("ve el plazo de tickets pero no puede editarlo", async ({ page }) => {
+    await page.goto("/settings");
+    const card = page.locator('[data-slot="card"]', { hasText: "Metas de KPIs comerciales" });
+    await expect(card.getByText("Solo lectura.")).toBeVisible();
+
+    const plazo = card.getByLabel(PLAZO, { exact: true });
+    await expect(plazo).toHaveValue("12");
+    await expect(plazo).not.toBeEditable();
   });
 });
