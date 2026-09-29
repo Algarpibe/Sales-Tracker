@@ -56,7 +56,7 @@ function KpiTargetsFields({
   salesperson: KpiScope;
   rows: KpiTargetRow[];
   editable: boolean;
-  onSaved: () => void;
+  onSaved: () => Promise<unknown>;
 }) {
   const [edits, setEdits] = useState<Draft>({});
   // null = sin tocar: se ve lo guardado o el plazo por defecto, igual que con `edits`.
@@ -88,10 +88,12 @@ function KpiTargetsFields({
       const res = await saveKpiTargets(year, salesperson, enviados);
       if (!res.ok) { toast.error(res.error); return; }
       toast.success("Metas guardadas");
+      // Se espera la recarga antes de soltar lo tecleado: si no, el campo enseñaría un
+      // instante el plazo guardado antes, ya obsoleto.
+      await onSaved();
       // El campo vuelve a enseñar lo guardado: si la fila de tickets se ha quitado, su
       // plazo se fue con ella y lo honesto es ver el de por defecto.
       setPlazoEditado(null);
-      onSaved();
     } catch {
       toast.error("Error de red. Inténtalo de nuevo.");
     } finally {
@@ -136,14 +138,20 @@ function KpiTargetsFields({
             />
             {/* Horas laborables: menos de este plazo cuenta como en plazo. */}
             {esTotal && k.key === KPI_CON_PLAZO && (
-              <Input
-                aria-label={`Plazo de ${k.label}`}
-                placeholder="h"
-                inputMode="decimal"
-                readOnly={!editable}
-                value={plazoTexto}
-                onChange={(e) => setPlazoEditado(e.target.value)}
-              />
+              <div className="flex items-center gap-2">
+                <Input
+                  aria-label={`Plazo de ${k.label}`}
+                  placeholder="h"
+                  inputMode="decimal"
+                  readOnly={!editable}
+                  value={plazoTexto}
+                  onChange={(e) => setPlazoEditado(e.target.value)}
+                />
+                {/* En móvil no hay cabecera y el campo siempre lleva valor, así que el
+                    marcador «h» nunca se ve: sin este sufijo, «12» no diría qué es. En
+                    escritorio ya lo dice la cabecera «Plazo (h)». */}
+                <span aria-hidden="true" className="text-xs text-muted-foreground sm:hidden">h laborables</span>
+              </div>
             )}
           </div>
         ))}
@@ -236,7 +244,7 @@ export function KpiTargetsForm() {
             salesperson={salesperson}
             rows={data}
             editable={editable}
-            onSaved={() => { queryClient.invalidateQueries({ queryKey: ["kpi-targets", year, scope] }); }}
+            onSaved={() => queryClient.invalidateQueries({ queryKey: ["kpi-targets", year, scope] })}
           />
         )}
       </CardContent>
