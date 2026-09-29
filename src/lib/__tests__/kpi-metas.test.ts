@@ -5,6 +5,7 @@ import {
   AVISO_PLAZO_SIN_FILA,
   evaluarBorrador,
   filaDeMeta,
+  hayCambios,
   parsePlazo,
   plazoInicial,
   toDraft,
@@ -160,5 +161,42 @@ describe("evaluarBorrador", () => {
     const e = evaluarBorrador(borrador({ ventas_nuevos: ["", "60"], ventas_existentes: ["2000", "40"] }), null, "12");
     expect(e.pesosValidos).toBe(false);
     expect(e.valido).toBe(false);
+  });
+});
+
+describe("hayCambios", () => {
+  const rows: KpiTargetRow[] = [meta("ventas_nuevos", null), meta("tickets_st", 8)];
+
+  it("recien cargado no hay nada que guardar", () => {
+    expect(hayCambios(rows, toDraft(rows), null, plazoInicial(rows))).toBe(false);
+  });
+
+  it("sin metas guardadas y sin tocar nada tampoco", () => {
+    expect(hayCambios([], toDraft([]), null, plazoInicial([]))).toBe(false);
+  });
+
+  it("compara numeros, no texto: 80.0 es la misma meta que 80", () => {
+    const draft: Draft = { ...toDraft(rows), ventas_nuevos: { target: "80.0", weight: "40" } };
+    expect(hayCambios(rows, draft, null, "8,00")).toBe(false);
+  });
+
+  it("cambiar una meta o un peso es un cambio", () => {
+    const draft: Draft = { ...toDraft(rows), ventas_nuevos: { target: "80", weight: "45" } };
+    expect(hayCambios(rows, draft, null, plazoInicial(rows))).toBe(true);
+  });
+
+  it("cambiar el plazo en el total es un cambio", () => {
+    expect(hayCambios(rows, toDraft(rows), null, "10")).toBe(true);
+  });
+
+  it("volver a dejar lo guardado deja de ser un cambio", () => {
+    const tocado: Draft = { ...toDraft(rows), ventas_nuevos: { target: "90", weight: "40" } };
+    const devuelto: Draft = { ...tocado, ventas_nuevos: { target: "80", weight: "40" } };
+    expect(hayCambios(rows, devuelto, null, plazoInicial(rows))).toBe(false);
+  });
+
+  it("en el ambito de un vendedor el plazo no cuenta: no se envia", () => {
+    const vendedor: KpiTargetRow[] = [{ kpi_key: "ventas_nuevos", target_value: 80, weight_pct: 100, plazo_horas: null }];
+    expect(hayCambios(vendedor, toDraft(vendedor), "Vendedor Ficticio", "10")).toBe(false);
   });
 });

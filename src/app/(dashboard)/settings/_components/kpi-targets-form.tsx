@@ -14,7 +14,7 @@ import {
 import {
   COMMERCIAL_KPIS, KPI_CON_PLAZO, KPI_UNIT_LABEL, getKpiYearRange, puedeEditarMetas,
 } from "@/lib/commercial-kpis";
-import { evaluarBorrador, plazoInicial, toDraft, type Draft } from "@/lib/kpi-metas";
+import { evaluarBorrador, hayCambios, plazoInicial, toDraft, type Draft } from "@/lib/kpi-metas";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -81,6 +81,10 @@ function KpiTargetsFields({
     () => evaluarBorrador(draft, salesperson, plazoTexto),
     [draft, salesperson, plazoTexto]
   );
+  const cambiado = useMemo(
+    () => hayCambios(rows, draft, salesperson, plazoTexto),
+    [rows, draft, salesperson, plazoTexto]
+  );
 
   const guardar = async () => {
     setSaving(true);
@@ -94,6 +98,9 @@ function KpiTargetsFields({
       // El campo vuelve a enseñar lo guardado: si la fila de tickets se ha quitado, su
       // plazo se fue con ella y lo honesto es ver el de por defecto.
       setPlazoEditado(null);
+      // Lo tecleado ya es lo guardado: se suelta para que la pantalla muestre la base
+      // y el botón se apague hasta el siguiente cambio.
+      setEdits({});
     } catch {
       toast.error("Error de red. Inténtalo de nuevo.");
     } finally {
@@ -164,7 +171,7 @@ function KpiTargetsFields({
             <span className={pesosValidos ? "text-sm text-muted-foreground" : "text-sm text-destructive"}>
               Suma de pesos: {Math.round(suma * 100) / 100}%
             </span>
-            <Button onClick={guardar} disabled={!valido || saving}>
+            <Button onClick={guardar} disabled={!valido || !cambiado || saving}>
               {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} Guardar metas
             </Button>
           </div>
