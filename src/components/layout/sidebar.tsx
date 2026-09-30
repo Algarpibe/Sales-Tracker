@@ -15,6 +15,7 @@ import {
   Users,
   Package,
   ClipboardList,
+  ListTree,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/providers/auth-provider";
@@ -25,6 +26,7 @@ const navItems = [
   { href: "/articulos", label: "Artículos", icon: Package },
   { href: "/clientes", label: "Clientes", icon: Users },
   { href: "/cliente-articulo", label: "Cliente × Artículo", icon: ClipboardList },
+  { href: "/cliente-categoria", label: "Cliente × Categoría", icon: ListTree },
   { href: "/analytics", label: "Análisis", icon: TrendingUp },
   { href: "/categories", label: "Categorías", icon: FolderOpen },
   { href: "/settings", label: "Configuración", icon: Settings },

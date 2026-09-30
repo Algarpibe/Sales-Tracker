@@ -61,3 +61,15 @@ test("comparar anios muestra las columnas de los dos anios", async ({ page }) =>
   await expect(page.getByRole("columnheader", { name: `Importe ${anio - 1}`, exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: CLIENTE, exact: true })).toBeVisible();
 });
+
+test("la entrada del menu abre la seccion", async ({ page }) => {
+  await page.goto("/home");
+  await expect(page.getByRole("heading", { level: 1, name: "Dashboard General" })).toBeVisible();
+
+  // Con el viewport de escritorio solo está visible la barra lateral: el menú móvil
+  // vive en un panel cerrado y la paleta no está abierta.
+  await page.getByRole("link", { name: "Cliente × Categoría", exact: true }).click();
+
+  await expect(page).toHaveURL(/\/cliente-categoria$/);
+  await expect(page.getByRole("heading", { level: 1, name: TITULO })).toBeVisible();
+});

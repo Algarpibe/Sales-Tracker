@@ -210,5 +210,6 @@ export async function saveMacroCategorias(grupos: Record<Bucket, string[]>): Pro
     revalidatePath("/analytics");
     revalidatePath("/home");
     revalidatePath("/cliente-articulo");
+    revalidatePath("/cliente-categoria");
   });
 }

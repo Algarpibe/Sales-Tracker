@@ -11,7 +11,7 @@ import { useAuth } from "@/components/providers/auth-provider";
 import {
   Command, CommandDialog, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem,
 } from "@/components/ui/command";
-import { Home, BarChart3, Package, Users, ClipboardList, TrendingUp, FolderOpen, Settings } from "lucide-react";
+import { Home, BarChart3, Package, Users, ClipboardList, ListTree, TrendingUp, FolderOpen, Settings } from "lucide-react";
 
 const FIRST_YEAR = 2021;
 
@@ -21,6 +21,7 @@ const PAGES = [
   { href: "/articulos", label: "Artículos", icon: Package },
   { href: "/clientes", label: "Clientes", icon: Users },
   { href: "/cliente-articulo", label: "Cliente × Artículo", icon: ClipboardList },
+  { href: "/cliente-categoria", label: "Cliente × Categoría", icon: ListTree },
   { href: "/analytics", label: "Análisis", icon: TrendingUp },
   { href: "/categories", label: "Categorías", icon: FolderOpen },
   { href: "/settings", label: "Configuración", icon: Settings },

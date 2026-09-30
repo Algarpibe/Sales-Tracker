@@ -12,6 +12,7 @@ import {
   Package,
   Users,
   ClipboardList,
+  ListTree,
 } from "lucide-react";
 
 const navItems = [
@@ -20,6 +21,7 @@ const navItems = [
   { href: "/articulos", label: "Artículos", icon: Package },
   { href: "/clientes", label: "Clientes", icon: Users },
   { href: "/cliente-articulo", label: "Cliente × Art.", icon: ClipboardList },
+  { href: "/cliente-categoria", label: "Cliente × Cat.", icon: ListTree },
   { href: "/analytics", label: "Análisis", icon: TrendingUp },
   { href: "/categories", label: "Categorías", icon: FolderOpen },
   { href: "/settings", label: "Configuración", icon: Settings },
