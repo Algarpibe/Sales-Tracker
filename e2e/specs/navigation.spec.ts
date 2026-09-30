@@ -11,6 +11,7 @@ const ROUTES = [
   { path: "/clientes/Alfa%20Industrial", heading: "Alfa Industrial" },
   { path: "/articulos", heading: "Ventas por artículo" },
   { path: "/cliente-articulo", heading: "Ventas por cliente × artículo" },
+  { path: "/cliente-categoria", heading: "Ventas por cliente × categoría" },
   { path: "/categories", heading: "Categorías" },
   { path: "/tablas", heading: "Tablas de Datos" },
   { path: "/settings", heading: /Ajustes|Configuración/i },
