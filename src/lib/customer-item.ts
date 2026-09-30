@@ -80,7 +80,8 @@ export function filterRows(rows: CustomerItemRow[], search: string): CustomerIte
   );
 }
 
-function emptyTotals(): Record<Bucket, number> {
+// Exportada para que customer-category.ts parta de los mismos ceros sin copiarla.
+export function emptyTotals(): Record<Bucket, number> {
   return { mano_obra: 0, cr: 0, equipos: 0, operacion: 0 };
 }
 
@@ -101,7 +102,9 @@ export function groupByCustomer(rows: CustomerItemRow[], mapa: Map<string, Bucke
   return groups;
 }
 
-export function computeGrandTotals(groups: CustomerGroup[]): Record<Bucket, number> {
+// Solo necesita los totales de cada grupo: así sirve para los grupos por artículo
+// (CustomerGroup) y por categoría (CustomerCategoryGroup) sin duplicarla.
+export function computeGrandTotals(groups: readonly { totals: Record<Bucket, number> }[]): Record<Bucket, number> {
   const t = emptyTotals();
   for (const g of groups) {
     t.mano_obra += g.totals.mano_obra;
