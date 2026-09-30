@@ -21,13 +21,9 @@ import {
   mapaMacroCategorias,
 } from "@/lib/customer-item";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
-import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { RecordTypeToggle } from "@/components/common/record-type-toggle";
 import { SearchInput } from "@/components/common/search-input";
@@ -35,17 +31,9 @@ import { ExportMenu } from "@/components/common/export-menu";
 import { EmptyState } from "@/components/common/empty-state";
 import { downloadXlsx, copySheetToClipboard } from "@/lib/excel-client";
 import { CustomerItemCompareTable } from "@/components/cliente-articulo/customer-item-compare-table";
-
-const FIRST_YEAR = 2021;
+import { YearCompareControls } from "@/components/common/year-compare-controls";
 
 export default function ClienteArticuloPage() {
-  const thisYear = new Date().getFullYear();
-  const allYears = useMemo(() => {
-    const a: number[] = [];
-    for (let y = FIRST_YEAR; y <= thisYear; y++) a.push(y);
-    return a;
-  }, [thisYear]);
-
   const { tipo, setTipo, year: anio, setYear: setAnio } = usePeriod();
   const [search, setSearch] = useState("");
   const [compareMode, setCompareMode] = useState(false);
@@ -108,38 +96,16 @@ export default function ClienteArticuloPage() {
       {/* Controles servidor */}
       <div className="flex flex-wrap items-end gap-3">
         <RecordTypeToggle value={tipo as "SALES_ORDER" | "INVOICE"} onValueChange={(v) => setTipo(v)} />
-        {!compareMode ? (
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-muted-foreground">Año</label>
-            <Select value={String(anio)} onValueChange={(v) => { if (v) setAnio(Number(v)); }}>
-              <SelectTrigger className="w-[110px]"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {allYears.map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-        ) : (
-          <>
-            <div className="flex flex-col gap-1">
-              <label className="text-xs text-muted-foreground">Año A</label>
-              <Select value={String(yearA)} onValueChange={(v) => { if (v) setYearA(Number(v)); }}>
-                <SelectTrigger className="w-[100px]"><SelectValue /></SelectTrigger>
-                <SelectContent>{allYears.map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <span className="self-end pb-2 text-muted-foreground">vs</span>
-            <div className="flex flex-col gap-1">
-              <label className="text-xs text-muted-foreground">Año B</label>
-              <Select value={String(yearB)} onValueChange={(v) => { if (v) setYearB(Number(v)); }}>
-                <SelectTrigger className="w-[100px]"><SelectValue /></SelectTrigger>
-                <SelectContent>{allYears.map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-          </>
-        )}
-        <label className="flex items-center gap-2 self-center text-sm pb-1">
-          <Switch checked={compareMode} onCheckedChange={setCompareMode} /> Comparar años
-        </label>
+        <YearCompareControls
+          anio={anio}
+          onAnioChange={setAnio}
+          compareMode={compareMode}
+          onCompareModeChange={setCompareMode}
+          yearA={yearA}
+          onYearAChange={setYearA}
+          yearB={yearB}
+          onYearBChange={setYearB}
+        />
       </div>
 
       {compareMode ? (
