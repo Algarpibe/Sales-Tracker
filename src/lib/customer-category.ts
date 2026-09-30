@@ -1,5 +1,6 @@
 import type { Bucket, CustomerItemRow } from "@/types/database";
-import { bucketForCategory, emptyTotals } from "@/lib/customer-item";
+import type { ExcelRow, ExcelSheet } from "@/lib/excel-types";
+import { BUCKETS, BUCKET_LABELS, bucketForCategory, csvCell, emptyTotals } from "@/lib/customer-item";
 
 /** Texto de las ventas sin categoría en la tabla, la comparación y las exportaciones. */
 export const SIN_CATEGORIA = "Sin categoría";
@@ -71,4 +72,50 @@ export function groupByCustomerCategory(
   }));
   groups.sort((a, b) => a.customer.localeCompare(b.customer));
   return groups;
+}
+
+/**
+ * CSV con el mismo formato que customerItemToCsv (separador «;», importes con dos
+ * decimales, cabeceras de BUCKET_LABELS), para que quien ya abre esa exportación en
+ * Excel reconozca esta. El importe de cada categoría va solo en la columna de su
+ * macro-categoría.
+ */
+export function customerCategoryToCsv(groups: CustomerCategoryGroup[], grand: Record<Bucket, number>): string {
+  const header = ["Categoría", "Cantidad", ...BUCKETS.map((b) => BUCKET_LABELS[b])];
+  const lines: (string | number)[][] = [header];
+  for (const g of groups) {
+    lines.push([g.customer, "", ...BUCKETS.map((b) => g.totals[b].toFixed(2))]);
+    for (const c of g.categorias) {
+      lines.push([
+        c.categoria ?? SIN_CATEGORIA,
+        c.cantidad,
+        ...BUCKETS.map((b) => (b === c.bucket ? c.importe.toFixed(2) : "")),
+      ]);
+    }
+  }
+  lines.push(["TOTAL", "", ...BUCKETS.map((b) => grand[b].toFixed(2))]);
+  return lines.map((row) => row.map(csvCell).join(";")).join("\n");
+}
+
+/** Hoja de Excel (y de «Copiar tabla») con las mismas filas que el CSV. */
+export function customerCategoryToExcel(groups: CustomerCategoryGroup[], grand: Record<Bucket, number>): ExcelSheet {
+  const rows: ExcelRow[] = [];
+  for (const g of groups) {
+    rows.push({ cells: [g.customer, "", ...BUCKETS.map((b) => g.totals[b])], bold: true });
+    for (const c of g.categorias) {
+      rows.push({
+        cells: [c.categoria ?? SIN_CATEGORIA, c.cantidad, ...BUCKETS.map((b) => (b === c.bucket ? c.importe : null))],
+      });
+    }
+  }
+  rows.push({ cells: ["TOTAL", "", ...BUCKETS.map((b) => grand[b])], bold: true });
+  return {
+    name: "Cliente×Categoría",
+    columns: [
+      { header: "Categoría", width: 30 },
+      { header: "Cantidad", width: 12, numFmt: "#,##0" },
+      ...BUCKETS.map((b) => ({ header: BUCKET_LABELS[b], width: 16, numFmt: '"$"#,##0.00' })),
+    ],
+    rows,
+  };
 }

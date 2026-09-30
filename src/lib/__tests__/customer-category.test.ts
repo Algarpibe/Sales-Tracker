@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { filterCategoryRows, groupByCustomerCategory } from "@/lib/customer-category";
+import {
+  customerCategoryToCsv,
+  customerCategoryToExcel,
+  filterCategoryRows,
+  groupByCustomerCategory,
+} from "@/lib/customer-category";
 import { computeGrandTotals, groupByCustomer, mapaMacroCategorias } from "@/lib/customer-item";
 import type { Bucket, CustomerItemRow, MacroCategoria } from "@/types/database";
 
@@ -89,5 +94,41 @@ describe("filterCategoryRows", () => {
 
   it("no busca por nombre de articulo ni por SKU", () => {
     expect(filterCategoryRows(rows, "scrubber")).toEqual([]);
+  });
+});
+
+describe("customerCategoryToCsv", () => {
+  it("cabecera, fila por cliente, filas de categoria y TOTAL", () => {
+    const groups = groupByCustomerCategory(rows, mapa);
+    const lines = customerCategoryToCsv(groups, computeGrandTotals(groups)).split("\n");
+    expect(lines).toEqual([
+      "Categoría;Cantidad;Mano de obra;Consumibles y repuestos;Equipos;Operaciones",
+      "Alpha;;0.00;0.00;525.00;50.00",
+      "EDM180 Series;1;;;500.00;",
+      "Operación de Redes;1;;;;50.00",
+      "Sin categoría;3;;;25.00;",
+      "Beta;;450.00;100.00;0.00;0.00",
+      "CAL PM;5;450.00;;;",
+      "C&R AP Series;1;;100.00;;",
+      "TOTAL;;450.00;100.00;525.00;50.00",
+    ]);
+  });
+});
+
+describe("customerCategoryToExcel", () => {
+  it("columnas, cliente en negrita, importe en la columna de su macro-categoria y TOTAL en negrita", () => {
+    const groups = groupByCustomerCategory(rows, mapa);
+    const sheet = customerCategoryToExcel(groups, computeGrandTotals(groups));
+    expect(sheet.name).toBe("Cliente×Categoría");
+    expect(sheet.columns.map((c) => c.header)).toEqual([
+      "Categoría", "Cantidad", "Mano de obra", "Consumibles y repuestos", "Equipos", "Operaciones",
+    ]);
+    expect(sheet.rows).toHaveLength(8);
+    expect(sheet.rows[0]).toEqual({ cells: ["Alpha", "", 0, 0, 525, 50], bold: true });
+    expect(sheet.rows[1].cells).toEqual(["EDM180 Series", 1, null, null, 500, null]);
+    expect(sheet.rows[3].cells).toEqual(["Sin categoría", 3, null, null, 25, null]);
+    expect(sheet.rows[4]).toEqual({ cells: ["Beta", "", 450, 100, 0, 0], bold: true });
+    expect(sheet.rows[5].cells).toEqual(["CAL PM", 5, 450, null, null, null]);
+    expect(sheet.rows[7]).toEqual({ cells: ["TOTAL", "", 450, 100, 525, 50], bold: true });
   });
 });

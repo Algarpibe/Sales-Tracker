@@ -115,7 +115,8 @@ export function computeGrandTotals(groups: readonly { totals: Record<Bucket, num
   return t;
 }
 
-function csvCell(v: string | number): string {
+// Exportada para que la exportación por categoría escape las celdas igual que esta.
+export function csvCell(v: string | number): string {
   const s = String(v);
   return /[;"\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
