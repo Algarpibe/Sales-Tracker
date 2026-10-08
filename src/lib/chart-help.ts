@@ -36,6 +36,7 @@ export const CHART_HELP = {
   barCategoria: "Ventas por categoría (barras).",
   techService: "Comparativa financiera entre las líneas ST y C&R por periodo (mensual, trimestral o anual). Las barras son cada año; las dos líneas son el acumulado del año A (continua) y del año B (discontinua), en el eje derecho.",
   grupoEvolucion: "Evolución del importe de tus agrupaciones personalizadas a lo largo del tiempo.",
+  macroEvolucion: "Evolución del importe de las 4 macro-categorías (Mano de obra, Consumibles y repuestos, Equipos, Operaciones) a lo largo del tiempo, según la clasificación de Configuración: lo que no está marcado cuenta como Equipos.",
   groupingAnalysis: "Análisis de ventas por agrupaciones personalizadas de categorías.",
   historicoCategoria: "Ventas históricas por categoría seleccionada a lo largo de los años.",
 

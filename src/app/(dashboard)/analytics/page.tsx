@@ -53,6 +53,10 @@ const GroupEvolutionCard = dynamic(
   () => import("@/components/charts/premium/group-evolution-card").then((m) => m.GroupEvolutionCard),
   { ssr: false, loading: chartSkeleton }
 );
+const MacroEvolutionCard = dynamic(
+  () => import("@/components/charts/premium/macro-evolution-card").then((m) => m.MacroEvolutionCard),
+  { ssr: false, loading: chartSkeleton }
+);
 const GroupForecastCard = dynamic(
   () => import("@/components/charts/premium/group-forecast-card").then((m) => m.GroupForecastCard),
   { ssr: false, loading: chartSkeleton }
@@ -291,6 +295,7 @@ function AnalyticsContent() {
               <HistoricalSalesCategory />
               <GroupingAnalysisCard categories={categories} recordType={recordType} />
               <GroupEvolutionCard recordType={recordType} />
+              <MacroEvolutionCard recordType={recordType} />
             </motion.div>
           </TabsContent>
 

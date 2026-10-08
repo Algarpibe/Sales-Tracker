@@ -6,7 +6,7 @@ import { getSalesData } from "@/actions/sales-actions";
 import { getMacroCategorias } from "@/actions/category-actions";
 import type { SalesRecord } from "@/types/database";
 import { buildBucketMixByYear } from "@/lib/analytics-comercial";
-import { BUCKET_LABELS, MACRO_CATEGORIAS_KEY, mapaMacroCategorias } from "@/lib/customer-item";
+import { BUCKET_COLORS, BUCKET_LABELS, MACRO_CATEGORIAS_KEY, mapaMacroCategorias } from "@/lib/customer-item";
 import { formatUSD, formatCompactUSD } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -18,10 +18,10 @@ import {
 import type { ChartTooltipProps } from "@/lib/chart-types";
 
 const SERIES = [
-  { key: "mano_obra", label: BUCKET_LABELS.mano_obra, color: "#6366f1" },
-  { key: "cr", label: BUCKET_LABELS.cr, color: "#10b981" },
-  { key: "equipos", label: BUCKET_LABELS.equipos, color: "#f59e0b" },
-  { key: "operacion", label: BUCKET_LABELS.operacion, color: "#ef4444" },
+  { key: "mano_obra", label: BUCKET_LABELS.mano_obra, color: BUCKET_COLORS.mano_obra },
+  { key: "cr", label: BUCKET_LABELS.cr, color: BUCKET_COLORS.cr },
+  { key: "equipos", label: BUCKET_LABELS.equipos, color: BUCKET_COLORS.equipos },
+  { key: "operacion", label: BUCKET_LABELS.operacion, color: BUCKET_COLORS.operacion },
 ] as const;
 
 type MixPoint = { year: number; mano_obra: number; cr: number; equipos: number; operacion: number };
