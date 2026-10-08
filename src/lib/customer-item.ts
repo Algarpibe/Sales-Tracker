@@ -21,6 +21,17 @@ export const BUCKET_LABELS: Record<Bucket, string> = {
 };
 
 /**
+ * Color de cada macro-categoría en todos los gráficos. Está en un solo sitio para que la
+ * misma macro-categoría no salga de un color en una tarjeta y de otro en la siguiente.
+ */
+export const BUCKET_COLORS: Record<Bucket, string> = {
+  mano_obra: "#6366f1",
+  cr: "#10b981",
+  equipos: "#f59e0b",
+  operacion: "#ef4444",
+};
+
+/**
  * Clave de react-query de las categorías con su macro-categoría. Cuelga de
  * ["categories"] a propósito: al guardar en Configuración se invalida ["categories"] y,
  * por prefijo, se refrescan todos los gráficos que clasifican. No reutiliza

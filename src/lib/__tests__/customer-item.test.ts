@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
+  BUCKETS,
+  BUCKET_COLORS,
   BUCKET_LABELS,
   bucketForCategory,
   filterRows,
@@ -189,5 +191,21 @@ describe("customerItemToExcel", () => {
     const total = sheet.rows[sheet.rows.length - 1];
     expect(total.bold).toBe(true);
     expect(total.cells).toEqual(["TOTAL", "", "", "", "", 40, 100, 0, 0]);
+  });
+});
+
+describe("BUCKET_COLORS", () => {
+  it("da un color hexadecimal a cada macro-categoría y a ninguna más", () => {
+    for (const b of BUCKETS) expect(BUCKET_COLORS[b]).toMatch(/^#[0-9a-f]{6}$/);
+    expect(Object.keys(BUCKET_COLORS).sort()).toEqual([...BUCKETS].sort());
+  });
+
+  it("conserva los colores que ya usaban las tarjetas de mezcla", () => {
+    expect(BUCKET_COLORS).toEqual({
+      mano_obra: "#6366f1",
+      cr: "#10b981",
+      equipos: "#f59e0b",
+      operacion: "#ef4444",
+    });
   });
 });

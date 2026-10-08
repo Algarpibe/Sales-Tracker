@@ -7,16 +7,15 @@ import { getMacroCategorias } from "@/actions/category-actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { bucketMix, nombresPorId, type InsightRecord } from "@/lib/dashboard-insights";
-import { MACRO_CATEGORIAS_KEY, mapaMacroCategorias } from "@/lib/customer-item";
+import { BUCKET_COLORS, MACRO_CATEGORIAS_KEY, mapaMacroCategorias } from "@/lib/customer-item";
 import { formatUSD } from "@/lib/constants";
 import { RecordTypeToggle } from "@/components/common/record-type-toggle";
 import { InfoTooltip } from "@/components/common/info-tooltip";
 import { CHART_HELP } from "@/lib/chart-help";
 import type { ChartTooltipProps } from "@/lib/chart-types";
 
-const COLORS: Record<string, string> = {
-  mano_obra: "#6366f1", cr: "#10b981", equipos: "#f59e0b", operacion: "#ef4444",
-};
+// MixSlice lleva la macro-categoría como string: por eso se indexa por string y no por Bucket.
+const COLORS: Record<string, string> = BUCKET_COLORS;
 
 type MixSlice = { bucket: string; label: string; amount: number; pct: number };
 
