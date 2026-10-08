@@ -13,6 +13,7 @@ import { hubEnabled } from "@/db/hub";
 import { getHubSalesRows } from "@/db/hub-sales";
 import { requireRole, requireApproved } from "@/lib/auth/guards";
 import { runAction, AppError, type ActionResult } from "@/lib/errors";
+import { bucketsPorCategoriaId, buildMacroEvolution } from "@/lib/macro-evolution";
 import { z } from "zod";
 import type {
   CategoryGroup,
@@ -277,6 +278,67 @@ export async function reorderCategoryGroupings(
 
 // ─── Analysis Data Processing ───
 
+// Venta agregada por categoría, mes y año, tal como la necesitan los dos análisis.
+type AnalysisRecord = {
+  category_id: string;
+  record_year: number;
+  record_month: number;
+  amount_usd: number;
+};
+
+/**
+ * Ventas de la compañía de un tipo de registro, con el id de la categoría de la app.
+ * Vienen del hub en vivo (si HUB_DB_URL está) o de sales_records. En el hub la categoría
+ * llega por nombre: se casa con las de la app en minúsculas y se descartan las ventas
+ * cuya categoría no existe en la app.
+ *
+ * NO se exporta: en un fichero "use server" toda función exportada es una acción que el
+ * navegador puede invocar, y esta recibe el companyId sin comprobar la sesión. Quien la
+ * llama tiene que haber pasado antes por getCompanyProfile().
+ */
+async function loadSalesRecordsByType(
+  companyId: string,
+  recordType: RecordType
+): Promise<AnalysisRecord[]> {
+  if (hubEnabled()) {
+    const [hubRows, cats] = await Promise.all([
+      getHubSalesRows(),
+      db
+        .select({ id: categories.id, name: categories.name })
+        .from(categories)
+        .where(eq(categories.company_id, companyId)),
+    ]);
+    const byName = new Map(cats.map((c) => [c.name.toLowerCase(), c.id]));
+    return hubRows
+      .filter((r) => r.record_type === recordType)
+      .map((r) => ({
+        category_id: byName.get(r.category_name.toLowerCase()) ?? "",
+        record_year: r.record_year,
+        record_month: r.record_month,
+        amount_usd: r.amount_usd,
+      }))
+      .filter((r) => r.category_id !== "");
+  }
+
+  const rows = await db
+    .select({
+      category_id: salesRecords.category_id,
+      record_year: salesRecords.record_year,
+      record_month: salesRecords.record_month,
+      amount_usd: salesRecords.amount_usd,
+    })
+    .from(salesRecords)
+    .where(
+      and(
+        eq(salesRecords.company_id, companyId),
+        eq(salesRecords.record_type, recordType)
+      )
+    );
+  // El cast es el que ya había: amount_usd es NUMERIC (llega como texto) y category_id
+  // admite nulos. Los dos consumidores convierten con Number() y toleran el nulo.
+  return rows as unknown as AnalysisRecord[];
+}
+
 export async function getGroupingAnalysisData(
   recordType: RecordType
 ): Promise<GroupingAnalysisResult> {
@@ -299,49 +361,6 @@ export async function getGroupingAnalysisData(
   //  el color de cada fila sale del color del grupo.)
   const groupIds = groups.map((g) => g.id);
 
-  type AnalysisRecord = {
-    category_id: string;
-    record_year: number;
-    record_month: number;
-    amount_usd: number;
-  };
-
-  // Los registros vienen del hub en vivo (si HUB_DB_URL está) o de sales_records.
-  const recordsP: Promise<AnalysisRecord[]> = hubEnabled()
-    ? (async () => {
-        const [hubRows, cats] = await Promise.all([
-          getHubSalesRows(),
-          db
-            .select({ id: categories.id, name: categories.name })
-            .from(categories)
-            .where(eq(categories.company_id, companyId)),
-        ]);
-        const byName = new Map(cats.map((c) => [c.name.toLowerCase(), c.id]));
-        return hubRows
-          .filter((r) => r.record_type === recordType)
-          .map((r) => ({
-            category_id: byName.get(r.category_name.toLowerCase()) ?? "",
-            record_year: r.record_year,
-            record_month: r.record_month,
-            amount_usd: r.amount_usd,
-          }))
-          .filter((r) => r.category_id !== "");
-      })()
-    : db
-        .select({
-          category_id: salesRecords.category_id,
-          record_year: salesRecords.record_year,
-          record_month: salesRecords.record_month,
-          amount_usd: salesRecords.amount_usd,
-        })
-        .from(salesRecords)
-        .where(
-          and(
-            eq(salesRecords.company_id, companyId),
-            eq(salesRecords.record_type, recordType)
-          )
-        ) as unknown as Promise<AnalysisRecord[]>;
-
   const [mappings, records] = await Promise.all([
     db
       .select({
@@ -355,7 +374,7 @@ export async function getGroupingAnalysisData(
           inArray(categoryGroupMappings.group_id, groupIds)
         )
       ),
-    recordsP,
+    loadSalesRecordsByType(companyId, recordType),
   ]);
 
   // Build mapping: categoryId → groupId
@@ -439,4 +458,29 @@ export async function getGroupingAnalysisData(
   });
 
   return { rows, years, yearTotals };
+}
+
+/**
+ * Ventas repartidas entre las cuatro macro-categorías, en el mismo formato que
+ * getGroupingAnalysisData para que los dos gráficos compartan tarjeta. Cuenta las mismas
+ * ventas que el gráfico de grupos: en el hub, las de categorías que no existen en la app
+ * se descartan.
+ */
+export async function getMacroEvolutionData(
+  recordType: RecordType
+): Promise<GroupingAnalysisResult> {
+  const { profile } = await getCompanyProfile();
+  const companyId = profile.company_id!;
+
+  // Todas las categorías de la compañía, activas e inactivas: las ventas de años
+  // anteriores de una categoría desactivada siguen en su macro-categoría.
+  const [cats, records] = await Promise.all([
+    db
+      .select({ id: categories.id, macro_categoria: categories.macro_categoria })
+      .from(categories)
+      .where(eq(categories.company_id, companyId)),
+    loadSalesRecordsByType(companyId, recordType),
+  ]);
+
+  return buildMacroEvolution(records, bucketsPorCategoriaId(cats));
 }
