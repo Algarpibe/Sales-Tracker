@@ -3,9 +3,9 @@ import { APPROVED_STATE, LECTOR_STATE } from "../constants";
 
 /**
  * FE-059 / FE-060: los borrados de un clic piden confirmación, los botones de solo
- * icono tienen nombre accesible y la UI de categorías solo ofrece editar a quien el
- * servidor deja hacerlo (admin). Ninguna prueba borra nada: siempre se cancela, así
- * que la BD compartida queda como estaba. No hace login (usa los storageState).
+ * icono tienen nombre accesible y la UI de categorías y de agrupaciones solo ofrece
+ * editar a quien el servidor deja hacerlo (admin). Ninguna prueba borra nada: siempre
+ * se cancela, así que la BD compartida queda como estaba. No hace login (usa los storageState).
  */
 
 // Semilla e2e/db/seed-app.mjs: grupo «Ambiental» y categoría «Aguas».
@@ -80,5 +80,23 @@ test.describe("lector", () => {
     await expect(page.getByRole("button", { name: "Nueva", exact: true })).toHaveCount(0);
     await expect(page.getByRole("button", { name: `Editar ${CATEGORIA}` })).toHaveCount(0);
     await expect(page.getByRole("button", { name: `Eliminar ${CATEGORIA}` })).toHaveCount(0);
+  });
+
+  // grouping-actions exige admin para crear, editar, borrar y reordenar agrupaciones:
+  // el lector ve la lista, sin el formulario ni los botones de cada fila.
+  test("ve las agrupaciones sin poder crearlas, editarlas, reordenarlas ni borrarlas", async ({ page }) => {
+    await page.goto("/analytics");
+    await expect(
+      page.getByText("Distribución estratégica y evolución histórica por grupos de negocio.")
+    ).toBeVisible();
+    await expect(page.getByRole("button", { name: "Configurar Agrupaciones" })).toHaveCount(0);
+    await page.getByRole("button", { name: "Ver Agrupaciones" }).click();
+
+    const gestor = page.getByRole("dialog", { name: "Agrupaciones Personalizadas de Categorías" });
+    await expect(gestor.getByText(GRUPO, { exact: true })).toBeVisible();
+    await expect(gestor.getByRole("button", { name: /Crear Agrupación/ })).toHaveCount(0);
+    for (const accion of ["Editar", "Eliminar", "Subir", "Bajar"]) {
+      await expect(gestor.getByRole("button", { name: `${accion} ${GRUPO}` })).toHaveCount(0);
+    }
   });
 });

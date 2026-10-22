@@ -617,7 +617,7 @@ export function GroupingAnalysisCard({ categories, recordType: initialRecordType
 
       <style jsx global>{`
         .glow-text {
-          text-shadow: 0 0 10px hsl(var(--primary) / 0.5);
+          text-shadow: 0 0 10px color-mix(in oklch, var(--primary) 50%, transparent);
         }
       `}</style>
     </Card>

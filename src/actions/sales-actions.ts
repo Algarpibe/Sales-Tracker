@@ -1,6 +1,6 @@
 "use server";
 
-import { eq, and, desc, asc, sql } from "drizzle-orm";
+import { eq, and, desc, asc } from "drizzle-orm";
 import { db } from "@/db";
 import { salesRecords, categories } from "@/db/schema";
 import { requireApproved } from "@/lib/auth/guards";
@@ -24,10 +24,7 @@ function warnIfLargeSalesPayload(count: number, filters: SalesFilters) {
 
 import type {
   SalesFilters,
-  RecordType,
   SalesRecord,
-  MonthlyTotal,
-  AnnualByCategory,
 } from "@/types/database";
 
 export async function getSalesData(filters: SalesFilters): Promise<SalesRecord[]> {
@@ -103,101 +100,4 @@ export async function getSalesData(filters: SalesFilters): Promise<SalesRecord[]
   })) as SalesRecord[];
   warnIfLargeSalesPayload(result.length, filters);
   return result;
-}
-
-export async function getMonthlyTotals(year?: number): Promise<MonthlyTotal[]> {
-  const { profile } = await requireApproved();
-  if (!profile) throw new Error("No autenticado");
-
-  if (hubEnabled()) {
-    const hubRows = await getHubSalesRows();
-    const agg = new Map<string, MonthlyTotal>();
-    for (const r of hubRows) {
-      if (r.record_type === "BACKLOG") continue;
-      if (year && r.record_year !== year) continue;
-      const k = `${r.record_type}:${r.record_year}:${r.record_month}`;
-      const e =
-        agg.get(k) ??
-        { company_id: profile.company_id, record_type: r.record_type as RecordType, record_year: r.record_year, record_month: r.record_month, total_usd: 0 };
-      e.total_usd += r.amount_usd;
-      agg.set(k, e);
-    }
-    return Array.from(agg.values()).sort(
-      (a, b) => a.record_year - b.record_year || a.record_month - b.record_month
-    );
-  }
-
-  const cid = profile.company_id;
-  const { rows } = year
-    ? await db.execute(
-        sql`SELECT company_id, record_type, record_year, record_month, total_usd
-            FROM v_monthly_totals
-            WHERE company_id = ${cid} AND record_year = ${year}
-            ORDER BY record_year, record_month`
-      )
-    : await db.execute(
-        sql`SELECT company_id, record_type, record_year, record_month, total_usd
-            FROM v_monthly_totals
-            WHERE company_id = ${cid}
-            ORDER BY record_year, record_month`
-      );
-
-  return rows.map((r) => ({
-    company_id: r.company_id as string,
-    record_type: r.record_type as RecordType,
-    record_year: Number(r.record_year),
-    record_month: Number(r.record_month),
-    total_usd: Number(r.total_usd),
-  }));
-}
-
-export async function getAnnualByCategory(year?: number): Promise<AnnualByCategory[]> {
-  const { profile } = await requireApproved();
-  if (!profile) throw new Error("No autenticado");
-
-  if (hubEnabled()) {
-    const [hubRows, cats] = await Promise.all([
-      getHubSalesRows(),
-      db.select({ id: categories.id, name: categories.name }).from(categories).where(eq(categories.company_id, profile.company_id)),
-    ]);
-    const byName = new Map(cats.map((c) => [c.name.toLowerCase(), c]));
-    const agg = new Map<string, AnnualByCategory>();
-    for (const r of hubRows) {
-      if (r.record_type === "BACKLOG") continue;
-      if (year && r.record_year !== year) continue;
-      const cat = byName.get(r.category_name.toLowerCase());
-      if (!cat) continue;
-      const k = `${r.record_type}:${r.record_year}:${cat.id}`;
-      const e =
-        agg.get(k) ??
-        { company_id: profile.company_id, record_type: r.record_type as RecordType, record_year: r.record_year, category_id: cat.id, category_name: cat.name, total_usd: 0 };
-      e.total_usd += r.amount_usd;
-      agg.set(k, e);
-    }
-    return Array.from(agg.values()).sort((a, b) => b.total_usd - a.total_usd);
-  }
-
-  const cid = profile.company_id;
-  const { rows } = year
-    ? await db.execute(
-        sql`SELECT company_id, record_type, record_year, category_id, category_name, total_usd
-            FROM v_annual_by_category
-            WHERE company_id = ${cid} AND record_year = ${year}
-            ORDER BY total_usd DESC`
-      )
-    : await db.execute(
-        sql`SELECT company_id, record_type, record_year, category_id, category_name, total_usd
-            FROM v_annual_by_category
-            WHERE company_id = ${cid}
-            ORDER BY total_usd DESC`
-      );
-
-  return rows.map((r) => ({
-    company_id: r.company_id as string,
-    record_type: r.record_type as RecordType,
-    record_year: Number(r.record_year),
-    category_id: r.category_id as string,
-    category_name: r.category_name as string,
-    total_usd: Number(r.total_usd),
-  }));
 }

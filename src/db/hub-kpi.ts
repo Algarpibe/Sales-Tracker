@@ -1,4 +1,5 @@
 import { getHubPool } from "@/db/hub";
+import { netAmountSumExpr, sourceFor } from "@/db/hub-sql";
 import { isExcludedSalesperson, parseExcludedSalespeople, WON_DEAL_STAGES } from "@/lib/commercial-kpis";
 import type { DealMonthRow } from "@/lib/kpi-score";
 import { FASE_NOTIFICACION_COMERCIAL, type CambioFase } from "@/lib/kpi-tickets";
@@ -34,24 +35,17 @@ export async function getHubSalespeople(): Promise<string[]> {
 // Misma agregación que getHubCustomerMonthSales, con el vendedor como filtro
 // opcional. Zoho guarda el comercial en el JSON de la cabecera, no en columna
 // propia, así que el filtro va sobre raw->>'salesperson_name'.
-const SOURCES = {
-  SALES_ORDER: { lines: "books.salesorder_line_items", header: "books.sales_orders", fk: "salesorder_id" },
-  INVOICE: { lines: "books.invoice_line_items", header: "books.invoices", fk: "invoice_id" },
-} as const;
-
 export async function getHubCustomerMonthByOwner(f: {
   tipo: RecordType;
   anio: number;
   owner: string | null;
 }): Promise<CustomerMonthRow[]> {
   // La tabla se elige en servidor a partir del tipo, nunca por entrada del usuario.
-  const src = f.tipo === "SALES_ORDER" ? SOURCES.SALES_ORDER : SOURCES.INVOICE;
+  const src = sourceFor(f.tipo);
   const sql = `
     SELECT h.customer_name AS customer,
            extract(month from h.date)::int AS mes,
-           round(sum(l.bcy_rate * l.quantity *
-             COALESCE(1 - COALESCE((h.raw->>'bcy_discount_total')::numeric, 0) / NULLIF(h.bcy_sub_total, 0), 1)
-           )::numeric, 2)::float8 AS importe
+           ${netAmountSumExpr("l", "h")} AS importe
     FROM ${src.lines} l
     JOIN ${src.header} h ON h.${src.fk} = l.${src.fk}
     WHERE extract(year from h.date) = $1
@@ -136,10 +130,7 @@ export interface HubOrderRow {
 // Importe neto de una orden de venta: misma formula que getHubCustomerMonthSales,
 // agrupada por orden en vez de por cliente y mes, para poder mostrarla en el
 // buscador y en la lista de ordenes ya marcadas como ingresos de proyecto.
-const IMPORTE_ORDEN = `
-  round(sum(l.bcy_rate * l.quantity *
-    COALESCE(1 - COALESCE((s.raw->>'bcy_discount_total')::numeric, 0) / NULLIF(s.bcy_sub_total, 0), 1)
-  )::numeric, 2)::float8`;
+const IMPORTE_ORDEN = netAmountSumExpr("l", "s");
 
 // Busca ordenes de venta por cliente o por id interno de Zoho. NO busca por
 // salesorder_number: esa clave no existe en raw del hub (comprobado contra el

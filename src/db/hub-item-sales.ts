@@ -1,15 +1,14 @@
 import { getHubPool } from "@/db/hub";
+import { sourceFor } from "@/db/hub-sql";
 import type { ItemSalesFilters, ItemSalesRow } from "@/types/database";
 
-// Tablas elegidas en servidor por tipo (NO input de usuario → sin inyección).
-// BACKLOG no aplica a esta vista; cualquier valor distinto de SALES_ORDER usa FAC.
-const SOURCES = {
-  SALES_ORDER: { lines: "books.salesorder_line_items", header: "books.sales_orders", fk: "salesorder_id" },
-  INVOICE: { lines: "books.invoice_line_items", header: "books.invoices", fk: "invoice_id" },
-} as const;
-
 export async function getHubItemSales(f: ItemSalesFilters): Promise<ItemSalesRow[]> {
-  const src = f.tipo === "SALES_ORDER" ? SOURCES.SALES_ORDER : SOURCES.INVOICE;
+  // Tablas elegidas en servidor por tipo (NO input de usuario → sin inyección).
+  // BACKLOG no aplica a esta vista; cualquier valor distinto de SALES_ORDER usa FAC.
+  const src = sourceFor(f.tipo);
+  // Importe BRUTO a propósito (bcy_rate * cantidad, sin netAmountSumExpr): esta vista
+  // cuadra con el informe de artículos de Zoho, que no prorratea el descuento de
+  // cabecera (ver ItemSalesRow.importe en src/types/database.ts).
   const sql = `
     SELECT it.item_id, it.sku, it.name AS nombre, it.category_name AS categoria,
            sum(l.quantity) AS cantidad,

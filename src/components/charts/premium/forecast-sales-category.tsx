@@ -408,13 +408,13 @@ export function ForecastSalesCategory({ baseYear = new Date().getFullYear() }: F
                     dataKey="month" 
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12, fontWeight: 700 }}
+                    tick={{ fill: "var(--muted-foreground)", fontSize: 12, fontWeight: 700 }}
                     dy={10}
                   />
                   <YAxis 
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11, fontWeight: 500 }}
+                    tick={{ fill: "var(--muted-foreground)", fontSize: 11, fontWeight: 500 }}
                     tickFormatter={formatCurrencyCompact}
                   />
                   <RechartsTooltip content={<CustomTooltip />} cursor={{ fill: "rgba(16, 185, 129, 0.1)" }} />
@@ -453,7 +453,7 @@ export function ForecastSalesCategory({ baseYear = new Date().getFullYear() }: F
                           position="top" 
                           offset={10}
                           formatter={formatCurrencyCompact}
-                          style={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontWeight: 600 }}
+                          style={{ fill: "var(--muted-foreground)", fontSize: 10, fontWeight: 600 }}
                         />
                       )}
                     </Bar>

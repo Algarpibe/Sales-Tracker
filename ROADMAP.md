@@ -59,7 +59,7 @@ Continuo, en paralelo a las fases.
 | **Observabilidad con alertas** (Sentry/GlitchTip) | Alto | M | hoy solo logs estructurados |
 | **F5-04 BD de test aislada** (Testcontainers) | Medio | M | backlog auditoría |
 | **Tests E2E** (Playwright) de flujos clave | Alto | L | login, dashboards, export |
-| `middleware → proxy` (deprecación Next 16) | Bajo | S | auth-crítico → con cuidado |
+| ~~`middleware → proxy` (deprecación Next 16)~~ | Bajo | S | hecho: `src/proxy.ts` (DATA-053) |
 | **7 vulns moderate** (deps) | Bajo | S | revisar/actualizar |
 | Rendimiento: agregación en SQL + paginación si los datos crecen | Medio | M | hoy se agrega en cliente |
 | F1-02 purga de historial git (opcional) | Bajo | S | secreto Supabase ya decomisado |

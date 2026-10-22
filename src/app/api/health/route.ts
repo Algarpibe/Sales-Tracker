@@ -4,7 +4,7 @@ import { db } from "@/db";
 import { getHubPool, hubEnabled } from "@/db/hub";
 import { logError } from "@/lib/logger";
 
-// Health check (INFRA-067). Público (fuera del matcher del middleware) y sin datos:
+// Health check (INFRA-067). Público (fuera del matcher del proxy) y sin datos:
 // el cuerpo solo lleva estados, nunca mensajes de error, hosts ni trazas.
 //  - GET /api/health          → liveness: 200 mientras el proceso sirva peticiones.
 //    NO toca la BD: es lo que usa el HEALTHCHECK de Docker, y una caída de Postgres

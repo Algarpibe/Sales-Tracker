@@ -25,6 +25,7 @@ import {
 import { Check, ChevronsUpDown, Settings2, Trash2, Edit2, Plus, Loader2, X, ArrowUp, ArrowDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
+import { useAuth } from "@/components/providers/auth-provider";
 import { toast } from "sonner";
 import {
   saveCategoryGrouping,
@@ -43,6 +44,10 @@ interface GroupingManagerProps {
 export function GroupingManager({ categories, onGroupsChanged }: GroupingManagerProps) {
   const queryClient = useQueryClient();
   const uid = useId();
+  const { profile } = useAuth();
+  // Crear, editar, borrar y reordenar exigen admin en el servidor (requireRole("admin")
+  // en grouping-actions): a un editor o lector solo se le muestra la lista.
+  const canEdit = profile?.role === "admin";
   // Invalida la caché react-query de agrupaciones (F3-03) y avisa al padre.
   const notifyChanged = () => {
     queryClient.invalidateQueries({ queryKey: ["groupings"] });
@@ -176,7 +181,7 @@ export function GroupingManager({ categories, onGroupsChanged }: GroupingManager
       <DialogTrigger
         render={(props) => (
           <Button variant="outline" size="sm" className="gap-2" {...props}>
-            <Settings2 className="h-4 w-4" /> Configurar Agrupaciones
+            <Settings2 className="h-4 w-4" /> {canEdit ? "Configurar Agrupaciones" : "Ver Agrupaciones"}
           </Button>
         )}
       />
@@ -184,11 +189,14 @@ export function GroupingManager({ categories, onGroupsChanged }: GroupingManager
         <DialogHeader>
           <DialogTitle>Agrupaciones Personalizadas de Categorías</DialogTitle>
           <p className="text-sm text-muted-foreground">
-            Crea grupos de categorías para analizar ventas por segmentos personalizados.
+            {canEdit
+              ? "Crea grupos de categorías para analizar ventas por segmentos personalizados."
+              : "Grupos de categorías usados en el análisis. Solo un administrador puede cambiarlos."}
           </p>
         </DialogHeader>
 
-        {/* Form */}
+        {/* Form (solo admin) */}
+        {canEdit && (
         <div className="space-y-4 py-2">
           <div className="space-y-2">
             <Label htmlFor={`${uid}-name`}>Nombre del grupo</Label>
@@ -324,9 +332,10 @@ export function GroupingManager({ categories, onGroupsChanged }: GroupingManager
             </Button>
           )}
         </div>
+        )}
 
         {/* Existing Groups List */}
-        <div className="border-t pt-4 space-y-3">
+        <div className={cn("space-y-3", canEdit && "border-t pt-4")}>
           <h4 className="text-sm font-semibold text-foreground">Agrupaciones guardadas</h4>
           {loading ? (
             <p className="text-sm text-muted-foreground">Cargando...</p>
@@ -351,6 +360,7 @@ export function GroupingManager({ categories, onGroupsChanged }: GroupingManager
                       </p>
                     </div>
                   </div>
+                  {canEdit && (
                   <div className="flex gap-1 ml-2">
                     <div className="flex flex-col gap-0.5 border-r border-white/5 pr-1 mr-1">
                       <Button
@@ -393,12 +403,14 @@ export function GroupingManager({ categories, onGroupsChanged }: GroupingManager
                       <Trash2 className="h-3.5 w-3.5 text-destructive" />
                     </Button>
                   </div>
+                  )}
                 </div>
               ))}
             </div>
           )}
         </div>
 
+        {canEdit && (
         <ConfirmDialog
           open={deletingGroup !== null}
           onOpenChange={(next) => { if (!next) setDeletingGroup(null); }}
@@ -413,6 +425,7 @@ export function GroupingManager({ categories, onGroupsChanged }: GroupingManager
           onConfirm={handleDelete}
           pending={deletePending}
         />
+        )}
       </DialogContent>
     </Dialog>
   );

@@ -3,7 +3,7 @@ import { KPICard } from "@/components/cards/kpi-card";
 import { formatUSD } from "@/lib/constants";
 import { CHART_HELP } from "@/lib/chart-help";
 import { yoyChange, type InsightRecord } from "@/lib/dashboard-insights";
-import { WIDGET_IDS, type WidgetId } from "@/lib/dashboard-layout";
+import type { WidgetId } from "@/lib/dashboard-layout";
 import type { DashboardMetrics } from "@/lib/dashboard-metrics";
 import type { Category, SalesRecord } from "@/types/database";
 
@@ -275,6 +275,3 @@ export const WIDGETS: WidgetDef[] = [
 // Clave `string`: los ids llegan desde el layout persistido (BD), donde no hay
 // garantía de tipo. Un id desconocido devuelve undefined y el grid lo ignora.
 export const WIDGET_MAP = new Map<string, WidgetDef>(WIDGETS.map((w) => [w.id, w]));
-
-// Salvaguarda: el registro debe cubrir exactamente los ids canónicos.
-export const MISSING_WIDGETS = WIDGET_IDS.filter((id) => !WIDGET_MAP.has(id));

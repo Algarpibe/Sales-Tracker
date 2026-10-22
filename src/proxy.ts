@@ -5,7 +5,9 @@ import { auth } from "@/lib/auth/auth";
 import { db } from "@/db";
 import { profiles } from "@/db/schema";
 
-export async function middleware(req: NextRequest) {
+// Proxy de Next 16 (antes `middleware`, convención deprecada): corre en Node.js por
+// defecto. No se declara `config.runtime`: en un proxy está prohibido y lanza error.
+export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const session = await auth.api.getSession({ headers: await headers() });
   const isAuthPage = pathname.startsWith("/login") || pathname.startsWith("/register");
@@ -36,6 +38,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  runtime: "nodejs",
   matcher: ["/((?!_next/static|_next/image|favicon.ico|api/auth|api/health).*)"],
 };

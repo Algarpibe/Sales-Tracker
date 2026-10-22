@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 
 /**
- * /api/health es público (fuera del matcher del middleware): el HEALTHCHECK de
+ * /api/health es público (fuera del matcher del proxy): el HEALTHCHECK de
  * Docker lo llama sin sesión. Se comprueba sin cookies que ambos niveles responden
  * 200 en vez de redirigir a /login, y que el cuerpo solo lleva estados: nada de
  * hosts, puertos, usuarios ni cadenas de conexión.

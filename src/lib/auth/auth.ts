@@ -40,7 +40,7 @@ export const auth = betterAuth({
     },
   },
   // Cookie cache (F3-04): getSession lee la sesión de una cookie firmada de corta
-  // vida en vez de pegarle a la BD en cada request (el middleware corre en cada
+  // vida en vez de pegarle a la BD en cada request (el proxy corre en cada
   // navegación). maxAge corto para que revocaciones/cambios se reflejen pronto.
   session: {
     cookieCache: { enabled: true, maxAge: 5 * 60 },

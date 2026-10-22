@@ -24,34 +24,6 @@ export const ROLES = [
   { value: "lector" as const, label: "Lector", description: "Solo lectura" },
 ] as const;
 
-export const SUBSCRIPTION_CATEGORIES = [
-  "Marketing",
-  "Development",
-  "Design",
-  "HR",
-  "Finance",
-  "Operations",
-  "Communication",
-  "Analytics",
-  "Security",
-  "Infrastructure",
-  "General",
-] as const;
-
-export const BILLING_CYCLES = [
-  { value: "monthly" as const, label: "Mensual" },
-  { value: "annual" as const, label: "Anual" },
-  { value: "quarterly" as const, label: "Trimestral" },
-  { value: "one-time" as const, label: "Único" },
-] as const;
-
-export const SUBSCRIPTION_STATUSES = [
-  { value: "active" as const, label: "Activa", color: "bg-green-500/10 text-green-500" },
-  { value: "paused" as const, label: "Pausada", color: "bg-yellow-500/10 text-yellow-500" },
-  { value: "cancelled" as const, label: "Cancelada", color: "bg-red-500/10 text-red-500" },
-  { value: "trial" as const, label: "Prueba", color: "bg-blue-500/10 text-blue-500" },
-] as const;
-
 export const CHART_COLORS = [
   "var(--chart-1)",
   "var(--chart-2)",
