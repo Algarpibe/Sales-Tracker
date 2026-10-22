@@ -1,0 +1,20 @@
+# Vigilancia de dependencias (DEP-021). Semanal y agrupada para no inundar de PRs:
+# minor/patch van juntas; las major llegan sueltas porque suelen requerir cambios.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      minor-y-patch:
+        update-types:
+          - minor
+          - patch
+
+  # Mantiene al día las acciones fijadas por SHA en .github/workflows.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly

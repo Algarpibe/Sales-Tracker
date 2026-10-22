@@ -33,4 +33,10 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
+# Liveness (INFRA-067): /api/health no toca la BD, así que una caída de Postgres no
+# marca el contenedor como unhealthy ni provoca reinicios en bucle. wget es el de
+# busybox (viene en alpine); forma shell para que ${PORT} se expanda en runtime.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+  CMD wget -qO- "http://127.0.0.1:${PORT:-3000}/api/health" >/dev/null || exit 1
+
 CMD ["node", "server.js"]

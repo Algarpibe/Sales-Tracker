@@ -10,9 +10,15 @@ on:
 permissions:
   contents: read
 
+# Un solo run por rama/PR: un push nuevo cancela el anterior en curso (INFRA-074).
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
@@ -23,6 +29,11 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      # Gate de dependencias (DEP-021): falla con vulnerabilidades high/critical en
+      # el árbol de producción. Las de tooling de desarrollo las vigila Dependabot.
+      - name: "Audit (dependencias de producción, high+)"
+        run: npm audit --omit=dev --audit-level=high
 
       - name: Typecheck
         run: npm run typecheck
@@ -43,6 +54,7 @@ jobs:
   e2e:
     runs-on: ubuntu-latest
     needs: build
+    timeout-minutes: 25
     services:
       postgres:
         image: postgres:16-alpine
@@ -93,3 +105,54 @@ jobs:
             playwright-report/
             test-results/
           retention-days: 7
+
+  # Construye la imagen de producción (sin publicarla) y la arranca para comprobar
+  # el HEALTHCHECK (INFRA-070). La BD apunta a un puerto cerrado a propósito:
+  # liveness debe seguir sano y readiness debe degradar a 503 sin filtrar detalles.
+  docker:
+    runs-on: ubuntu-latest
+    needs: build
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Build de la imagen
+        run: docker build -t salestracker:ci .
+
+      - name: Smoke test del contenedor
+        run: |
+          # Valores de un contenedor efímero de CI: no se usan en ningún sitio real.
+          docker run -d --name st-ci -p 3000:3000 \
+            -e BETTER_AUTH_SECRET=ci-docker-secret-solo-para-smoke-0123456789 \
+            -e BETTER_AUTH_URL=http://localhost:3000 \
+            -e DATABASE_URL=postgres://x:x@127.0.0.1:9/x \
+            salestracker:ci
+
+          # Espera a que Docker marque el contenedor como healthy (start-period 30s,
+          # interval 30s: el primer chequeo llega a los ~30s).
+          status=""
+          for i in $(seq 1 30); do
+            status=$(docker inspect -f '{{.State.Health.Status}}' st-ci)
+            [ "$status" = "healthy" ] && break
+            [ "$status" = "unhealthy" ] && break
+            [ "$(docker inspect -f '{{.State.Running}}' st-ci)" = "true" ] || break
+            sleep 3
+          done
+          echo "Estado del HEALTHCHECK: $status"
+
+          ok=1
+          [ "$status" = "healthy" ] || { echo "::error::El contenedor no llegó a healthy"; ok=0; }
+          curl -fsS http://127.0.0.1:3000/api/health || { echo "::error::liveness falló"; ok=0; }
+
+          code=$(curl -s -o ready.json -w '%{http_code}' 'http://127.0.0.1:3000/api/health?ready=1' || true)
+          echo "readiness: HTTP $code $(cat ready.json 2>/dev/null)"
+
+          [ "$code" = "503" ] || { echo "::error::readiness sin BD debía responder 503"; ok=0; }
+          if grep -Eqi '127\.0\.0\.1|postgres|ECONNREFUSED' ready.json; then
+            echo "::error::readiness filtra detalles de conexión"; ok=0
+          fi
+          [ "$ok" = "1" ] || { docker logs st-ci; exit 1; }
+
+      - name: Parar el contenedor
+        if: always()
+        run: docker rm -f st-ci || true

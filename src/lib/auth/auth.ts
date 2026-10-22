@@ -4,6 +4,7 @@ import { nextCookies } from "better-auth/next-js";
 import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
+import { enforceRuntimeEnv } from "@/lib/env";
 import { user, session, account, verification, profiles, companies } from "@/db/schema";
 
 const DEFAULT_COMPANY = "Ambientalia S.A.S.";
@@ -13,6 +14,9 @@ const DEFAULT_COMPANY = "Ambientalia S.A.S.";
 if (process.env.NEXT_PHASE !== "phase-production-build" && !process.env.BETTER_AUTH_SECRET) {
   throw new Error("Falta BETTER_AUTH_SECRET en el entorno.");
 }
+// Fail-fast de producción: DATABASE_URL y BETTER_AUTH_URL obligatorias; aviso único
+// si falta HUB_DB_URL (opcional). Omitido en next build y fuera de producción.
+enforceRuntimeEnv();
 
 export const auth = betterAuth({
   baseURL: process.env.BETTER_AUTH_URL,

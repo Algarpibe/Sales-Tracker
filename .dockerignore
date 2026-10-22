@@ -3,5 +3,17 @@ node_modules
 .git
 .gitignore
 *.md
-.env.local
-.env*.local
+# Ningún .env entra al contexto de build: Next 16 copia .env y .env.production a
+# .next/standalone, así que acabarían dentro de la imagen de runtime (INFRA-069).
+# Las variables se inyectan en runtime (EasyPanel), nunca en la imagen.
+.env*
+!.env.example
+# Datos locales y artefactos de pruebas/herramientas: no los necesita el build.
+scripts/historico
+e2e/.auth
+test-results
+playwright-report
+coverage
+.codegraph
+docs
+*.tsbuildinfo

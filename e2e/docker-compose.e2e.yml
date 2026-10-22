@@ -14,7 +14,9 @@ services:
       # Configurable via E2E_PG_PORT porque 55432 puede estar ocupado por otro
       # proyecto de la misma maquina; e2e/db/config.mjs y playwright.config.ts
       # leen esa misma variable, con el mismo valor por defecto.
-      - "${E2E_PG_PORT:-55432}:5432"
+      # Solo en loopback (INFRA-073): con credenciales triviales, no debe quedar
+      # expuesto en la red de la máquina.
+      - "127.0.0.1:${E2E_PG_PORT:-55432}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 2s
