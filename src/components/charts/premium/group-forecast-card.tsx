@@ -38,6 +38,7 @@ import {
 import { cn } from "@/lib/utils";
 import { getGroupingAnalysisData } from "@/actions/grouping-actions";
 import { calculateSeasonalityFactors, getSeasonalForecast, calculateRunRate } from "@/lib/math-utils";
+import { historyYears } from "@/lib/forecast";
 import type { GroupingAnalysisResult, RecordType } from "@/types/database";
 import type { ChartTooltipEntry, ChartTooltipProps } from "@/lib/chart-types";
 import { InfoTooltip } from "@/components/common/info-tooltip";
@@ -107,10 +108,8 @@ export function GroupForecastCard({ recordType: initialRecordType, baseYear = ne
     if (!data) return [];
     
     const now = new Date();
-    // Use the baseYear, if baseYear is not current year, we will just project based on elapsed months of that year if it was in the past?
-    // Let's assume baseYear forecast is similar to page.tsx logic
     const currentYear = baseYear; 
-    const historicalYears = [2025, 2024, 2023]; 
+    const historicalYears = historyYears(currentYear);
     const isCurrentActualYear = currentYear === now.getFullYear();
     const currentMonthIdx = now.getMonth();
     const lastElapsedMonth = isCurrentActualYear ? currentMonthIdx + 1 : 12;

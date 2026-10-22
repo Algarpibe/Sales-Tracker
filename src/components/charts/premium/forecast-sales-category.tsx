@@ -40,6 +40,7 @@ import { cn } from "@/lib/utils";
 import { getSalesData } from "@/actions/sales-actions";
 import { getCategories } from "@/actions/category-actions";
 import { calculateSeasonalityFactors, getSeasonalForecast, calculateRunRate } from "@/lib/math-utils";
+import { historyYears } from "@/lib/forecast";
 import type { ChartTooltipProps } from "@/lib/chart-types";
 import { InfoTooltip } from "@/components/common/info-tooltip";
 import { CHART_HELP } from "@/lib/chart-help";
@@ -148,7 +149,7 @@ export function ForecastSalesCategory({ baseYear = new Date().getFullYear() }: F
     
     const now = new Date();
     const currentYear = baseYear; 
-    const historicalYears = [2025, 2024, 2023]; 
+    const historicalYears = historyYears(currentYear);
     const isCurrentActualYear = currentYear === now.getFullYear();
     const currentMonthIdx = now.getMonth();
     const lastElapsedMonth = isCurrentActualYear ? currentMonthIdx + 1 : 12;

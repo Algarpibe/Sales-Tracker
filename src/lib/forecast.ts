@@ -118,3 +118,12 @@ export function computeForecast(input: ForecastInput): ForecastResult {
 
   return { monthlyForecast, month: monthStat, year: yearStat };
 }
+
+/**
+ * Años del histórico estacional: los `count` anteriores a `targetYear`, el más
+ * reciente primero (alineado con weights [3, 2, 1]). Se deriva del año proyectado
+ * para que el forecast no se congele al cambiar de año.
+ */
+export function historyYears(targetYear: number, count = 3): number[] {
+  return Array.from({ length: count }, (_, i) => targetYear - 1 - i);
+}
