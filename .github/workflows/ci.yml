@@ -38,8 +38,10 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
-      - name: Test (unit; el smoke de integración se salta sin DATABASE_URL)
-        run: npm test
+      # Los mismos tests unitarios que `npm test`, midiendo cobertura de src/lib y
+      # src/actions: falla si baja de los umbrales de vitest.config.ts (TEST-089).
+      - name: Test + cobertura (unit; el smoke de integración se salta sin DATABASE_URL)
+        run: npm run test:coverage
 
       - name: "Lint (gate duro: rechaza errores nuevos; react-hooks quedan como warning)"
         run: npm run lint
@@ -95,6 +97,16 @@ jobs:
       # exportara aquí, auth.smoke.test.ts dejaría de saltarse en el job de tests.
       - name: E2E
         run: npx playwright test
+
+      # Smoke de integración de better-auth contra la BD de E2E ya sembrada (TEST-088).
+      # Va DESPUÉS de Playwright para no tocar los datos que usan sus specs; el test
+      # crea un usuario con email único y lo borra al terminar. DATABASE_URL solo
+      # existe en este paso (ver el aviso del paso E2E) y usa postgres, como las
+      # semillas: replica APP_URL de e2e/db/config.mjs.
+      - name: Smoke de integración (better-auth)
+        run: npx vitest run src/lib/auth/__tests__/auth.smoke.test.ts --reporter=verbose
+        env:
+          DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/salestracker_e2e
 
       - name: Subir el reporte al fallar
         if: failure()

@@ -1,19 +1,12 @@
 import { getHubPool } from "@/db/hub";
+import { netAmountSumExpr, sourceFor } from "@/db/hub-sql";
 import type {
   MarginByYearFilters, MarginFilters,
   MarginYearRow, MarginItemRow, MarginCustomerRow,
 } from "@/types/database";
 
-// Tabla por tipo elegida en servidor (NO input de usuario → sin inyección).
-const SOURCES = {
-  SALES_ORDER: { lines: "books.salesorder_line_items", header: "books.sales_orders", fk: "salesorder_id" },
-  INVOICE: { lines: "books.invoice_line_items", header: "books.invoices", fk: "invoice_id" },
-} as const;
-
 // Ingreso neto (mismo ajuste de descuento que hub-customer-sales.ts).
-const VENTAS = `round(sum(l.bcy_rate * l.quantity *
-  COALESCE(1 - COALESCE((h.raw->>'bcy_discount_total')::numeric, 0) / NULLIF(h.bcy_sub_total, 0), 1)
-)::numeric, 2)::float8`;
+const VENTAS = netAmountSumExpr("l", "h");
 // Costo estándar del maestro (NO se descuenta).
 const COSTO = `round(sum(NULLIF(it.raw->>'purchase_rate','')::numeric * l.quantity)::numeric, 2)::float8`;
 // Solo bienes con costo real.
@@ -21,12 +14,9 @@ const COMMON_WHERE = `l.bcy_rate IS NOT NULL
       AND h.status NOT IN ('void','draft')
       AND NULLIF(it.raw->>'purchase_rate','')::numeric > 0`;
 
-function src(tipo: MarginFilters["tipo"]) {
-  return tipo === "SALES_ORDER" ? SOURCES.SALES_ORDER : SOURCES.INVOICE;
-}
-
 export async function getHubMarginByYear(f: MarginByYearFilters): Promise<MarginYearRow[]> {
-  const s = src(f.tipo);
+  // Tabla por tipo elegida en servidor (NO input de usuario → sin inyección).
+  const s = sourceFor(f.tipo);
   const sql = `
     SELECT extract(year from h.date)::int AS year, ${VENTAS} AS ventas, ${COSTO} AS costo
     FROM ${s.lines} l
@@ -40,7 +30,7 @@ export async function getHubMarginByYear(f: MarginByYearFilters): Promise<Margin
 }
 
 export async function getHubMarginByItem(f: MarginFilters): Promise<MarginItemRow[]> {
-  const s = src(f.tipo);
+  const s = sourceFor(f.tipo);
   const sql = `
     SELECT it.item_id, it.sku, it.name AS nombre, ${VENTAS} AS ventas, ${COSTO} AS costo
     FROM ${s.lines} l
@@ -57,7 +47,7 @@ export async function getHubMarginByItem(f: MarginFilters): Promise<MarginItemRo
 }
 
 export async function getHubMarginByCustomer(f: MarginFilters): Promise<MarginCustomerRow[]> {
-  const s = src(f.tipo);
+  const s = sourceFor(f.tipo);
   const sql = `
     SELECT h.customer_name AS customer, ${VENTAS} AS ventas, ${COSTO} AS costo
     FROM ${s.lines} l

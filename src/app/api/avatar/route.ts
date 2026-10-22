@@ -23,7 +23,7 @@ function sniffImageMime(buf: Buffer): string | null {
 
 // Sube el avatar del usuario actual (multipart 'file') y lo guarda como bytea.
 // Solo cuentas aprobadas y activas: el registro es abierto y una cuenta pendiente
-// no debe poder escribir 2 MB por petición aunque el middleware falle.
+// no debe poder escribir 2 MB por petición aunque el proxy falle.
 export async function POST(req: NextRequest) {
   // Route handler propio: no tiene la comprobación de origen de las Server Actions.
   const sameOrigin = isSameOriginRequest({

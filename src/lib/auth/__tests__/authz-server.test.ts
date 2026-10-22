@@ -3,7 +3,7 @@ import { NextRequest } from "next/server";
 
 /**
  * Comprueba que la autorizacion la hace el SERVIDOR (route handlers y Server
- * Actions), no el middleware ni la UI. Los guards reales de guards.ts corren tal
+ * Actions), no el proxy ni la UI. Los guards reales de guards.ts corren tal
  * cual: solo se sustituyen la sesion de better-auth y la BD por dobles en memoria.
  */
 

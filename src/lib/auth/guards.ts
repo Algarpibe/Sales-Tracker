@@ -10,7 +10,7 @@ import { AppError } from "@/lib/errors";
  * (5 min, auth.ts). Lo usan las acciones que ESCRIBEN: una sesión revocada (logout
  * en otro dispositivo, cambio de contraseña) deja de valer al instante en vez de
  * seguir pasando hasta que caduque la cookie (SEC-038). Las lecturas y el
- * middleware siguen en la cookie cache, que ahorra una consulta por request.
+ * proxy siguen en la cookie cache, que ahorra una consulta por request.
  */
 export type GuardOptions = { fresh?: boolean };
 

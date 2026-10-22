@@ -30,8 +30,8 @@ const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0
 test.describe("cuenta pendiente de aprobacion", () => {
   test.use({ storageState: PENDING_STATE });
 
-  // El middleware ya redirige (307) a /waiting-approval cualquier ruta no aprobada,
-  // incluida /api/avatar; la ruta ademas responde 401/403 por si el middleware
+  // El proxy ya redirige (307) a /waiting-approval cualquier ruta no aprobada,
+  // incluida /api/avatar; la ruta ademas responde 401/403 por si el proxy
   // fallara (eso lo cubre src/lib/auth/__tests__/authz-server.test.ts). Aqui se
   // fija el resultado de punta a punta: la peticion no se acepta y no se guarda nada.
   test("no puede subir un avatar", async ({ page }) => {

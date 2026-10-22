@@ -7,7 +7,9 @@ import { user, account, profiles } from "@/db/schema";
 const email = `smoke_${Date.now()}@example.com`;
 let createdId: string | undefined;
 
-// Integración: requiere BD real. Se salta si no hay DATABASE_URL (p.ej. en CI).
+// Integración: requiere BD real. Se salta si no hay DATABASE_URL (como en el job build
+// de CI); el job e2e de CI lo ejecuta contra la BD de E2E ya sembrada (TEST-088).
+// Email único y borrado en afterAll: no deja rastro en esa BD.
 describe.skipIf(!process.env.DATABASE_URL)("better-auth smoke (sales-tracker-db)", () => {
   it("signup crea user + profile (hook) y signin valida", async () => {
     const up = await auth.api.signUpEmail({

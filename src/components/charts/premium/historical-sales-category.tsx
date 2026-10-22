@@ -326,19 +326,19 @@ export function HistoricalSalesCategory() {
             margin={{ top: 20, right: 30, left: 40, bottom: 5 }}
             barSize={viewMode === "MONTHLY" ? 30 : 45}
           >
-            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--muted-foreground) / 0.1)" />
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="color-mix(in oklch, var(--muted-foreground) 10%, transparent)" />
             <XAxis
               dataKey={viewMode === "ANNUAL" ? "year" : viewMode === "QUARTERLY" ? "quarter" : "month"}
               axisLine={false}
               tickLine={false}
-              tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12, fontWeight: 500 }}
+              tick={{ fill: 'var(--muted-foreground)', fontSize: 12, fontWeight: 500 }}
               dy={10}
             />
             <YAxis
               tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
               axisLine={false}
               tickLine={false}
-              tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+              tick={{ fill: 'var(--muted-foreground)', fontSize: 12 }}
               dx={-10}
             />
             <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(147, 197, 253, 0.15)' }} />

@@ -30,7 +30,7 @@ export function assertRuntimeEnv(env: Env): { warnings: string[] } {
 }
 
 // Aplica la comprobación y emite los avisos una sola vez por proceso (el módulo
-// puede evaluarse en más de un bundle: middleware y servidor).
+// puede evaluarse en más de un bundle: proxy y servidor).
 const globalForEnv = globalThis as unknown as { __runtimeEnvWarned?: boolean };
 
 export function enforceRuntimeEnv(

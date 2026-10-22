@@ -448,13 +448,13 @@ export function EvolutionCard({
                     dataKey={viewMode === "ANNUAL" ? "year" : viewMode === "QUARTERLY" ? "quarter" : "month"}
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12, fontWeight: 700 }}
+                    tick={{ fill: "var(--muted-foreground)", fontSize: 12, fontWeight: 700 }}
                     dy={10}
                   />
                   <YAxis
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11, fontWeight: 500 }}
+                    tick={{ fill: "var(--muted-foreground)", fontSize: 11, fontWeight: 500 }}
                     tickFormatter={formatCurrencyCompact}
                   />
                   <RechartsTooltip content={<CustomTooltip />} cursor={{ fill: "rgba(147, 197, 253, 0.15)" }} />
@@ -480,7 +480,7 @@ export function EvolutionCard({
                           position="top"
                           offset={10}
                           formatter={formatCurrencyCompact}
-                          style={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontWeight: 600 }}
+                          style={{ fill: "var(--muted-foreground)", fontSize: 10, fontWeight: 600 }}
                         />
                       )}
                     </Bar>

@@ -91,14 +91,14 @@ export function SeasonalForecastChart({
                 dataKey="month"
                 axisLine={false}
                 tickLine={false}
-                tick={{ fill: "rgba(255,255,255,0.5)", fontSize: 12, fontWeight: 500 }}
+                tick={{ fill: "var(--muted-foreground)", fontSize: 12, fontWeight: 500 }}
                 dy={10}
               />
               <YAxis
                 tickFormatter={formatCompactUSD}
                 axisLine={false}
                 tickLine={false}
-                tick={{ fill: "rgba(255,255,255,0.5)", fontSize: 12 }}
+                tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
               />
               <RechartsTooltip
                 content={({ active, payload, label }) => {

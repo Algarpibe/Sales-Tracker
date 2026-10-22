@@ -3,19 +3,10 @@
 // Enums derivados del schema Drizzle (única fuente de verdad; antes duplicados a
 // mano — F4-05). `import type` se elide en runtime. RecordType ahora incluye
 // "BACKLOG" (estaba en la BD pero faltaba en el tipo).
-import type {
-  userRole,
-  recordType,
-  billingCycle,
-  subscriptionStatus,
-  subscriptionCategory,
-} from "@/db/schema";
+import type { userRole, recordType } from "@/db/schema";
 
 export type UserRole = (typeof userRole.enumValues)[number];
 export type RecordType = (typeof recordType.enumValues)[number];
-export type BillingCycle = (typeof billingCycle.enumValues)[number];
-export type SubscriptionStatus = (typeof subscriptionStatus.enumValues)[number];
-export type SubscriptionCategory = (typeof subscriptionCategory.enumValues)[number];
 
 export interface Company {
   id: string;
@@ -109,27 +100,6 @@ export interface SalesRecord {
   categories?: { name: string; color: string };
 }
 
-export interface Subscription {
-  id: string;
-  company_id: string;
-  user_id: string;
-  tool_name: string;
-  provider: string | null;
-  category: SubscriptionCategory;
-  description: string | null;
-  monthly_cost_usd: number;
-  billing_cycle: BillingCycle;
-  annual_cost_usd: number | null;
-  status: SubscriptionStatus;
-  renewal_date: string | null;
-  start_date: string;
-  cancel_date: string | null;
-  url: string | null;
-  logo_url: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
 // ===== Filtros =====
 
 export interface SalesFilters {
@@ -140,30 +110,7 @@ export interface SalesFilters {
   search?: string;
 }
 
-export interface SubscriptionFilters {
-  status?: SubscriptionStatus;
-  category?: SubscriptionCategory;
-  search?: string;
-}
-
 // ===== Vistas / Aggregates =====
-
-export interface MonthlyTotal {
-  company_id: string;
-  record_type: RecordType;
-  record_year: number;
-  record_month: number;
-  total_usd: number;
-}
-
-export interface AnnualByCategory {
-  company_id: string;
-  record_type: RecordType;
-  record_year: number;
-  category_id: string;
-  category_name: string;
-  total_usd: number;
-}
 
 export interface HistoricalByMonth {
   company_id: string;

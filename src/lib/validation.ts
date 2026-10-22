@@ -1,11 +1,5 @@
 import { z } from "zod";
-import {
-  userRole,
-  recordType,
-  subscriptionCategory,
-  billingCycle,
-  subscriptionStatus,
-} from "@/db/schema";
+import { userRole, recordType } from "@/db/schema";
 import { KPI_CON_PLAZO, KPI_FIRST_YEAR, KPI_KEYS } from "@/lib/commercial-kpis";
 
 // Esquemas reutilizables para validar input de Server Actions en runtime
@@ -15,9 +9,6 @@ import { KPI_CON_PLAZO, KPI_FIRST_YEAR, KPI_KEYS } from "@/lib/commercial-kpis";
 export const uuidSchema = z.string().uuid("ID inválido");
 export const roleSchema = z.enum(userRole.enumValues);
 export const recordTypeSchema = z.enum(recordType.enumValues);
-export const subCategorySchema = z.enum(subscriptionCategory.enumValues);
-export const billingCycleSchema = z.enum(billingCycle.enumValues);
-export const subStatusSchema = z.enum(subscriptionStatus.enumValues);
 
 const currentYear = new Date().getFullYear();
 
@@ -101,32 +92,6 @@ export const companyUpdateSchema = z.object({
   country: z.string().max(100).nullish(),
   industry: z.string().max(100).nullish(),
   logo_url: z.string().max(2000).nullish(),
-});
-
-const money = z.number().finite().min(0).max(1_000_000_000);
-
-export const subscriptionCreateSchema = z.object({
-  tool_name: z.string().trim().min(1, "El nombre es obligatorio").max(200),
-  provider: z.string().max(200).optional(),
-  category: subCategorySchema,
-  description: z.string().max(1000).optional(),
-  monthly_cost_usd: money,
-  billing_cycle: billingCycleSchema,
-  status: subStatusSchema,
-  start_date: z.string().min(1),
-  url: z.string().max(2000).optional(),
-});
-
-export const subscriptionUpdateSchema = z.object({
-  tool_name: z.string().trim().min(1).max(200).optional(),
-  provider: z.string().max(200).optional(),
-  category: subCategorySchema.optional(),
-  description: z.string().max(1000).optional(),
-  monthly_cost_usd: money.optional(),
-  billing_cycle: billingCycleSchema.optional(),
-  status: subStatusSchema.optional(),
-  cancel_date: z.string().optional(),
-  url: z.string().max(2000).optional(),
 });
 
 // Metas y pesos de un ámbito: el total de la compañía (salesperson nulo) o un

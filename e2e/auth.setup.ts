@@ -2,7 +2,7 @@ import { test as setup, expect, type Page } from "@playwright/test";
 import { APPROVED_USER, PENDING_USER, LECTOR_USER, APPROVED_STATE, PENDING_STATE, LECTOR_STATE } from "./constants";
 
 /**
- * Login real por formulario. NO se falsifica la cookie: src/middleware.ts consulta
+ * Login real por formulario. NO se falsifica la cookie: src/proxy.ts consulta
  * la tabla profiles en cada request, así que la sesión tiene que existir de verdad.
  *
  * Consume 1 del presupuesto de 5 logins/minuto. Este fichero gasta 3.
@@ -26,7 +26,7 @@ setup("autenticar al usuario aprobado", async ({ page }) => {
 setup("autenticar al usuario pendiente de aprobación", async ({ page }) => {
   await login(page, PENDING_USER.email, PENDING_USER.password);
 
-  // El middleware manda a /waiting-approval a quien no está aprobado.
+  // El proxy manda a /waiting-approval a quien no está aprobado.
   await page.waitForURL("**/waiting-approval");
 
   await page.context().storageState({ path: PENDING_STATE });

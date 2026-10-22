@@ -51,6 +51,7 @@ Nunca se commitean `.env*` reales (solo `.env.example`).
 | `npm run lint` | ESLint. |
 | `npm run typecheck` | `tsc --noEmit`. |
 | `npm test` | Tests unitarios con vitest (`test:watch` en modo observador). |
+| `npm run test:coverage` | Tests unitarios con cobertura de `src/lib` y `src/actions`; falla si baja de los umbrales de `vitest.config.ts`. |
 | `npm run test:e2e` | Levanta la BD de E2E, la reinicia y ejecuta Playwright. |
 | `npm run test:e2e:ui` | Playwright en modo interfaz. |
 | `npm run e2e:db:up` | Arranca el Postgres de E2E en Docker (puerto `E2E_PG_PORT`, 55432 por defecto). |

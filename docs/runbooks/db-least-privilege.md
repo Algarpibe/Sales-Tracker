@@ -213,6 +213,6 @@ No hace falta restaurar el backup: la migración 0014 no cambia datos ni estruct
 
 ## Riesgos y comprobaciones abiertas
 
-- **Objetos que no vienen de `drizzle/`:** las vistas `v_monthly_totals` y `v_annual_by_category` se crearon a mano en la migración desde Supabase. 0014 las cubre porque `ALL TABLES` incluye vistas. Solo las lee el app cuando no hay `HUB_DB_URL`.
+- **Objetos que no vienen de `drizzle/`:** las vistas `v_monthly_totals` y `v_annual_by_category` se crearon a mano en la migración desde Supabase. 0014 las cubre porque `ALL TABLES` incluye vistas. El app ya no las lee (sus lectores `getMonthlyTotals` y `getAnnualByCategory` se eliminaron por no usarse, AI-083); siguen en la BD.
 - **Dueños distintos de `postgres`:** el `GRANT` de 0014 funciona igual (lo lanza un superusuario), pero los *default privileges* solo cubren lo que cree `postgres` en adelante.
 - **`TEMPORARY` en la base:** por defecto Postgres da `CONNECT` y `TEMPORARY` a `PUBLIC` en cada base, así que el rol puede crear tablas temporales. No es DDL sobre objetos del app; quitarlo (`REVOKE TEMPORARY ON DATABASE sales_tracker FROM PUBLIC`) queda fuera de este cambio.
