@@ -1,15 +1,20 @@
 "use server";
 
-import { and, eq } from "drizzle-orm";
+import { and, count, eq, ne } from "drizzle-orm";
 import { db } from "@/db";
 import { savedViews } from "@/db/schema";
 import { requireApproved } from "@/lib/auth/guards";
 import { AppError } from "@/lib/errors";
 import { logError } from "@/lib/logger";
+import { savedViewKeySchema } from "@/lib/validation";
 
 // Límites de payload (SEC-005): evita jsonb / nombres arbitrariamente grandes.
 const MAX_VIEW_NAME_LEN = 120;
 const MAX_VIEW_STATE_BYTES = 32_000;
+// Tope de vistas por usuario y clave (SEC-036): es la lista que ve el usuario en el
+// menú "Vistas" de cada tabla. El layout del dashboard vive en su propia clave y no
+// consume este cupo.
+const MAX_VIEWS_PER_KEY = 50;
 
 export interface SavedViewDTO {
   id: string;
@@ -37,6 +42,10 @@ export async function getSavedViews(viewKey: string): Promise<SavedViewDTO[]> {
 
 export async function saveView(viewKey: string, name: string, state: unknown): Promise<void> {
   const { profile } = await requireApproved();
+  const key = savedViewKeySchema.safeParse(viewKey);
+  if (!key.success) {
+    throw new AppError(key.error.issues[0]?.message ?? "Clave de vista inválida", "VALIDATION");
+  }
   const trimmed = name.trim();
   if (!trimmed) return;
   if (trimmed.length > MAX_VIEW_NAME_LEN) {
@@ -44,6 +53,19 @@ export async function saveView(viewKey: string, name: string, state: unknown): P
   }
   if (JSON.stringify(state ?? null).length > MAX_VIEW_STATE_BYTES) {
     throw new AppError("La vista guardada es demasiado grande (máx. 32 KB).", "PAYLOAD_TOO_LARGE");
+  }
+  // Sobrescribir una vista existente siempre se permite; crear una nueva, solo por
+  // debajo del tope. Cupo blando: dos altas simultáneas podrían pasarlo en una.
+  const [{ total }] = await db
+    .select({ total: count() })
+    .from(savedViews)
+    .where(and(
+      eq(savedViews.user_id, profile.id),
+      eq(savedViews.view_key, viewKey),
+      ne(savedViews.name, trimmed),
+    ));
+  if (total >= MAX_VIEWS_PER_KEY) {
+    throw new AppError(`Has alcanzado el máximo de ${MAX_VIEWS_PER_KEY} vistas guardadas.`, "LIMIT");
   }
   await db
     .insert(savedViews)

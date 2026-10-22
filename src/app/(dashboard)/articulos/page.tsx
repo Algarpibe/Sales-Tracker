@@ -32,6 +32,7 @@ import { SearchInput } from "@/components/common/search-input";
 import { ExportMenu } from "@/components/common/export-menu";
 import { EmptyState } from "@/components/common/empty-state";
 import { downloadXlsx, copySheetToClipboard } from "@/lib/excel-client";
+import { runExport, XLSX_EXPORT_MESSAGES } from "@/lib/run-export";
 import { Switch } from "@/components/ui/switch";
 import { ItemCompareTable } from "@/components/articulos/item-compare-table";
 
@@ -126,10 +127,8 @@ function ArticulosContent() {
     toast.success("CSV descargado");
   };
 
-  const exportXlsx = () => {
-    downloadXlsx([itemsToExcel(view)], `ventas_articulo_${tipo}_${desde}_${hasta}.xlsx`);
-    toast.success("Excel descargado");
-  };
+  const exportXlsx = () =>
+    runExport(() => downloadXlsx([itemsToExcel(view)], `ventas_articulo_${tipo}_${desde}_${hasta}.xlsx`), toast, XLSX_EXPORT_MESSAGES);
 
   const onCopy = async () => {
     try { await copySheetToClipboard(itemsToExcel(view)); toast.success("Tabla copiada"); }

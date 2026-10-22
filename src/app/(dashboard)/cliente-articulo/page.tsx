@@ -30,6 +30,7 @@ import { SearchInput } from "@/components/common/search-input";
 import { ExportMenu } from "@/components/common/export-menu";
 import { EmptyState } from "@/components/common/empty-state";
 import { downloadXlsx, copySheetToClipboard } from "@/lib/excel-client";
+import { runExport, XLSX_EXPORT_MESSAGES } from "@/lib/run-export";
 import { CustomerItemCompareTable } from "@/components/cliente-articulo/customer-item-compare-table";
 import { YearCompareControls } from "@/components/common/year-compare-controls";
 
@@ -71,10 +72,8 @@ export default function ClienteArticuloPage() {
     toast.success("CSV descargado");
   };
 
-  const exportXlsx = () => {
-    downloadXlsx([customerItemToExcel(groups, grand, mapa)], `ventas_cliente_articulo_${tipo}_${anio}.xlsx`);
-    toast.success("Excel descargado");
-  };
+  const exportXlsx = () =>
+    runExport(() => downloadXlsx([customerItemToExcel(groups, grand, mapa)], `ventas_cliente_articulo_${tipo}_${anio}.xlsx`), toast, XLSX_EXPORT_MESSAGES);
 
   const onCopy = async () => {
     try { await copySheetToClipboard(customerItemToExcel(groups, grand, mapa)); toast.success("Tabla copiada"); }

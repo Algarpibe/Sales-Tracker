@@ -38,7 +38,9 @@ function isNum(v: unknown): v is number {
   return typeof v === "number" && Number.isFinite(v);
 }
 
-// Devuelve los items válidos, descartando ids desconocidos (catálogo cambiante).
+// Devuelve los items válidos, descartando ids desconocidos (catálogo cambiante) y
+// repetidos (se queda el primero). Así el resultado nunca pasa de WIDGET_IDS.length
+// items, que es lo que acota el jsonb que se guarda.
 // null si la forma es inválida → el llamante usa DEFAULT_LAYOUT.
 export function parseDashboardLayout(raw: unknown): DashboardItem[] | null {
   const arr = Array.isArray(raw)
@@ -49,12 +51,15 @@ export function parseDashboardLayout(raw: unknown): DashboardItem[] | null {
   if (!arr) return null;
 
   const out: DashboardItem[] = [];
+  const seen = new Set<string>();
   for (const it of arr) {
     if (!it || typeof it !== "object") return null;
     const o = it as Record<string, unknown>;
     if (typeof o.id !== "string") return null;
     if (!isNum(o.x) || !isNum(o.y) || !isNum(o.w) || !isNum(o.h)) return null;
     if (!IDS.has(o.id)) continue; // id retirado del catálogo: se ignora
+    if (seen.has(o.id)) continue; // repetido: un widget solo puede estar una vez
+    seen.add(o.id);
     out.push({ id: o.id, x: o.x, y: o.y, w: o.w, h: o.h });
   }
   return out;
