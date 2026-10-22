@@ -2,13 +2,21 @@ import { NextRequest, NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { profiles } from "@/db/schema";
-import { getSessionUser } from "@/lib/auth/guards";
+import { requireApproved } from "@/lib/auth/guards";
+import { authErrorStatus } from "@/lib/errors";
 
-// Sirve el avatar (bytea) de un usuario. Requiere sesión: solo se permite ver
+// Sirve el avatar (bytea) de un usuario. Requiere sesión de una cuenta aprobada y
+// activa (sin sesión 401; pendiente, rechazada o inactiva 403): solo se permite ver
 // el avatar propio o el de un usuario de la misma empresa (multi-tenant).
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ userId: string }> }) {
-  const session = await getSessionUser();
-  if (!session) return new NextResponse(null, { status: 401 });
+  let session;
+  try {
+    session = await requireApproved();
+  } catch (e) {
+    const status = authErrorStatus(e);
+    if (status) return new NextResponse(null, { status });
+    throw e;
+  }
 
   const { userId } = await params;
   const [p] = await db
@@ -19,7 +27,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ use
 
   // Autorización: avatar propio o de alguien de la misma empresa.
   const isSelf = userId === session.user.id;
-  const sameCompany = !!session.profile && p.company_id === session.profile.company_id;
+  const sameCompany = p.company_id === session.profile.company_id;
   if (!isSelf && !sameCompany) return new NextResponse(null, { status: 403 });
 
   // Defensa en profundidad: solo se sirve un Content-Type de imagen de la whitelist

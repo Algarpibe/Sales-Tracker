@@ -4,7 +4,7 @@ import { eq, ne, and, desc } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { companies, profiles, user } from "@/db/schema";
-import { requireApproved, requireRole, requireUser } from "@/lib/auth/guards";
+import { requireApproved, requireRole } from "@/lib/auth/guards";
 import { accountUpdateSchema, companyUpdateSchema } from "@/lib/validation";
 import { runAction, AppError, type ActionResult } from "@/lib/errors";
 
@@ -36,7 +36,8 @@ export async function updateCompany(updates: {
 // ── Cuenta propia (nombre/email viven en better-auth user) ──
 export async function updateMyAccount(updates: { full_name?: string; email?: string }): Promise<ActionResult> {
   return runAction(async () => {
-    const { user: u } = await requireUser();
+    // Solo cuentas aprobadas y activas: el registro es abierto.
+    const { user: u } = await requireApproved();
     const parsed = accountUpdateSchema.parse(updates);
 
     const set: Record<string, unknown> = {};
