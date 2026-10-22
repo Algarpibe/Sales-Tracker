@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { hubPoolConfig, HUB_STATEMENT_TIMEOUT_DEFAULT_MS } from "@/db/hub";
+import { hubPoolConfig, HUB_STATEMENT_TIMEOUT_DEFAULT_MS } from "@/db/hub-config";
 
 const URL = "postgres://hub_reader:x@127.0.0.1:5432/zoho_hub";
 

@@ -30,7 +30,7 @@ export async function getFavorites(): Promise<string[]> {
 // favorites_user_customer_unique) y, si no insertó nada, es que ya existía y se
 // borra. Un doble clic ya no puede chocar con la restricción única.
 export async function toggleFavorite(customer: string): Promise<void> {
-  const { profile } = await requireApproved();
+  const { profile } = await requireApproved({ fresh: true });
   const parsed = favoriteCustomerSchema.safeParse(customer);
   if (!parsed.success) {
     throw new AppError(parsed.error.issues[0]?.message ?? "Cliente inválido", "VALIDATION");

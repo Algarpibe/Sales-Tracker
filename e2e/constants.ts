@@ -12,7 +12,7 @@ export const PENDING_STATE = "e2e/.auth/pending.json";
 /** storageState del usuario aprobado sin rol de administrador. */
 export const LECTOR_STATE = "e2e/.auth/lector.json";
 
-/** Empresa por defecto. Debe coincidir con DEFAULT_COMPANY de src/lib/auth/auth.ts. */
+/** Empresa por defecto. Debe coincidir con DEFAULT_COMPANY de src/lib/auth/new-user-profile.ts. */
 export const COMPANY_NAME = "Ambientalia S.A.S.";
 
 /** Categorías sembradas. El nombre mapea 1:1 con books.items.category_name del hub falso. */

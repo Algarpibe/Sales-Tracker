@@ -16,7 +16,7 @@ contradice a este, manda este. Lo que hay en `docs/archive/` está obsoleto: no 
   interpolación de entrada de usuario. El pool del hub abre las sesiones en modo
   `default_transaction_read_only`: no se escribe nunca en el hub.
 - **UI:** Tailwind 4, componentes shadcn (`src/components/ui`), lucide-react, Recharts,
-  framer-motion, sonner, @tanstack/react-query y react-table.
+  framer-motion, sonner y @tanstack/react-query.
 - **Formularios:** react-hook-form + zod.
 - **Tests:** vitest (unitarios, `src/**/__tests__`) y Playwright (E2E, `e2e/`).
 

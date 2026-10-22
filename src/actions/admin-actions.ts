@@ -22,7 +22,7 @@ type Admin = Awaited<ReturnType<typeof requireRole>>;
 // Ensures the acting admin and the target user belong to the same company.
 // Returns the admin's profile for any further checks.
 async function assertSameCompany(userId: string) {
-  const admin = await requireRole("admin");
+  const admin = await requireRole("admin", { fresh: true });
 
   const [target] = await db
     .select({ company_id: profiles.company_id })

@@ -69,7 +69,7 @@ export async function saveKpiTargets(
   items: KpiTargetRow[]
 ): Promise<ActionResult> {
   return runAction(async () => {
-    const { profile } = await requireRole(...ROLES_EDITAN_METAS);
+    const { profile } = await requireRole(...ROLES_EDITAN_METAS, { fresh: true });
     const data = kpiTargetsSchema.parse({ year, salesperson, items });
     const keys = data.items.map((i) => i.kpi_key);
 
@@ -164,7 +164,7 @@ export async function getKpiProjectOrders(): Promise<HubOrderRow[]> {
  *  no falla ni duplica. Solo administradores. */
 export async function addProjectOrder(hubOrderId: string): Promise<ActionResult> {
   return runAction(async () => {
-    const { profile } = await requireRole("admin");
+    const { profile } = await requireRole("admin", { fresh: true });
     const id = z.string().trim().min(1).parse(hubOrderId);
     await db
       .insert(kpiProjectOrders)
@@ -177,7 +177,7 @@ export async function addProjectOrder(hubOrderId: string): Promise<ActionResult>
 /** Quita la marca de ingreso de proyecto de una orden. Solo administradores. */
 export async function removeProjectOrder(hubOrderId: string): Promise<ActionResult> {
   return runAction(async () => {
-    const { profile } = await requireRole("admin");
+    const { profile } = await requireRole("admin", { fresh: true });
     await db
       .delete(kpiProjectOrders)
       .where(and(eq(kpiProjectOrders.company_id, profile.company_id), eq(kpiProjectOrders.hub_order_id, hubOrderId)));

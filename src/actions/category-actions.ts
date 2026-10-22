@@ -62,7 +62,7 @@ export async function createCategory(cat: {
   color?: string;
 }): Promise<ActionResult> {
   return runAction(async () => {
-    const { profile } = await requireRole("admin");
+    const { profile } = await requireRole("admin", { fresh: true });
     const data = categoryCreateSchema.parse(cat);
 
     await db.insert(categories).values({
@@ -81,7 +81,7 @@ export async function updateCategory(
   updates: Partial<{ name: string; description: string; color: string; is_active: boolean }>
 ): Promise<ActionResult> {
   return runAction(async () => {
-    const { profile } = await requireRole("admin");
+    const { profile } = await requireRole("admin", { fresh: true });
     const categoryId = uuidSchema.parse(id);
     const data = categoryUpdateSchema.parse(updates);
 
@@ -101,7 +101,7 @@ export async function updateCategory(
 
 export async function deleteCategory(id: string): Promise<ActionResult> {
   return runAction(async () => {
-    const { profile } = await requireRole("admin");
+    const { profile } = await requireRole("admin", { fresh: true });
     const categoryId = uuidSchema.parse(id);
 
     await db
@@ -128,7 +128,7 @@ export async function deleteCategory(id: string): Promise<ActionResult> {
  */
 export async function saveTechServiceBuckets(st: string[], cr: string[]): Promise<ActionResult> {
   return runAction(async () => {
-    const { profile } = await requireRole(...ROLES_EDITAN_METAS);
+    const { profile } = await requireRole(...ROLES_EDITAN_METAS, { fresh: true });
     const data = techServiceBucketsSchema.parse({ st, cr });
 
     await db.transaction(async (tx) => {
@@ -185,7 +185,7 @@ export async function getMacroCategorias(): Promise<MacroCategoria[]> {
  */
 export async function saveMacroCategorias(grupos: Record<Bucket, string[]>): Promise<ActionResult> {
   return runAction(async () => {
-    const { profile } = await requireRole(...ROLES_EDITAN_METAS);
+    const { profile } = await requireRole(...ROLES_EDITAN_METAS, { fresh: true });
     const data = macroCategoriasSchema.parse(grupos);
 
     await db.transaction(async (tx) => {

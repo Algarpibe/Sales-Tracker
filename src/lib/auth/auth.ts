@@ -1,13 +1,12 @@
+import "server-only";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
 import bcrypt from "bcryptjs";
-import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { enforceRuntimeEnv } from "@/lib/env";
-import { user, session, account, verification, profiles, companies } from "@/db/schema";
-
-const DEFAULT_COMPANY = "Ambientalia S.A.S.";
+import { user, session, account, verification } from "@/db/schema";
+import { createProfileForNewUser } from "./new-user-profile";
 
 // Fail-fast: en runtime exige el secreto (nunca arrancar con el secreto por defecto).
 // Durante el build estático (sin envs) no se lanza, para no romper la generación de páginas.
@@ -27,7 +26,10 @@ export const auth = betterAuth({
   }),
   emailAndPassword: {
     enabled: true,
-    autoSignIn: true,
+    // Sin sesión al registrarse (SEC-039): la cuenta nace pendiente de aprobación y,
+    // sobre todo, better-auth responde igual exista o no el email (con autoSignIn
+    // devolvía USER_ALREADY_EXISTS y permitía enumerar cuentas).
+    autoSignIn: false,
     minPasswordLength: 10,
     // bcryptjs para verificar los hashes migrados desde Supabase/GoTrue ($2a$...)
     // verify sigue aceptando hashes antiguos (cost 10); los nuevos se generan con cost 12.
@@ -48,27 +50,13 @@ export const auth = betterAuth({
     database: { generateId: false },
   },
   // Reemplaza el trigger Supabase on_auth_user_created: al crear un usuario, crea su
-  // profile (rol 'lector', sin aprobar) ligado a la empresa por defecto.
+  // profile (rol 'lector', sin aprobar) ligado a la empresa por defecto, en una
+  // transacción (new-user-profile.ts). better-auth lo ejecuta tras confirmar el usuario.
   databaseHooks: {
     user: {
       create: {
         after: async (createdUser) => {
-          let [company] = await db
-            .select({ id: companies.id })
-            .from(companies)
-            .where(eq(companies.name, DEFAULT_COMPANY));
-          if (!company) {
-            [company] = await db
-              .insert(companies)
-              .values({ name: DEFAULT_COMPANY })
-              .returning({ id: companies.id });
-          }
-          await db.insert(profiles).values({
-            id: createdUser.id,
-            company_id: company.id,
-            role: "lector",
-            is_approved: false,
-          });
+          await createProfileForNewUser(createdUser.id);
         },
       },
     },
