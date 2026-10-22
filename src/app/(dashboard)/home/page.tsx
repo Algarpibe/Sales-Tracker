@@ -20,7 +20,7 @@ export default function HomePage() {
         </div>
         <div className="flex flex-wrap items-center gap-6 bg-card/50 px-4 py-2 rounded-lg border border-border/50 backdrop-blur-sm shadow-sm">
           <Select value={String(year)} onValueChange={(v) => setYear(Number(v))}>
-            <SelectTrigger className="w-[140px] border-none shadow-none focus:ring-0 font-semibold bg-transparent">
+            <SelectTrigger aria-label="Año" className="w-[140px] border-none shadow-none focus:ring-0 font-semibold bg-transparent">
               <SelectValue placeholder="Año" />
             </SelectTrigger>
             <SelectContent>

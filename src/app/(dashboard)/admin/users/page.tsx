@@ -32,13 +32,9 @@ export default async function AdminUsersPage() {
     redirect("/home");
   }
 
-  // 2. Fetch all users
-  let users: Awaited<ReturnType<typeof getCompanyUsers>> = [];
-  try {
-    users = await getCompanyUsers();
-  } catch (error) {
-    console.error("Error fetching users:", error);
-  }
+  // 2. Fetch all users. Sin try/catch: si la consulta falla, el error llega al
+  // error boundary de (dashboard) en vez de pintar "0 usuarios" y una tabla vacía.
+  const users = await getCompanyUsers();
 
   return (
     <div className="space-y-6">
@@ -61,7 +57,7 @@ export default async function AdminUsersPage() {
             Lista de Usuarios
           </CardTitle>
           <CardDescription>
-            {users?.length || 0} usuarios registrados en total.
+            {users.length} usuarios registrados en total.
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
@@ -76,7 +72,14 @@ export default async function AdminUsersPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {users?.map((u) => (
+              {users.length === 0 && (
+                <TableRow className="hover:bg-transparent">
+                  <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                    No hay usuarios registrados.
+                  </TableCell>
+                </TableRow>
+              )}
+              {users.map((u) => (
                 <TableRow key={u.id} className="border-border/50 hover:bg-muted/30 transition-colors">
                   <TableCell className="font-medium">{u.full_name}</TableCell>
                   <TableCell className="text-muted-foreground">{u.email}</TableCell>

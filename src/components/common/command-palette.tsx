@@ -77,7 +77,7 @@ export function CommandProvider({ children }: { children: React.ReactNode }) {
     <CommandContext.Provider value={{ setOpen }}>
       {children}
       <CommandDialog open={open} onOpenChange={setOpen} title="Buscar" description="Clientes, artículos y páginas">
-        <Command>
+        <Command label="Buscar clientes, artículos y páginas">
         <CommandInput placeholder="Buscar clientes, artículos, páginas…" />
         <CommandList>
           <CommandEmpty>Sin resultados.</CommandEmpty>

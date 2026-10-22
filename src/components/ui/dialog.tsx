@@ -70,7 +70,7 @@ function DialogContent({
                 {...props}
               >
                 <XIcon />
-                <span className="sr-only">Close</span>
+                <span className="sr-only">Cerrar diálogo</span>
               </Button>
             )}
           />
@@ -111,7 +111,7 @@ function DialogFooter({
       {showCloseButton && (
         <DialogPrimitive.Close render={(props) => (
           <Button variant="outline" {...props}>
-            Close
+            Cerrar
           </Button>
         )} />
       )}

@@ -220,7 +220,7 @@ export function TechServiceAnalysis({ data, yearA, yearB, viewMode, onViewModeCh
                 dataKey="label" 
                 axisLine={false} 
                 tickLine={false} 
-                tick={{ fill: "rgba(0,0,0,0.4)", fontSize: 12, fontWeight: 700 }} 
+                tick={{ fill: "var(--muted-foreground)", fontSize: 12, fontWeight: 700 }}
                 dy={10}
                 interval={viewMode === 'MONTHLY' ? 0 : "preserveStart"}
               />
@@ -228,7 +228,7 @@ export function TechServiceAnalysis({ data, yearA, yearB, viewMode, onViewModeCh
                 yAxisId="left"
                 axisLine={false} 
                 tickLine={false} 
-                tick={{ fill: "rgba(0,0,0,0.4)", fontSize: 11 }}
+                tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
                 tickFormatter={(val) => `$${(val / 1000).toFixed(0)}k`}
               />
               {showCumulative && (
@@ -237,7 +237,7 @@ export function TechServiceAnalysis({ data, yearA, yearB, viewMode, onViewModeCh
                   orientation="right"
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fill: "rgba(0,0,0,0.4)", fontSize: 11 }}
+                  tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
                   tickFormatter={(val) => `${(val / 1000).toFixed(0)}k`}
                 />
               )}

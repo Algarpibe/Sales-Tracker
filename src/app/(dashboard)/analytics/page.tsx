@@ -215,7 +215,7 @@ function AnalyticsContent() {
                 Análisis Inteligente
               </h1>
               <p className="text-muted-foreground mt-1 flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-primary animate-pulse" /> IA-Driven Business Intelligence para SalesTracker Pro.
+                <Sparkles className="h-4 w-4 text-primary animate-pulse" /> Análisis comercial y proyecciones.
               </p>
             </div>
 
@@ -252,7 +252,7 @@ function AnalyticsContent() {
 
                   <div className="flex gap-2 items-center bg-card/30 p-1 rounded-xl border border-white/5 backdrop-blur-sm">
                     <Select value={String(yearA)} onValueChange={v => setYearA(Number(v))}>
-                      <SelectTrigger className="w-[125px] border-none bg-transparent shadow-none h-8 font-semibold">
+                      <SelectTrigger aria-label="Año A" className="w-[125px] border-none bg-transparent shadow-none h-8 font-semibold">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -261,7 +261,7 @@ function AnalyticsContent() {
                     </Select>
                     <div className="w-px h-4 bg-white/10" />
                     <Select value={String(yearB)} onValueChange={v => setYearB(Number(v))}>
-                      <SelectTrigger className="w-[125px] border-none bg-transparent shadow-none h-8 font-semibold">
+                      <SelectTrigger aria-label="Año B" className="w-[125px] border-none bg-transparent shadow-none h-8 font-semibold">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -311,7 +311,7 @@ function AnalyticsContent() {
                     <TrendingUp className="size-5 text-indigo-400" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-bold tracking-tight text-zinc-950">
+                    <h3 className="text-xl font-bold tracking-tight text-foreground">
                       Análisis Predictivo de {recordType === "SALES_ORDER" ? "Órdenes" : "Facturas"}
                     </h3>
                     <p className="text-sm text-muted-foreground flex items-center gap-2">

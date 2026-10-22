@@ -350,7 +350,7 @@ export function EvolutionCard({
               </Button>
             } />
             <PopoverContent className="w-[300px] p-0 bg-background/95 backdrop-blur-xl border-white/10 shadow-2xl" align="end">
-              <Command>
+              <Command label={textos.buscar}>
                 <CommandInput placeholder={textos.buscar} className="h-11" />
                 <CommandList>
                   <CommandEmpty>{textos.sinResultados}</CommandEmpty>
@@ -422,7 +422,7 @@ export function EvolutionCard({
                   >
                     <div className="w-2 h-2 rounded-full" style={{ backgroundColor: group.color }} />
                     {group.groupName}
-                    <button onClick={() => setSelectedGroupIds(prev => prev.filter(id => id !== group.groupId))}>
+                    <button type="button" aria-label={`Quitar ${group.groupName}`} onClick={() => setSelectedGroupIds(prev => prev.filter(id => id !== group.groupId))}>
                       <X className="h-3 w-3 ml-1" />
                     </button>
                   </Badge>

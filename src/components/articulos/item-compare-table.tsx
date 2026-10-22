@@ -89,7 +89,7 @@ export function ItemCompareTable({ tipo, yearA, yearB }: { tipo: "SALES_ORDER" |
       <div className="flex flex-wrap items-center gap-3">
         <SearchInput value={search} onChange={setSearch} placeholder="Buscar por SKU o nombre…" />
         <Select value={categoria || "all"} onValueChange={(v) => setCategoria(!v || v === "all" ? "" : v)}>
-          <SelectTrigger className="w-[220px]"><SelectValue placeholder="Todas las categorías" /></SelectTrigger>
+          <SelectTrigger aria-label="Categoría" className="w-[220px]"><SelectValue placeholder="Todas las categorías" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todas las categorías</SelectItem>
             {categorias.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}

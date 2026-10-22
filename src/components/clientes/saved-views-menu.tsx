@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getSavedViews, saveView, deleteSavedView } from "@/actions/saved-views-actions";
 import { parseClientesState, type ClientesViewState } from "@/lib/clientes-view-state";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
@@ -22,11 +24,21 @@ export function SavedViewsMenu({ current, onApply }: { current: ClientesViewStat
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["saved-views", VIEW_KEY] }); toast.success("Vista guardada"); },
     onError: () => toast.error("No se pudo guardar la vista"),
   });
+  // Borrar una vista es definitivo: el aspa del menú solo pide confirmación.
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [porBorrar, setPorBorrar] = useState<{ id: string; name: string } | null>(null);
   const delMut = useMutation({
     mutationFn: (id: string) => deleteSavedView(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["saved-views", VIEW_KEY] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["saved-views", VIEW_KEY] });
+      setPorBorrar(null);
+    },
     onError: () => toast.error("No se pudo borrar la vista"),
   });
+  const pedirBorrado = (v: { id: string; name: string }) => {
+    setMenuOpen(false);
+    setPorBorrar({ id: v.id, name: v.name });
+  };
 
   const onSave = () => {
     const name = window.prompt("Nombre de la vista");
@@ -43,7 +55,7 @@ export function SavedViewsMenu({ current, onApply }: { current: ClientesViewStat
       <Button variant="outline" size="sm" onClick={onSave}>
         <Save className="mr-2 h-4 w-4" /> Guardar vista
       </Button>
-      <DropdownMenu>
+      <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
         <DropdownMenuTrigger
           render={(props) => (
             <Button variant="outline" size="sm" {...props}>
@@ -61,10 +73,10 @@ export function SavedViewsMenu({ current, onApply }: { current: ClientesViewStat
                 <span
                   role="button"
                   tabIndex={0}
-                  aria-label="Borrar vista"
+                  aria-label={`Borrar vista ${v.name}`}
                   onMouseDown={(e) => e.stopPropagation()}
-                  onClick={(e) => { e.stopPropagation(); delMut.mutate(v.id); }}
-                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); delMut.mutate(v.id); } }}
+                  onClick={(e) => { e.stopPropagation(); pedirBorrado(v); }}
+                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); pedirBorrado(v); } }}
                   className="text-muted-foreground hover:text-rose-500"
                 >
                   <X className="h-3.5 w-3.5" />
@@ -74,6 +86,15 @@ export function SavedViewsMenu({ current, onApply }: { current: ClientesViewStat
           )}
         </DropdownMenuContent>
       </DropdownMenu>
+      <ConfirmDialog
+        open={porBorrar !== null}
+        onOpenChange={(next) => { if (!next) setPorBorrar(null); }}
+        title="¿Borrar vista?"
+        description={<>Se borrará la vista <strong>{porBorrar?.name}</strong>. Esta acción no se puede deshacer.</>}
+        confirmLabel="Borrar"
+        onConfirm={() => { if (porBorrar) delMut.mutate(porBorrar.id); }}
+        pending={delMut.isPending}
+      />
     </div>
   );
 }

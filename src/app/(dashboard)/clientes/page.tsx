@@ -199,7 +199,7 @@ export default function ClientesPage() {
         <div className="flex flex-col gap-1">
           <label className="text-xs text-muted-foreground">Desde año</label>
           <Select value={String(desdeAnio)} onValueChange={(v) => { if (v) setDesdeAnio(Number(v)); }}>
-            <SelectTrigger className="w-[110px]"><SelectValue /></SelectTrigger>
+            <SelectTrigger aria-label="Desde año" className="w-[110px]"><SelectValue /></SelectTrigger>
             <SelectContent>
               {allYears.map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
             </SelectContent>
@@ -208,7 +208,7 @@ export default function ClientesPage() {
         <div className="flex flex-col gap-1">
           <label className="text-xs text-muted-foreground">Hasta año</label>
           <Select value={String(hastaAnio)} onValueChange={(v) => { if (v) setHastaAnio(Number(v)); }}>
-            <SelectTrigger className="w-[110px]"><SelectValue /></SelectTrigger>
+            <SelectTrigger aria-label="Hasta año" className="w-[110px]"><SelectValue /></SelectTrigger>
             <SelectContent>
               {allYears.map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
             </SelectContent>
@@ -231,12 +231,12 @@ export default function ClientesPage() {
           {compareMode && (
             <>
               <Select value={String(compareA)} onValueChange={(v) => { if (v) setCompareA(Number(v)); }}>
-                <SelectTrigger className="w-[90px]"><SelectValue /></SelectTrigger>
+                <SelectTrigger aria-label="Año A" className="w-[90px]"><SelectValue /></SelectTrigger>
                 <SelectContent>{years.map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
               </Select>
               <span className="text-xs text-muted-foreground self-center">vs</span>
               <Select value={String(compareB)} onValueChange={(v) => { if (v) setCompareB(Number(v)); }}>
-                <SelectTrigger className="w-[90px]"><SelectValue /></SelectTrigger>
+                <SelectTrigger aria-label="Año B" className="w-[90px]"><SelectValue /></SelectTrigger>
                 <SelectContent>{years.map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
               </Select>
             </>

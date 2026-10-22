@@ -17,6 +17,9 @@ test.describe("autenticación", () => {
     await page.getByRole("button", { name: "Iniciar Sesión" }).click();
 
     await expect(page.getByText("Error al iniciar sesión")).toBeVisible();
+    // FE-063: el código de better-auth se traduce; nunca el mensaje en inglés.
+    await expect(page.getByText("Correo o contraseña incorrectos.")).toBeVisible();
+    await expect(page.getByText("Invalid email or password")).toHaveCount(0);
     await expect(page).toHaveURL(/\/login$/);
   });
 
@@ -46,6 +49,39 @@ test.describe("autenticación", () => {
       // El registro no inicia sesión: el dashboard sigue mandando a /login.
       await page.goto("/home");
       await expect(page).toHaveURL(/\/login$/);
+    });
+
+    // FE-063: el mínimo del formulario es el del servidor (10) y el aviso va en español.
+    // No gasta presupuesto: la contraseña corta se rechaza sin llamar a sign-up.
+    test("una contraseña corta se rechaza en el cliente con el mínimo del servidor", async ({ page }) => {
+      const signUps: string[] = [];
+      page.on("request", (req) => {
+        if (req.url().includes("/sign-up")) signUps.push(req.url());
+      });
+
+      await page.goto("/register");
+      const pass = page.getByLabel("Contraseña", { exact: true });
+      const confirm = page.getByLabel("Confirmar contraseña");
+      await expect(pass).toHaveAttribute("minlength", "10");
+      await expect(pass).toHaveAttribute("placeholder", "Mínimo 10 caracteres");
+      await expect(confirm).toHaveAttribute("minlength", "10");
+
+      await page.getByLabel("Nombre completo").fill("E2E Registro");
+      await page.getByLabel("Correo electrónico").fill(`e2e-corta-${Date.now()}@example.test`);
+      // Tecleada, no `fill`: la validación minlength del navegador solo salta con
+      // valores editados por el usuario.
+      await pass.pressSequentially("Corta123");
+      await confirm.pressSequentially("Corta123");
+      await page.getByRole("button", { name: "Crear Cuenta" }).click();
+      expect(await pass.evaluate((el: HTMLInputElement) => el.validity.tooShort)).toBe(true);
+
+      // Sin la validación nativa, el formulario da el mismo aviso que el servidor.
+      await page.locator("form").evaluate((form: HTMLFormElement) => { form.noValidate = true; });
+      await page.getByRole("button", { name: "Crear Cuenta" }).click();
+      await expect(page.getByText("La contraseña debe tener al menos 10 caracteres.")).toBeVisible();
+
+      await expect(page).toHaveURL(/\/register$/);
+      expect(signUps).toEqual([]);
     });
 
     test("un email ya registrado muestra el mismo mensaje, sin revelar que existe", async ({ page }) => {

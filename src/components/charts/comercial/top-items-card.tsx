@@ -47,7 +47,7 @@ export function TopItemsCard({ recordType, year }: { recordType: "SALES_ORDER" |
           <InfoTooltip text={CHART_HELP.topItems} />
         </span>
         <div className="flex gap-1">
-          <Button size="sm" variant={metric === "importe" ? "default" : "outline"} onClick={() => setMetric("importe")}>$</Button>
+          <Button size="sm" variant={metric === "importe" ? "default" : "outline"} onClick={() => setMetric("importe")} aria-label="Importe">$</Button>
           <Button size="sm" variant={metric === "cantidad" ? "default" : "outline"} onClick={() => setMetric("cantidad")}>Uds</Button>
         </div>
       </CardHeader>

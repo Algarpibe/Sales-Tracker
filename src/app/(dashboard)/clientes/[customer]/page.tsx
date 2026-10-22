@@ -41,7 +41,7 @@ export default function ClienteDetallePage() {
             <div className="flex flex-col gap-1">
               <label className="text-xs text-muted-foreground">Año</label>
               <Select value={String(anio)} onValueChange={(v) => { if (v) setAnio(Number(v)); }}>
-                <SelectTrigger className="w-[110px]"><SelectValue /></SelectTrigger>
+                <SelectTrigger aria-label="Año" className="w-[110px]"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {allYears.map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
                 </SelectContent>

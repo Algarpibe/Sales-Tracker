@@ -47,7 +47,7 @@ export function YearCompareControls({
         <div className="flex flex-col gap-1">
           <label className="text-xs text-muted-foreground">Año</label>
           <Select value={String(anio)} onValueChange={(v) => { if (v) onAnioChange(Number(v)); }}>
-            <SelectTrigger className="w-[110px]"><SelectValue /></SelectTrigger>
+            <SelectTrigger aria-label="Año" className="w-[110px]"><SelectValue /></SelectTrigger>
             <SelectContent>
               {allYears.map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
             </SelectContent>
@@ -58,7 +58,7 @@ export function YearCompareControls({
           <div className="flex flex-col gap-1">
             <label className="text-xs text-muted-foreground">Año A</label>
             <Select value={String(yearA)} onValueChange={(v) => { if (v) onYearAChange(Number(v)); }}>
-              <SelectTrigger className="w-[100px]"><SelectValue /></SelectTrigger>
+              <SelectTrigger aria-label="Año A" className="w-[100px]"><SelectValue /></SelectTrigger>
               <SelectContent>{allYears.map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
             </Select>
           </div>
@@ -66,7 +66,7 @@ export function YearCompareControls({
           <div className="flex flex-col gap-1">
             <label className="text-xs text-muted-foreground">Año B</label>
             <Select value={String(yearB)} onValueChange={(v) => { if (v) onYearBChange(Number(v)); }}>
-              <SelectTrigger className="w-[100px]"><SelectValue /></SelectTrigger>
+              <SelectTrigger aria-label="Año B" className="w-[100px]"><SelectValue /></SelectTrigger>
               <SelectContent>{allYears.map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
             </Select>
           </div>

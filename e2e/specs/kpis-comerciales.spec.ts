@@ -207,7 +207,7 @@ test("un administrador marca una orden y su importe entra en la fila de ingresos
   await opciones.first().click();
   // Una vez marcada, esa orden no se puede volver a agregar.
   await expect(opciones.first().getByRole("button", { name: "Agregada" })).toBeDisabled();
-  await dialogo.getByRole("button", { name: "Cerrar" }).click();
+  await dialogo.getByRole("button", { name: "Cerrar", exact: true }).click();
 
   await expect(fila.getByRole("cell").nth(CELDA_ORDEN_MARCADA)).not.toHaveText("$0");
 });

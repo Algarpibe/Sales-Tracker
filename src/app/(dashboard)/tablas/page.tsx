@@ -168,7 +168,7 @@ export default function TablasPage() {
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
         <Select value={String(year)} onValueChange={(v) => setYear(Number(v))}>
-          <SelectTrigger className="w-[120px]">
+          <SelectTrigger aria-label="Año" className="w-[120px]">
             <SelectValue placeholder="Año" />
           </SelectTrigger>
           <SelectContent>
@@ -184,7 +184,7 @@ export default function TablasPage() {
           value={typeFilter}
           onValueChange={(v) => setTypeFilter(v as "SALES_ORDER" | "INVOICE")}
         >
-          <SelectTrigger className="w-[190px]">
+          <SelectTrigger aria-label="Tipo de dato" className="w-[190px]">
             <SelectValue placeholder="Tipo de Dato">
               {typeFilter === "SALES_ORDER" ? "Órden de Venta (OV)" : "Facturas (FAC)"}
             </SelectValue>

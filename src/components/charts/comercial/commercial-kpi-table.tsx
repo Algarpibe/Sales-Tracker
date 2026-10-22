@@ -36,6 +36,7 @@ import {
 import { gruposServicioTecnico, stGrowthByQuarter, TECH_SERVICE_CATEGORIES_KEY } from "@/lib/tech-service";
 import { CHART_HELP } from "@/lib/chart-help";
 import { MONTHS, RECORD_TYPES, formatPct, formatUSD } from "@/lib/constants";
+import { useDebouncedValue } from "@/lib/use-debounced-value";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -286,11 +287,13 @@ export function CommercialKpiTable({
   });
   // Búsqueda del diálogo de gestión: solo se lanza con el diálogo abierto y al
   // menos 2 caracteres, mismo umbral que ya aplica searchSalesOrdersForProjects
-  // en el servidor.
-  const busquedaHabilitada = gestionandoProyectos && busquedaProyectos.trim().length >= 2;
+  // en el servidor. Con 300 ms de espera tras la última tecla: sin ella, cada
+  // pulsación lanzaba una server action contra el hub.
+  const terminoProyectos = useDebouncedValue(busquedaProyectos.trim(), 300);
+  const busquedaHabilitada = gestionandoProyectos && terminoProyectos.length >= 2;
   const busquedaProyectosQ = useQuery({
-    queryKey: ["kpi-project-orders-search", year, busquedaProyectos.trim()],
-    queryFn: () => searchSalesOrdersForProjects(busquedaProyectos.trim(), year),
+    queryKey: ["kpi-project-orders-search", year, terminoProyectos],
+    queryFn: () => searchSalesOrdersForProjects(terminoProyectos, year),
     enabled: busquedaHabilitada,
   });
 
@@ -782,7 +785,7 @@ export function CommercialKpiTable({
             </p>
           </DialogHeader>
 
-          <Command shouldFilter={false} className="rounded-lg border border-border/40">
+          <Command label="Buscar órdenes por cliente u orden" shouldFilter={false} className="rounded-lg border border-border/40">
             <CommandInput
               value={busquedaProyectos}
               onValueChange={setBusquedaProyectos}

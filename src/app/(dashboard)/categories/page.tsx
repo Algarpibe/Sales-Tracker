@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Category } from "@/types/database";
 import { getCategories, createCategory, updateCategory, deleteCategory } from "@/actions/category-actions";
@@ -15,6 +15,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { Plus, Trash2, Loader2, Edit2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -44,7 +45,15 @@ export default function CategoriesPage() {
   const [editDescription, setEditDescription] = useState("");
   const [editColor, setEditColor] = useState("#3B82F6");
 
-  const canEdit = profile?.role === "admin" || profile?.role === "editor";
+  // Delete confirmation state
+  const [deleting, setDeleting] = useState<Category | null>(null);
+  const [deletePending, setDeletePending] = useState(false);
+
+  const uid = useId();
+
+  // Crear, editar y desactivar exigen admin en el servidor (requireRole("admin") en
+  // category-actions): a un editor o lector no se le ofrecen botones que fallarían.
+  const canEdit = profile?.role === "admin";
 
   const handleCreate = async () => {
     if (!name.trim()) return;
@@ -85,13 +94,20 @@ export default function CategoriesPage() {
     setSaving(false);
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async () => {
+    if (!deleting) return;
+    setDeletePending(true);
     try {
-      const res = await deleteCategory(id);
+      const res = await deleteCategory(deleting.id);
       if (!res.ok) { toast.error(res.error); return; }
       toast.success("Categoría desactivada");
+      setDeleting(null);
       invalidate();
-    } catch { toast.error("Error de red. Inténtalo de nuevo."); }
+    } catch {
+      toast.error("Error de red. Inténtalo de nuevo.");
+    } finally {
+      setDeletePending(false);
+    }
   };
 
   if (loading) {
@@ -115,9 +131,9 @@ export default function CategoriesPage() {
             <DialogContent className="max-w-sm">
               <DialogHeader><DialogTitle>Nueva Categoría</DialogTitle></DialogHeader>
               <div className="grid gap-4 py-4">
-                <div className="space-y-2"><Label>Nombre</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej. Electrónica" /></div>
-                <div className="space-y-2"><Label>Descripción</Label><Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Opcional..." /></div>
-                <div className="space-y-2"><Label>Color</Label><Input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="h-10 w-20 px-1 py-1" /></div>
+                <div className="space-y-2"><Label htmlFor={`${uid}-new-name`}>Nombre</Label><Input id={`${uid}-new-name`} value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej. Electrónica" /></div>
+                <div className="space-y-2"><Label htmlFor={`${uid}-new-desc`}>Descripción</Label><Input id={`${uid}-new-desc`} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Opcional..." /></div>
+                <div className="space-y-2"><Label htmlFor={`${uid}-new-color`}>Color</Label><Input id={`${uid}-new-color`} type="color" value={color} onChange={(e) => setColor(e.target.value)} className="h-10 w-20 px-1 py-1" /></div>
               </div>
               <DialogFooter>
                 <Button onClick={handleCreate} disabled={saving || !name.trim()}>
@@ -134,9 +150,9 @@ export default function CategoriesPage() {
         <DialogContent className="max-w-sm">
           <DialogHeader><DialogTitle>Editar Categoría</DialogTitle></DialogHeader>
           <div className="grid gap-4 py-4">
-            <div className="space-y-2"><Label>Nombre</Label><Input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Ej. Electrónica" /></div>
-            <div className="space-y-2"><Label>Descripción</Label><Input value={editDescription} onChange={(e) => setEditDescription(e.target.value)} placeholder="Opcional..." /></div>
-            <div className="space-y-2"><Label>Color</Label><Input type="color" value={editColor} onChange={(e) => setEditColor(e.target.value)} className="h-10 w-20 px-1 py-1" /></div>
+            <div className="space-y-2"><Label htmlFor={`${uid}-edit-name`}>Nombre</Label><Input id={`${uid}-edit-name`} value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Ej. Electrónica" /></div>
+            <div className="space-y-2"><Label htmlFor={`${uid}-edit-desc`}>Descripción</Label><Input id={`${uid}-edit-desc`} value={editDescription} onChange={(e) => setEditDescription(e.target.value)} placeholder="Opcional..." /></div>
+            <div className="space-y-2"><Label htmlFor={`${uid}-edit-color`}>Color</Label><Input id={`${uid}-edit-color`} type="color" value={editColor} onChange={(e) => setEditColor(e.target.value)} className="h-10 w-20 px-1 py-1" /></div>
           </div>
           <DialogFooter>
             <Button onClick={handleUpdate} disabled={saving || !editName.trim()}>
@@ -153,7 +169,7 @@ export default function CategoriesPage() {
               <TableHead>Color</TableHead>
               <TableHead>Nombre</TableHead>
               <TableHead>Descripción</TableHead>
-              {canEdit && <TableHead />}
+              {canEdit && <TableHead><span className="sr-only">Acciones</span></TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -167,11 +183,12 @@ export default function CategoriesPage() {
                   <TableCell className="text-muted-foreground">{c.description || "—"}</TableCell>
                   {canEdit && (
                     <TableCell className="text-right">
-                      <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(c)}>
+                      {/* Visibles al pasar el ratón o al llegar con el teclado (focus-within). */}
+                      <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(c)} aria-label={`Editar ${c.name}`}>
                           <Edit2 className="h-3.5 w-3.5 text-muted-foreground hover:text-primary" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDelete(c.id)}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDeleting(c)} aria-label={`Eliminar ${c.name}`}>
                           <Trash2 className="h-3.5 w-3.5 text-destructive" />
                         </Button>
                       </div>
@@ -183,6 +200,21 @@ export default function CategoriesPage() {
           </TableBody>
         </Table>
       </div>
+
+      <ConfirmDialog
+        open={deleting !== null}
+        onOpenChange={(next) => { if (!next) setDeleting(null); }}
+        title="¿Eliminar categoría?"
+        description={
+          <>
+            <strong>{deleting?.name}</strong> dejará de aparecer en la lista y en los selectores.
+            Sus ventas históricas no se borran.
+          </>
+        }
+        confirmLabel="Eliminar"
+        onConfirm={handleDelete}
+        pending={deletePending}
+      />
     </div>
   );
 }

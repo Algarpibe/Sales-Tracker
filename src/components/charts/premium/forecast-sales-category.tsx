@@ -336,7 +336,7 @@ export function ForecastSalesCategory({ baseYear = new Date().getFullYear() }: F
               </Button>
             } />
             <PopoverContent className="w-[300px] p-0 bg-background/95 backdrop-blur-xl border-white/10 shadow-2xl" align="end">
-              <Command>
+              <Command label="Buscar categorías">
                 <CommandInput placeholder="Buscar categorías..." className="h-11" />
                 <CommandList>
                   <CommandEmpty>No se encontraron categorías.</CommandEmpty>
@@ -377,7 +377,7 @@ export function ForecastSalesCategory({ baseYear = new Date().getFullYear() }: F
                   >
                     <div className="w-2 h-2 rounded-full" style={{ backgroundColor: cat.color }} />
                     {cat.name}
-                    <button onClick={() => handleToggleCategory(cat.id)}>
+                    <button type="button" aria-label={`Quitar ${cat.name}`} onClick={() => handleToggleCategory(cat.id)}>
                       <X className="h-3 w-3 ml-1" />
                     </button>
                   </Badge>

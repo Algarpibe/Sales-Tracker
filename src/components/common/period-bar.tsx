@@ -31,7 +31,7 @@ export function PeriodBar({
 
       <div className="flex gap-2 items-center bg-card/30 p-1 rounded-xl border border-white/5 backdrop-blur-sm">
         <Select value={String(year)} onValueChange={(v) => { if (v) onYearChange(Number(v)); }}>
-          <SelectTrigger className="w-[125px] border-none bg-transparent shadow-none h-8 font-semibold">
+          <SelectTrigger aria-label="Año" className="w-[125px] border-none bg-transparent shadow-none h-8 font-semibold">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

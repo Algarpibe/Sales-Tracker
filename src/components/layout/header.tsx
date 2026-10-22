@@ -38,7 +38,7 @@ export function Header() {
       {/* Mobile menu */}
       <Sheet>
         <SheetTrigger render={(props) => (
-          <Button variant="ghost" size="icon" className="md:hidden" {...props}>
+          <Button variant="ghost" size="icon" className="md:hidden" aria-label="Abrir menú de navegación" {...props}>
             <Menu className="h-5 w-5" />
           </Button>
         )} />
@@ -78,7 +78,7 @@ export function Header() {
         {/* User menu */}
         <DropdownMenu>
           <DropdownMenuTrigger render={(props) => (
-            <Button variant="ghost" className="relative h-9 w-9 rounded-full" {...props}>
+            <Button variant="ghost" className="relative h-9 w-9 rounded-full" aria-label="Menú de usuario" {...props}>
               <Avatar className="h-9 w-9 border border-primary/10">
                 <AvatarImage src={profile?.avatar_url || undefined} className="object-cover" />
                 <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
