@@ -411,7 +411,7 @@ export function HistoricalSalesCategory() {
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
               </PopoverTrigger>
               <PopoverContent className="w-[280px] p-0 bg-background/95 backdrop-blur-xl border-white/10 rounded-xl" align="end">
-                <Command>
+                <Command label="Buscar categorías">
                     <CommandInput placeholder="Buscar..." />
                     <CommandList>
                         <CommandEmpty>No hay resultados.</CommandEmpty>
@@ -493,7 +493,7 @@ export function HistoricalSalesCategory() {
                 <Badge key={cat.id} variant="secondary" className="bg-white/5 border-white/10 pr-1.5 py-1">
                   <div className="w-2 h-2 rounded-full mr-2" style={{ backgroundColor: cat.color }} />
                   {cat.name}
-                  <button onClick={() => handleToggleCategory(cat.id)} className="ml-2 hover:text-destructive">
+                  <button type="button" aria-label={`Quitar ${cat.name}`} onClick={() => handleToggleCategory(cat.id)} className="ml-2 hover:text-destructive">
                     <X className="h-3 w-3" />
                   </button>
                 </Badge>

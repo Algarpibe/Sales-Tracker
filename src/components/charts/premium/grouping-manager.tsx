@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useId } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/command";
 import { Check, ChevronsUpDown, Settings2, Trash2, Edit2, Plus, Loader2, X, ArrowUp, ArrowDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { toast } from "sonner";
 import {
   saveCategoryGrouping,
@@ -41,6 +42,7 @@ interface GroupingManagerProps {
 
 export function GroupingManager({ categories, onGroupsChanged }: GroupingManagerProps) {
   const queryClient = useQueryClient();
+  const uid = useId();
   // Invalida la caché react-query de agrupaciones (F3-03) y avisa al padre.
   const notifyChanged = () => {
     queryClient.invalidateQueries({ queryKey: ["groupings"] });
@@ -59,6 +61,10 @@ export function GroupingManager({ categories, onGroupsChanged }: GroupingManager
 
   // Edit state
   const [editingId, setEditingId] = useState<string | null>(null);
+
+  // Delete confirmation state
+  const [deletingGroup, setDeletingGroup] = useState<CategoryGroup | null>(null);
+  const [deletePending, setDeletePending] = useState(false);
 
   const PRESET_COLORS = [
     "#6366f1", "#8b5cf6", "#ec4899", "#f43f5e", "#f97316", 
@@ -119,15 +125,22 @@ export function GroupingManager({ categories, onGroupsChanged }: GroupingManager
     setSelectedColor(group.color || "#6366f1");
   };
 
-  const handleDelete = async (groupId: string) => {
+  // Borrar es un DELETE real (las asignaciones caen en cascada): se confirma antes.
+  const handleDelete = async () => {
+    if (!deletingGroup) return;
+    setDeletePending(true);
     try {
-      const res = await deleteCategoryGrouping(groupId);
+      const res = await deleteCategoryGrouping(deletingGroup.id);
       if (!res.ok) { toast.error(res.error); return; }
       toast.success("Agrupación eliminada");
+      if (editingId === deletingGroup.id) resetForm();
+      setDeletingGroup(null);
       await loadGroups();
       notifyChanged();
     } catch {
       toast.error("Error de red. Inténtalo de nuevo.");
+    } finally {
+      setDeletePending(false);
     }
   };
 
@@ -178,8 +191,9 @@ export function GroupingManager({ categories, onGroupsChanged }: GroupingManager
         {/* Form */}
         <div className="space-y-4 py-2">
           <div className="space-y-2">
-            <Label>Nombre del grupo</Label>
+            <Label htmlFor={`${uid}-name`}>Nombre del grupo</Label>
             <Input
+              id={`${uid}-name`}
               value={groupName}
               onChange={(e) => setGroupName(e.target.value)}
               placeholder="Ej. Equipos de Medición"
@@ -187,8 +201,8 @@ export function GroupingManager({ categories, onGroupsChanged }: GroupingManager
           </div>
 
           <div className="space-y-2">
-            <Label>Color de representación</Label>
-            <div className="flex flex-wrap gap-2 pt-1">
+            <Label id={`${uid}-color`}>Color de representación</Label>
+            <div role="group" aria-labelledby={`${uid}-color`} className="flex flex-wrap gap-2 pt-1">
               {PRESET_COLORS.map((color) => (
                 <button
                   key={color}
@@ -199,18 +213,21 @@ export function GroupingManager({ categories, onGroupsChanged }: GroupingManager
                   )}
                   style={{ backgroundColor: color }}
                   type="button"
+                  aria-label={`Color ${color}`}
+                  aria-pressed={selectedColor === color}
                 />
               ))}
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label>Categorías</Label>
+            <Label id={`${uid}-cats`}>Categorías</Label>
             <Popover open={catPopoverOpen} onOpenChange={setCatPopoverOpen}>
               <PopoverTrigger
+                aria-labelledby={`${uid}-cats ${uid}-cats-value`}
                 className="inline-flex items-center justify-between w-full px-3 py-2 text-sm bg-background border border-input hover:bg-accent transition-all rounded-lg cursor-pointer"
               >
-                <span className="text-muted-foreground truncate flex-1 text-left">
+                <span id={`${uid}-cats-value`} className="text-muted-foreground truncate flex-1 text-left">
                   {selectedCatIds.length === 0
                     ? "Seleccionar categorías..."
                     : `${selectedCatIds.length} seleccionadas`}
@@ -218,7 +235,7 @@ export function GroupingManager({ categories, onGroupsChanged }: GroupingManager
                 <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
               </PopoverTrigger>
               <PopoverContent className="w-[350px] p-0" align="start">
-                <Command>
+                <Command label="Buscar categorías">
                   <CommandInput placeholder="Buscar categoría..." />
                   <CommandList className="max-h-[200px]">
                     <CommandEmpty>No encontrada.</CommandEmpty>
@@ -273,7 +290,9 @@ export function GroupingManager({ categories, onGroupsChanged }: GroupingManager
                     />
                     {getCatName(catId)}
                     <button
+                      type="button"
                       onClick={() => toggleCategory(catId)}
+                      aria-label={`Quitar ${getCatName(catId)}`}
                       className="ml-1.5 bg-muted hover:bg-destructive/80 hover:text-white rounded-full p-0.5 transition-colors"
                     >
                       <X className="h-2.5 w-2.5" />
@@ -340,6 +359,7 @@ export function GroupingManager({ categories, onGroupsChanged }: GroupingManager
                         className="h-5 w-5 hover:bg-primary/10 hover:text-primary disabled:opacity-20"
                         onClick={() => handleMove(idx, "up")}
                         disabled={idx === 0}
+                        aria-label={`Subir ${group.name}`}
                       >
                         <ArrowUp className="h-3 w-3" />
                       </Button>
@@ -349,6 +369,7 @@ export function GroupingManager({ categories, onGroupsChanged }: GroupingManager
                         className="h-5 w-5 hover:bg-primary/10 hover:text-primary disabled:opacity-20"
                         onClick={() => handleMove(idx, "down")}
                         disabled={idx === groups.length - 1}
+                        aria-label={`Bajar ${group.name}`}
                       >
                         <ArrowDown className="h-3 w-3" />
                       </Button>
@@ -358,6 +379,7 @@ export function GroupingManager({ categories, onGroupsChanged }: GroupingManager
                       size="icon"
                       className="h-7 w-7"
                       onClick={() => handleEdit(group)}
+                      aria-label={`Editar ${group.name}`}
                     >
                       <Edit2 className="h-3.5 w-3.5 text-muted-foreground hover:text-primary" />
                     </Button>
@@ -365,7 +387,8 @@ export function GroupingManager({ categories, onGroupsChanged }: GroupingManager
                       variant="ghost"
                       size="icon"
                       className="h-7 w-7"
-                      onClick={() => handleDelete(group.id)}
+                      onClick={() => setDeletingGroup(group)}
+                      aria-label={`Eliminar ${group.name}`}
                     >
                       <Trash2 className="h-3.5 w-3.5 text-destructive" />
                     </Button>
@@ -375,6 +398,21 @@ export function GroupingManager({ categories, onGroupsChanged }: GroupingManager
             </div>
           )}
         </div>
+
+        <ConfirmDialog
+          open={deletingGroup !== null}
+          onOpenChange={(next) => { if (!next) setDeletingGroup(null); }}
+          title="¿Eliminar agrupación?"
+          description={
+            <>
+              Se eliminará <strong>{deletingGroup?.name}</strong> y su asignación de categorías.
+              Las categorías no se borran.
+            </>
+          }
+          confirmLabel="Eliminar"
+          onConfirm={handleDelete}
+          pending={deletePending}
+        />
       </DialogContent>
     </Dialog>
   );

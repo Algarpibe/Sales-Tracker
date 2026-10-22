@@ -7,6 +7,7 @@ import { db } from "@/db";
 import { enforceRuntimeEnv } from "@/lib/env";
 import { user, session, account, verification } from "@/db/schema";
 import { createProfileForNewUser } from "./new-user-profile";
+import { MIN_PASSWORD_LENGTH } from "./auth-error-message";
 
 // Fail-fast: en runtime exige el secreto (nunca arrancar con el secreto por defecto).
 // Durante el build estático (sin envs) no se lanza, para no romper la generación de páginas.
@@ -30,7 +31,7 @@ export const auth = betterAuth({
     // sobre todo, better-auth responde igual exista o no el email (con autoSignIn
     // devolvía USER_ALREADY_EXISTS y permitía enumerar cuentas).
     autoSignIn: false,
-    minPasswordLength: 10,
+    minPasswordLength: MIN_PASSWORD_LENGTH,
     // bcryptjs para verificar los hashes migrados desde Supabase/GoTrue ($2a$...)
     // verify sigue aceptando hashes antiguos (cost 10); los nuevos se generan con cost 12.
     password: {

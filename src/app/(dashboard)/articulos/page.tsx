@@ -151,11 +151,11 @@ function ArticulosContent() {
           <>
             <div className="flex flex-col gap-1">
               <label className="text-xs text-muted-foreground">Desde</label>
-              <Input type="date" value={desde} min="2021-01-01" max={hasta} onChange={(e) => setDesde(e.target.value)} className="w-[160px]" />
+              <Input type="date" aria-label="Desde" value={desde} min="2021-01-01" max={hasta} onChange={(e) => setDesde(e.target.value)} className="w-[160px]" />
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-xs text-muted-foreground">Hasta</label>
-              <Input type="date" value={hasta} min={desde < "2021-01-01" ? "2021-01-01" : desde} onChange={(e) => setHasta(e.target.value)} className="w-[160px]" />
+              <Input type="date" aria-label="Hasta" value={hasta} min={desde < "2021-01-01" ? "2021-01-01" : desde} onChange={(e) => setHasta(e.target.value)} className="w-[160px]" />
             </div>
           </>
         ) : (
@@ -163,7 +163,7 @@ function ArticulosContent() {
             <div className="flex flex-col gap-1">
               <label className="text-xs text-muted-foreground">Año A</label>
               <Select value={String(yearA)} onValueChange={(v) => { if (v) setYearA(Number(v)); }}>
-                <SelectTrigger className="w-[100px]"><SelectValue /></SelectTrigger>
+                <SelectTrigger aria-label="Año A" className="w-[100px]"><SelectValue /></SelectTrigger>
                 <SelectContent>{allYears.map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
               </Select>
             </div>
@@ -171,7 +171,7 @@ function ArticulosContent() {
             <div className="flex flex-col gap-1">
               <label className="text-xs text-muted-foreground">Año B</label>
               <Select value={String(yearB)} onValueChange={(v) => { if (v) setYearB(Number(v)); }}>
-                <SelectTrigger className="w-[100px]"><SelectValue /></SelectTrigger>
+                <SelectTrigger aria-label="Año B" className="w-[100px]"><SelectValue /></SelectTrigger>
                 <SelectContent>{allYears.map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
               </Select>
             </div>
@@ -190,7 +190,7 @@ function ArticulosContent() {
           <div className="flex flex-wrap items-center gap-3">
             <SearchInput value={search} onChange={setSearch} placeholder="Buscar por SKU o nombre…" />
             <Select value={categoria || "all"} onValueChange={(v) => setCategoria(!v || v === "all" ? "" : v)}>
-              <SelectTrigger className="w-[220px]"><SelectValue placeholder="Todas las categorías" /></SelectTrigger>
+              <SelectTrigger aria-label="Categoría" className="w-[220px]"><SelectValue placeholder="Todas las categorías" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todas las categorías</SelectItem>
                 {categorias.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}

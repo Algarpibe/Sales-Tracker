@@ -339,7 +339,7 @@ export function GroupingAnalysisCard({ categories, recordType: initialRecordType
               </Button>
             } />
             <PopoverContent className="w-[300px] p-0 bg-background/95 backdrop-blur-xl border-white/10 shadow-2xl" align="end">
-              <Command>
+              <Command label="Filtrar grupos">
                 <CommandInput placeholder="Filtrar grupos..." className="h-9" />
                 <CommandList>
                   <CommandEmpty>No se encontraron grupos.</CommandEmpty>

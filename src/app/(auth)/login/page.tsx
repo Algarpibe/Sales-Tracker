@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/card";
 import { BarChart3, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { authErrorMessage } from "@/lib/auth/auth-error-message";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -27,23 +28,32 @@ export default function LoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    // Si entra, el botón sigue deshabilitado mientras navega a /home; en cualquier
+    // otro caso (error o excepción de red) se reactiva el formulario.
+    let signedIn = false;
 
-    const { error } = await signIn.email({
-      email,
-      password,
-    });
-
-    if (error) {
-      toast.error("Error al iniciar sesión", {
-        description: error.message,
+    try {
+      const { error } = await signIn.email({
+        email,
+        password,
       });
-      setLoading(false);
-      return;
-    }
 
-    toast.success("¡Bienvenido de vuelta!");
-    router.push("/home");
-    router.refresh();
+      if (error) {
+        toast.error("Error al iniciar sesión", {
+          description: authErrorMessage(error),
+        });
+        return;
+      }
+
+      signedIn = true;
+      toast.success("¡Bienvenido de vuelta!");
+      router.push("/home");
+      router.refresh();
+    } catch {
+      toast.error("Error de red. Inténtalo de nuevo.");
+    } finally {
+      if (!signedIn) setLoading(false);
+    }
   };
 
   return (

@@ -9,6 +9,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { Pencil, Save, RotateCcw, XCircle } from "lucide-react";
 
 import { getDashboardLayout, saveDashboardLayout, resetDashboardLayout } from "@/actions/dashboard-layout-actions";
@@ -67,10 +68,13 @@ export function DashboardGrid() {
       setItems(DEFAULT_LAYOUT);
       setEditing(false);
       setBackup(null);
+      setConfirmReset(false);
       toast.success("Dashboard restablecido");
     },
     onError: () => toast.error("No se pudo restablecer"),
   });
+  // Restablecer borra el layout guardado: se confirma antes.
+  const [confirmReset, setConfirmReset] = useState(false);
 
   const ctx: WidgetContext = useMemo(() => ({
     recordType: tipo as "SALES_ORDER" | "INVOICE",
@@ -115,7 +119,7 @@ export function DashboardGrid() {
         {loading ? null : editing ? (
           <>
             <WidgetPicker presentIds={new Set((items ?? []).map((i) => i.id))} onAdd={addWidget} />
-            <Button variant="outline" size="sm" onClick={() => resetMut.mutate()}>
+            <Button variant="outline" size="sm" onClick={() => setConfirmReset(true)}>
               <RotateCcw className="mr-2 h-4 w-4" /> Restablecer
             </Button>
             <Button variant="outline" size="sm" onClick={cancelEdit}>
@@ -172,6 +176,16 @@ export function DashboardGrid() {
           </ReactGridLayout>
         )}
       </div>
+
+      <ConfirmDialog
+        open={confirmReset}
+        onOpenChange={setConfirmReset}
+        title="¿Restablecer el dashboard?"
+        description="Se borrará tu disposición personalizada y volverán las tarjetas por defecto."
+        confirmLabel="Restablecer"
+        onConfirm={() => resetMut.mutate()}
+        pending={resetMut.isPending}
+      />
     </div>
   );
 }

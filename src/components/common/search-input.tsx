@@ -18,7 +18,7 @@ export function SearchInput({
   return (
     <div className={cn("relative flex-1 min-w-[260px]", className)}>
       <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-      <Input placeholder={placeholder} className="pl-10" value={value} onChange={(e) => onChange(e.target.value)} />
+      <Input aria-label={placeholder} placeholder={placeholder} className="pl-10" value={value} onChange={(e) => onChange(e.target.value)} />
     </div>
   );
 }

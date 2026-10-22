@@ -71,6 +71,8 @@ export function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
+              aria-label={collapsed ? item.label : undefined}
+              title={collapsed ? item.label : undefined}
               className={cn(
                 "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                 isActive
@@ -95,6 +97,8 @@ export function Sidebar() {
           size="icon"
           className="h-9 w-full justify-center text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
           onClick={() => setCollapsed(!collapsed)}
+          aria-label={collapsed ? "Expandir menú" : "Contraer menú"}
+          aria-expanded={!collapsed}
         >
           {collapsed ? (
             <ChevronRight className="h-4 w-4" />

@@ -70,7 +70,7 @@ function SheetContent({
                 {...props}
               >
                 <XIcon />
-                <span className="sr-only">Close</span>
+                <span className="sr-only">Cerrar panel</span>
               </Button>
             )}
           />

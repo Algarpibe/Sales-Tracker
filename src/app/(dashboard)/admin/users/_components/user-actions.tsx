@@ -104,7 +104,7 @@ export function UserActions({ userId, isApproved, isRejected, currentRole }: Use
       {/* Selector de Rol y Botón de Guardado */}
       <div className="flex items-center gap-1 bg-muted/30 p-1 rounded-md border border-border/50">
         <Select value={role} onValueChange={(val) => { if (val) setRole(val); }} disabled={isPending}>
-          <SelectTrigger className={`w-[110px] h-7 text-[11px] border-none bg-transparent focus:ring-0 shadow-none`}>
+          <SelectTrigger aria-label="Rol" className={`w-[110px] h-7 text-[11px] border-none bg-transparent focus:ring-0 shadow-none`}>
             <UserCog className="h-3 w-3 mr-1 text-muted-foreground" />
             <SelectValue placeholder="Rol" />
           </SelectTrigger>
@@ -172,6 +172,7 @@ export function UserActions({ userId, isApproved, isRejected, currentRole }: Use
           variant="ghost"
           className="text-muted-foreground/50 hover:text-red-600 hover:bg-red-50 h-8 w-8 p-0"
           onClick={() => setShowDeleteDialog(true)}
+          aria-label="Eliminar usuario"
           disabled={isPending}
         >
           <Trash2 className="h-4 w-4" />

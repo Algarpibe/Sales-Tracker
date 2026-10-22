@@ -18,6 +18,7 @@ import {
 import { BarChart3, CheckCircle2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { authErrorMessage, MIN_PASSWORD_LENGTH } from "@/lib/auth/auth-error-message";
 
 // Mismo mensaje para un alta nueva y para un email ya registrado: better-auth responde
 // igual en los dos casos (autoSignIn desactivado, SEC-039) y la pantalla no debe
@@ -41,25 +42,38 @@ export default function RegisterPage() {
       return;
     }
 
-    setLoading(true);
-
-    const { error } = await signUp.email({
-      email,
-      password,
-      name: fullName,
-    });
-
-    if (error) {
+    // El navegador ya lo impide con minLength; esto cubre envíos que se lo salten y da
+    // el mismo mensaje que daría el servidor.
+    if (password.length < MIN_PASSWORD_LENGTH) {
       toast.error("Error al crear cuenta", {
-        description: error.message,
+        description: authErrorMessage({ code: "PASSWORD_TOO_SHORT" }),
       });
-      setLoading(false);
       return;
     }
 
-    // Sin sesión: el registro ya no inicia sesión. Se informa y se manda a /login.
-    setRegistered(true);
-    setLoading(false);
+    setLoading(true);
+
+    try {
+      const { error } = await signUp.email({
+        email,
+        password,
+        name: fullName,
+      });
+
+      if (error) {
+        toast.error("Error al crear cuenta", {
+          description: authErrorMessage(error),
+        });
+        return;
+      }
+
+      // Sin sesión: el registro ya no inicia sesión. Se informa y se manda a /login.
+      setRegistered(true);
+    } catch {
+      toast.error("Error de red. Inténtalo de nuevo.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (registered) {
@@ -128,12 +142,12 @@ export default function RegisterPage() {
             <Input
               id="password"
               type="password"
-              placeholder="Mínimo 6 caracteres"
+              placeholder={`Mínimo ${MIN_PASSWORD_LENGTH} caracteres`}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
               disabled={loading}
-              minLength={6}
+              minLength={MIN_PASSWORD_LENGTH}
             />
           </div>
           <div className="space-y-2">
@@ -146,7 +160,7 @@ export default function RegisterPage() {
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
               disabled={loading}
-              minLength={6}
+              minLength={MIN_PASSWORD_LENGTH}
             />
           </div>
         </CardContent>

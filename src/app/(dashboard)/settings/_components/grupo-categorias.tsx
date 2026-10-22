@@ -65,7 +65,7 @@ export function GrupoCategorias<G extends string>({
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </PopoverTrigger>
           <PopoverContent className="w-[300px] p-0 bg-background/95 backdrop-blur-xl border-white/10 rounded-xl" align="start">
-            <Command>
+            <Command label="Buscar categorías">
               <CommandInput placeholder="Buscar..." />
               <CommandList>
                 <CommandEmpty>No hay resultados.</CommandEmpty>
