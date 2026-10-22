@@ -61,8 +61,20 @@ FROM lines WHERE cat IS NOT NULL GROUP BY cat, rt, mm, yy
 let _cache: { at: number; rows: HubSalesRow[] } | null = null;
 const CACHE_TTL_MS = 30_000;
 
+// Consulta en vuelo: al vencer la caché, las lecturas simultáneas (varias tarjetas de
+// la misma página) esperan la MISMA promesa en vez de lanzar N agregaciones completas
+// y agotar el pool del hub. Se suelta al resolver Y al fallar: un fallo no se cachea.
+let _inflight: Promise<HubSalesRow[]> | null = null;
+
 export async function getHubSalesRows(): Promise<HubSalesRow[]> {
   if (_cache && Date.now() - _cache.at < CACHE_TTL_MS) return _cache.rows;
+  _inflight ??= cargarHubSalesRows().finally(() => {
+    _inflight = null;
+  });
+  return _inflight;
+}
+
+async function cargarHubSalesRows(): Promise<HubSalesRow[]> {
   const { rows } = await getHubPool().query(HUB_SALES_AGG_SQL);
   const mapped: HubSalesRow[] = rows.map((r) => ({
     category_name: String(r.category_name),

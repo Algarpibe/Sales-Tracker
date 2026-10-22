@@ -148,7 +148,8 @@ const IMPORTE_ORDEN = `
 // anio no cambiaria nada de lo que se ve, y mezclar anios en el buscador lleva a
 // marcar la orden equivocada de un cliente que repite cada anio.
 export async function searchHubSalesOrders(query: string, anio: number): Promise<HubOrderRow[]> {
-  const like = `%${query}%`;
+  // Escapa los comodines de ILIKE (\ es su escape por defecto): "50%" busca "50%" literal.
+  const like = `%${query.replace(/[\\%_]/g, "\\$&")}%`;
   // s.date::text: sin el cast, pg devuelve un objeto Date (parser por defecto de
   // node-postgres para el tipo date) y String(...) lo serializa en la zona horaria
   // local del proceso, NO en 'YYYY-MM-DD'. El cast a texto evita esa conversion:
