@@ -1266,10 +1266,10 @@ describe("customerItemToExcel", () => {
   it("cabecera de grupo bold, buckets por columna y total bold", () => {
     const groups = [
       {
-        customer: "AGQ",
+        customer: "Acme",
         items: [
-          { customer: "AGQ", sku: "1", marca: "M", nombre: "uno", categoria: "C&R EDM 180", cantidad: 1, importe: 100 },
-          { customer: "AGQ", sku: "2", marca: null, nombre: "dos", categoria: "CAL PM", cantidad: 3, importe: 40 },
+          { customer: "Acme", sku: "1", marca: "M", nombre: "uno", categoria: "C&R EDM 180", cantidad: 1, importe: 100 },
+          { customer: "Acme", sku: "2", marca: null, nombre: "dos", categoria: "CAL PM", cantidad: 3, importe: 40 },
         ],
         totals: { mano_obra: 40, cr: 100, equipos: 0, operacion: 0 },
       },
@@ -1280,7 +1280,7 @@ describe("customerItemToExcel", () => {
       "SKU", "Marca", "Nombre", "Categoría", "Cantidad", "Mano de obra", "Consumos y repuestos", "Equipos", "Operaciones",
     ]);
     expect(sheet.rows[0].bold).toBe(true);
-    expect(sheet.rows[0].cells).toEqual(["AGQ", "", "", "", "", 40, 100, 0, 0]);
+    expect(sheet.rows[0].cells).toEqual(["Acme", "", "", "", "", 40, 100, 0, 0]);
     expect(sheet.rows[1].cells).toEqual(["1", "M", "uno", "C&R EDM 180", 1, null, 100, null, null]);
     expect(sheet.rows[2].cells).toEqual(["2", "", "dos", "CAL PM", 3, 40, null, null, null]);
     const total = sheet.rows[sheet.rows.length - 1];

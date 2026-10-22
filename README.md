@@ -1,36 +1,80 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SalesTracker Pro
 
-## Getting Started
+Aplicación web interna de análisis comercial. Muestra ventas (órdenes de venta y
+facturas) por categoría, cliente y artículo, márgenes, forecast y KPIs comerciales.
+Los datos de ventas se leen en solo lectura de una réplica de Zoho (el *zoho-hub*);
+la BD propia del app guarda usuarios, categorías, agrupaciones, metas y preferencias.
 
-First, run the development server:
+Las reglas de trabajo (para personas y agentes de IA) están en [AGENTS.md](AGENTS.md).
+
+## Stack
+
+Next.js 16 (App Router + Server Actions) · TypeScript · better-auth · Drizzle ORM + `pg`
+sobre Postgres self-hosted · Tailwind 4 + shadcn · Recharts · vitest · Playwright.
+
+## Requisitos
+
+- Node 24 (ver `.nvmrc`) y npm.
+- Docker, para la BD de los tests E2E.
+- Acceso a un Postgres para el app y, opcionalmente, al zoho-hub.
+
+## Puesta en marcha
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm ci
+cp .env.example .env.local   # y rellenar los valores
+npm run dev                  # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Variables que lee el código:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Variable | Uso |
+|---|---|
+| `DATABASE_URL` | Postgres del app. Obligatoria en producción. |
+| `BETTER_AUTH_SECRET` | Secreto de better-auth. |
+| `BETTER_AUTH_URL` | URL pública del app (origen de cookies y enlaces). Obligatoria en producción. |
+| `HUB_DB_URL` | Conexión de solo lectura al zoho-hub. Sin ella, solo las vistas agregadas funcionan (con `sales_records`); clientes, artículos, márgenes y KPIs fallan. |
+| `PG_POOL_MAX` | Tamaño del pool del app (por defecto 5). |
+| `HUB_POOL_MAX` | Tamaño del pool del hub (por defecto 5). |
+| `HUB_STATEMENT_TIMEOUT_MS` | Tope por consulta al hub, en ms (por defecto 30000). |
+| `KPI_EXCLUDED_SALESPEOPLE` | Nombres separados por comas que no se ofrecen como comercial en los KPIs. |
+| `DRIZZLE_DATABASE_URL` | Opcional, solo para `drizzle-kit`. Debe ser una URL con el usuario `postgres`. |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Nunca se commitean `.env*` reales (solo `.env.example`).
 
-## Learn More
+## Scripts
 
-To learn more about Next.js, take a look at the following resources:
+| Script | Qué hace |
+|---|---|
+| `npm run dev` | Servidor de desarrollo. |
+| `npm run build` / `npm start` | Build de producción y arranque. |
+| `npm run lint` | ESLint. |
+| `npm run typecheck` | `tsc --noEmit`. |
+| `npm test` | Tests unitarios con vitest (`test:watch` en modo observador). |
+| `npm run test:e2e` | Levanta la BD de E2E, la reinicia y ejecuta Playwright. |
+| `npm run test:e2e:ui` | Playwright en modo interfaz. |
+| `npm run e2e:db:up` | Arranca el Postgres de E2E en Docker (puerto `E2E_PG_PORT`, 55432 por defecto). |
+| `npm run e2e:db:reset` | Recrea las BD de E2E, aplica migraciones y siembra datos ficticios. |
+| `npm run e2e:db:down` | Para el contenedor y borra su volumen. |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Migraciones
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Están en `drizzle/` y se aplican **a mano, como `postgres`**, nunca con el
+`DATABASE_URL` del app (que debe usar el rol de mínimo privilegio `salestracker_app`,
+sin permisos de DDL). El procedimiento está en
+[docs/runbooks/db-least-privilege.md](docs/runbooks/db-least-privilege.md).
 
-## Deploy on Vercel
+## Despliegue
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Imagen Docker multi-etapa (`Dockerfile`, modo `standalone`) desplegada en EasyPanel.
+Las variables se inyectan en runtime, nunca en la imagen. Comprobaciones de salud:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `GET /api/health`: liveness (no toca la BD).
+- `GET /api/health?ready=1`: readiness (BD del app y, si está configurado, el hub).
+
+## Documentación
+
+- [AGENTS.md](AGENTS.md): reglas del proyecto.
+- [docs/runbooks/](docs/runbooks/): procedimientos operativos.
+- [docs/superpowers/](docs/superpowers/): specs y planes de cada funcionalidad.
+- [ROADMAP.md](ROADMAP.md).

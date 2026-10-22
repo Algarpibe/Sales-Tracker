@@ -160,35 +160,35 @@ Añadir al final de `src/lib/__tests__/customer-sales.test.ts`:
 describe("hubCustomerNames", () => {
   it("incluye solo a los clientes con alguna fila del hub", () => {
     const rows: CustomerYearRow[] = [
-      { customer: "Corola", year: 2021, ventas: 100, source: "hub" },
-      { customer: "Ambytec", year: 2018, ventas: 50, source: "historical" },
+      { customer: "Cliente A", year: 2021, ventas: 100, source: "hub" },
+      { customer: "Cliente D", year: 2018, ventas: 50, source: "historical" },
     ];
     const set = hubCustomerNames(rows);
-    expect(set.has("Corola")).toBe(true);
-    expect(set.has("Ambytec")).toBe(false);
+    expect(set.has("Cliente A")).toBe(true);
+    expect(set.has("Cliente D")).toBe(false);
   });
 
   it("incluye al cliente que tiene filas de las DOS fuentes", () => {
-    // Palermo: historico 2015-2017 y facturacion en 2025. Debe conservar su enlace.
+    // Cliente B: historico 2015-2017 y facturacion en 2025. Debe conservar su enlace.
     const rows: CustomerYearRow[] = [
-      { customer: "Palermo", year: 2015, ventas: 100, source: "historical" },
-      { customer: "Palermo", year: 2025, ventas: 200, source: "hub" },
+      { customer: "Cliente B", year: 2015, ventas: 100, source: "historical" },
+      { customer: "Cliente B", year: 2025, ventas: 200, source: "hub" },
     ];
-    expect(hubCustomerNames(rows).has("Palermo")).toBe(true);
+    expect(hubCustomerNames(rows).has("Cliente B")).toBe(true);
   });
 
   it("trata las filas sin source como del hub (compatibilidad)", () => {
     // Los seis consumidores que no piden historico no rellenan source.
-    const rows: CustomerYearRow[] = [{ customer: "Corola", year: 2021, ventas: 100 }];
-    expect(hubCustomerNames(rows).has("Corola")).toBe(true);
+    const rows: CustomerYearRow[] = [{ customer: "Cliente A", year: 2021, ventas: 100 }];
+    expect(hubCustomerNames(rows).has("Cliente A")).toBe(true);
   });
 });
 
 describe("buildCustomerMatrix con dos fuentes", () => {
   it("colapsa hub e historico del mismo cliente en UNA sola fila", () => {
     const rows: CustomerYearRow[] = [
-      { customer: "Palermo", year: 2015, ventas: 100, source: "historical" },
-      { customer: "Palermo", year: 2025, ventas: 200, source: "hub" },
+      { customer: "Cliente B", year: 2015, ventas: 100, source: "historical" },
+      { customer: "Cliente B", year: 2025, ventas: 200, source: "hub" },
     ];
     const matrix = buildCustomerMatrix(rows);
     expect(matrix).toHaveLength(1);
@@ -626,8 +626,8 @@ if (sinCasar.length) {
 Crea `scripts/historico/` y coloca ahí los tres ficheros. `alias.csv` con estas dos líneas exactas:
 
 ```
-Palermo Sociedad Portuaria;Palermo Sociedad Portuaria S.A. - Grupo Coremar
-SGS Colombia S.A.S. - SGS;SGS Colombia S.A.S.
+Cliente B;Cliente B S.A. - Grupo B
+Cliente C S.A.S. - C;Cliente C S.A.S.
 ```
 
 ```bash
@@ -637,7 +637,7 @@ node scripts/generar-historico.mjs
 Esperado en la salida:
 - `Filas de origen descartadas por estar vacias: 50`
 - `Importe total: $2,745,037.00`
-- La lista de sin-correspondencia con **17 nombres**, encabezada por Ambytec ($177.016)
+- La lista de sin-correspondencia con **17 nombres**, encabezada por Cliente D ($X)
 
 Si los números no coinciden, **para y repórtalo**: significa que la entrada no es la que se analizó al diseñar.
 
@@ -682,12 +682,12 @@ Esperado: los totales **no cambian** y no aparecen filas duplicadas.
 
 En el navegador, con datos importados:
 
-1. `/clientes` con rango 2015-2026 y Facturas → columnas 2015-2020 con datos; Corola y Palermo en **una sola fila** cada uno; Ambytec presente con el distintivo `solo histórico` y **sin enlace**.
+1. `/clientes` con rango 2015-2026 y Facturas → columnas 2015-2020 con datos; Cliente A y Cliente B en **una sola fila** cada uno; Cliente D presente con el distintivo `solo histórico` y **sin enlace**.
 2. `/clientes` con el tipo en **Órdenes de Venta** → las columnas 2015-2020 quedan vacías.
-3. `/clientes/Corola%20Ambiental%20S.A.S.` → el drill-down sigue mostrando **solo 2021+**.
+3. `/clientes/Cliente%20A%20S.A.S.` → el drill-down sigue mostrando **solo 2021+**.
 4. `/analytics`, pestaña Comercial → Pareto de clientes y "Nuevos vs recurrentes" **sin rastro** de años anteriores a 2021.
 5. `/home` → el widget Top Clientes igual que antes.
-6. Cmd-K, buscar "Ambytec" → **no aparece** (el command palette no pide histórico).
+6. Cmd-K, buscar "Cliente D" → **no aparece** (el command palette no pide histórico).
 
 - [ ] **Step 4: Gates**
 

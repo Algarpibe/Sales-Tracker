@@ -35,7 +35,7 @@ con helpers puros testeables. react-query para caché; error boundary existente.
 
 `getHubCustomerSales` elige tabla por `tipo` **en servidor** (no input de usuario);
 `desdeAnio`/`hastaAnio` van **parametrizados**. Importe **neto del descuento de
-cabecera** (igual que el transform; validado: Endémica 209.945,13 ≈ CSV 209.945,14):
+cabecera** (igual que el transform; validado: Cliente E $X,13 ≈ CSV $X,14):
 
 ```sql
 -- FAC: books.invoice_line_items (l) + books.invoices (h)

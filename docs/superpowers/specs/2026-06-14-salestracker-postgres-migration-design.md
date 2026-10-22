@@ -6,7 +6,7 @@
 
 ## 1. Contexto y objetivo
 
-SalesTracker corre hoy sobre un stack **Supabase self-hosted** (db + kong + auth/GoTrue + rest/PostgREST) en el VPS Hostinger/Easypanel, dominio API `https://salestracker-supabase.842ean.easypanel.host`. La app (`ambientalia_project/sales-tracker`, dominio `sales-tracker.ambientalia.cloud`) usa `@supabase/ssr` para auth y datos.
+SalesTracker corre hoy sobre un stack **Supabase self-hosted** (db + kong + auth/GoTrue + rest/PostgREST) en el VPS (Easypanel), dominio API `https://<dominio-supabase-antiguo>`. La app (`<proyecto-easypanel>/sales-tracker`, dominio `<dominio-app>`) usa `@supabase/ssr` para auth y datos.
 
 **Objetivo:** reescribir las capas de **auth** y **datos** para que la app hable **directamente con un PostgreSQL plano** nuevo llamado **`sales-tracker-db`**, eliminando toda dependencia de Supabase (GoTrue, PostgREST, Kong). Esto alinea SalesTracker con el estándar del ecosistema Ambientalia (`desk-db`, `landing-studio-db`) y reduce la huella en el VPS.
 
@@ -22,11 +22,11 @@ SalesTracker corre hoy sobre un stack **Supabase self-hosted** (db + kong + auth
 
 ## 3. Arquitectura
 
-- **`sales-tracker-db`**: servicio Postgres plano nuevo en Easypanel, proyecto `ambientalia_project` (mismo patrón que `desk-db`/`landing-studio-db`).
+- **`sales-tracker-db`**: servicio Postgres plano nuevo en Easypanel, proyecto `<proyecto-easypanel>` (mismo patrón que `desk-db`/`landing-studio-db`).
 - La app `sales-tracker` se conecta **directo** por la **red interna** de Easypanel vía `DATABASE_URL` (verificado que App→servicio Postgres interno funciona: `ambientalia-desk`→`desk-db`).
 - **Todo el acceso a datos es server-side** (server actions, RSC, route handlers) con **Drizzle ORM**. El navegador NUNCA habla con la BD: los componentes cliente llaman a server actions / route handlers.
 - **Auth con better-auth** (email/password, sesión por cookie), montado en route handler `/api/auth/[...all]`. El middleware protege rutas con la sesión de better-auth + gate de aprobación.
-- Tras el cutover se **decomisa** el stack `salestracker_supabase`.
+- Tras el cutover se **decomisa** el stack Supabase antiguo.
 
 ## 4. Stack técnico
 
@@ -116,17 +116,17 @@ Los componentes cliente que hoy hacen `supabase.from()` pasan a llamar **server 
 
 ## 10. Infraestructura y variables
 
-- Crear servicio `sales-tracker-db` (Postgres) en `ambientalia_project` con su `POSTGRES_PASSWORD`.
+- Crear servicio `sales-tracker-db` (Postgres) en `<proyecto-easypanel>` con su `POSTGRES_PASSWORD`.
 - Env de la app (servicio `sales-tracker`):
   - `DATABASE_URL=postgres://postgres:<pw>@<host-interno-sales-tracker-db>:5432/postgres`
   - `BETTER_AUTH_SECRET=<generado>`
-  - `BETTER_AUTH_URL=https://sales-tracker.ambientalia.cloud`
+  - `BETTER_AUTH_URL=https://<dominio-app>`
   - **Quitar** `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
 - `DATABASE_URL` ya no es build-time (es server-side runtime), así que cambiarla no exige rebuild — pero `BETTER_AUTH_URL`/secret se inyectan en runtime también.
 
 ## 11. Migración de datos
 
-Fuente: Postgres del stack Supabase actual (`salestracker_supabase-db-1`). Destino: `sales-tracker-db`.
+Fuente: Postgres del stack Supabase actual (`<contenedor-supabase-db>`). Destino: `sales-tracker-db`.
 
 1. Crear `sales-tracker-db` y aplicar el schema Drizzle (`drizzle-kit migrate`) + crear vistas.
 2. Copiar dominio (copia directa, mismas columnas): `companies` (4), `categories` (66), `category_groups` (6), `category_group_mappings` (62), `sales_records` (1527), `subscriptions` (0).
@@ -141,7 +141,7 @@ Fuente: Postgres del stack Supabase actual (`salestracker_supabase-db-1`). Desti
 
 ## 13. Decomiso
 
-Tras período de estabilidad: bajar/borrar el stack `salestracker_supabase` (compose en `/opt/salestracker-supabase/`) y su ruta Traefik (`/etc/easypanel/traefik/config/salestracker-supabase.yaml`). Liberar su RAM. Mantener backups.
+Tras período de estabilidad: bajar/borrar el stack Supabase antiguo (compose en `<ruta-compose>`) y su ruta Traefik (`<ruta-config-traefik>`). Liberar su RAM. Mantener backups.
 
 ## 14. Estrategia de pruebas (TDD)
 

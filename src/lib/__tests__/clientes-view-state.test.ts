@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { parseClientesState } from "@/lib/clientes-view-state";
 
 const valid = {
-  tipo: "INVOICE" as const, desdeAnio: 2021, hastaAnio: 2026, search: "agq",
+  tipo: "INVOICE" as const, desdeAnio: 2021, hastaAnio: 2026, search: "acme",
   sortKey: "total" as const, sortDir: "desc" as const, compareMode: true, compareA: 2026, compareB: 2025, onlyFav: true,
 };
 

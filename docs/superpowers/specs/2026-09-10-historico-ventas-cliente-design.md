@@ -4,7 +4,7 @@
 
 **Corrección de una premisa inicial.** La primera versión de este spec decía que el hub "solo tiene datos desde 2021". Es falso, y se descubrió al desplegar: al bajar `FIRST_YEAR` a 2015 aparecieron importes de **2020** en el hub, tanto en Órdenes de Venta como en Facturas. La razón real es que en Ambientalia **se empezó a trabajar con Zoho a mediados de 2020**, así que ese año está en el hub pero incompleto — por eso los componentes arrancaban en 2021 y nadie lo veía.
 
-Medido en producción: el 2020 del hub suma unos **$130.000** frente a los **$646.314** del histórico, y cubre solo a una parte de los clientes. Sumar ambas fuentes habría inflado 2020: `buildCustomerMatrix` acumula por `(cliente, año)` y no detecta solapes.
+Medido en producción: el 2020 del hub suma bastante menos que el 2020 del histórico, y cubre solo a una parte de los clientes. Sumar ambas fuentes habría inflado 2020: `buildCustomerMatrix` acumula por `(cliente, año)` y no detecta solapes.
 
 **Goal:** Incorporar el histórico 2015-2020 **exclusivamente** a la vista "Ventas por cliente" (`/clientes`), sin alterar ninguna otra pantalla, gráfico ni cálculo del resto de la aplicación.
 
@@ -17,7 +17,7 @@ Medido en producción: el 2020 del hub suma unos **$130.000** frente a los **$64
 ## Decisiones (aprobadas)
 
 - **Solo esta vista.** El resto de consumidores de `getCustomerSales` (`customer-evolution-card`, `customer-kpi-row`, el command palette) siguen viendo únicamente 2021+.
-- **Los datos van a la BD, nunca al repositorio.** El repositorio de GitHub es **público** y esto son nombres de clientes de Ambientalia con su facturación. Un `.json` o `.ts` con la matriz quedaría en el historial de git de forma permanente e irreversible.
+- **Los datos van a la BD, nunca al repositorio.** El repositorio de GitHub es **privado**, pero se trata como si pudiera publicarse, y esto son nombres de clientes de Ambientalia con su facturación. Un `.json` o `.ts` con la matriz quedaría en el historial de git de forma permanente e irreversible.
 - **Cruce por nombre con alias curados.** Nada se adivina: lo que no case se reporta y lo decide una persona.
 - **El histórico se ata a Facturas (FAC).** El origen no distingue OV de factura y representa facturación consolidada. Con el selector en Órdenes de Venta el histórico no se muestra.
 - **El histórico manda hasta 2020 incluido.** Con `includeHistory` activo se descartan las filas del hub anteriores a 2021: ≤2020 sale del histórico, ≥2021 del hub. Decisión del usuario, y por el motivo correcto: el 2020 del hub está incompleto porque Zoho se adoptó a mitad de ese año. Lo hace `mergeWithHistory` en `src/lib/customer-sales.ts`, de modo que el solape es **imposible por construcción**, no por vigilancia. Fuera de esta vista el hub se lee tal cual, sin filtrar.
@@ -35,18 +35,18 @@ Cruce del histórico (45 filas con importe) contra los 85 clientes que el hub de
 
 Los tres bloques suman el total exacto: la importación no pierde ningún importe.
 
-**El fichero de origen trae 95 filas, pero 50 están completamente vacías.** Se descartan en la generación y no llegan a la BD. Ese descarte elimina de paso todos los falsos conflictos de nombre (Zero Span Labs, Ada & Co, PSL Proanalisis, Tecsaam, Tormet, CIAN): tenían el nombre distinto al del hub, pero ni un importe.
+**El fichero de origen trae 95 filas, pero 50 están completamente vacías.** Se descartan en la generación y no llegan a la BD. Ese descarte elimina de paso todos los falsos conflictos de nombre (seis clientes del fichero de origen): tenían el nombre distinto al del hub, pero ni un importe.
 
 ### Los dos alias confirmados
 
 ```
-"Palermo Sociedad Portuaria"  -> "Palermo Sociedad Portuaria S.A. - Grupo Coremar"
-"SGS Colombia S.A.S. - SGS"   -> "SGS Colombia S.A.S."
+"Cliente B"                   -> "Cliente B S.A. - Grupo B"
+"Cliente C S.A.S. - C"        -> "Cliente C S.A.S."
 ```
 
 ### Los 17 sin actividad desde 2021 no son un error
 
-Son clientes que dejaron de facturar antes de 2021, por eso el hub no los conoce. El mayor es **Ambytec ($177.016)**. Aparecerán como filas nuevas con datos solo hasta 2020, que es el comportamiento correcto. Si alguno resultara ser un cliente que hoy factura bajo otra razón social, se añade como un alias más y se re-importa; el diseño lo soporta sin cambios.
+Son clientes que dejaron de facturar antes de 2021, por eso el hub no los conoce. El mayor es **Cliente D ($X)**. Aparecerán como filas nuevas con datos solo hasta 2020, que es el comportamiento correcto. Si alguno resultara ser un cliente que hoy factura bajo otra razón social, se añade como un alias más y se re-importa; el diseño lo soporta sin cambios.
 
 ### Limitación declarada de esta medición
 
@@ -101,7 +101,7 @@ INSERT INTO historical_customer_sales (company_id, customer_name, record_year, a
 SELECT c.id, v.customer_name, v.record_year, v.amount_usd
 FROM companies c
 CROSS JOIN (VALUES
-  ('Corola Ambiental S.A.S.', 2016, 69809.00),
+  ('Cliente A S.A.S.', 2016, 0.00),
   ...
 ) AS v(customer_name, record_year, amount_usd)
 WHERE c.name = 'Ambientalia S.A.S.'
@@ -171,7 +171,7 @@ Se escriben **antes** de la implementación y deben fallar primero.
 
 ## 5. Consecuencias que hay que anticipar
 
-**La tabla se reordena.** Los $2.745.037 entran en la columna Total y en el porcentaje, así que el ranking cambia. Ambytec aparece de la nada con $177.016. Es correcto, pero no es un cambio cosmético y conviene avisar a quien use el informe.
+**La tabla se reordena.** Los $2.745.037 entran en la columna Total y en el porcentaje, así que el ranking cambia. Cliente D aparece de la nada con $X. Es correcto, pero no es un cambio cosmético y conviene avisar a quien use el informe.
 
 **El export hereda el histórico.** Los botones CSV y Excel de esa página exportan lo visible, así que los ficheros descargados pasarán a incluir 2015-2020. Es coherente con la vista.
 
@@ -187,8 +187,8 @@ Se escriben **antes** de la implementación y deben fallar primero.
 ## 7. Criterios de aceptación
 
 1. Con el rango 2015-2026 y tipo Facturas, la tabla muestra las columnas 2015 a 2020 con datos.
-2. Un cliente con histórico **y** actividad 2021+ (por ejemplo Corola Ambiental) aparece en **una sola fila**, con ambos tramos.
-3. Palermo Sociedad Portuaria aparece en una sola fila, con sus $114.831 históricos y sus $111.914 de 2025.
+2. Un cliente con histórico **y** actividad 2021+ (por ejemplo Cliente A) aparece en **una sola fila**, con ambos tramos.
+3. Cliente B aparece en una sola fila, con su importe histórico y su importe de 2025.
 4. Con el tipo en Órdenes de Venta, no se muestra ninguna columna anterior a 2021 con datos.
 5. `/clientes/[customer]`, el comparador, el dashboard y el command palette **siguen mostrando solo 2021+**. Verificado explícitamente en los seis consumidores de `getCustomerSales`, no supuesto.
 6. Los 17 clientes solo-históricos aparecen como texto plano con el distintivo `solo histórico`, **sin enlace**. Los clientes con presencia en el hub conservan su enlace, incluidos los que tienen todos los años a cero.

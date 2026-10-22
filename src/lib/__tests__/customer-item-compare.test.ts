@@ -3,23 +3,23 @@ import { buildCustomerItemCompare } from "@/lib/customer-item-compare";
 import type { CustomerItemRow } from "@/types/database";
 
 const A: CustomerItemRow[] = [
-  { customer: "AGQ", sku: "1", marca: "M", nombre: "uno", categoria: "C", cantidad: 1, importe: 120 },
-  { customer: "AGQ", sku: "2", marca: null, nombre: "dos", categoria: null, cantidad: 1, importe: 100 },
+  { customer: "Acme", sku: "1", marca: "M", nombre: "uno", categoria: "C", cantidad: 1, importe: 120 },
+  { customer: "Acme", sku: "2", marca: null, nombre: "dos", categoria: null, cantidad: 1, importe: 100 },
   { customer: "Beta", sku: "9", marca: null, nombre: "n", categoria: null, cantidad: 1, importe: 300 },
 ];
 const B: CustomerItemRow[] = [
-  { customer: "AGQ", sku: "1", marca: "M", nombre: "uno", categoria: "C", cantidad: 1, importe: 100 },
-  { customer: "AGQ", sku: "3", marca: null, nombre: "tres", categoria: null, cantidad: 1, importe: 50 },
+  { customer: "Acme", sku: "1", marca: "M", nombre: "uno", categoria: "C", cantidad: 1, importe: 100 },
+  { customer: "Acme", sku: "3", marca: null, nombre: "tres", categoria: null, cantidad: 1, importe: 50 },
 ];
 
 describe("buildCustomerItemCompare", () => {
   it("une por (cliente, sku), agrupa, totales y orden", () => {
     const groups = buildCustomerItemCompare(A, B);
-    expect(groups.map((g) => g.customer)).toEqual(["AGQ", "Beta"]);
-    const agq = groups[0];
-    expect(agq.totalA).toBe(220);
-    expect(agq.totalB).toBe(150);
-    const byKey = Object.fromEntries(agq.items.map((it) => [it.sku ?? it.nombre, it]));
+    expect(groups.map((g) => g.customer)).toEqual(["Acme", "Beta"]);
+    const acme = groups[0];
+    expect(acme.totalA).toBe(220);
+    expect(acme.totalB).toBe(150);
+    const byKey = Object.fromEntries(acme.items.map((it) => [it.sku ?? it.nombre, it]));
     expect(byKey["1"]).toMatchObject({ importeA: 120, importeB: 100, deltaPct: 0.2 });
     expect(byKey["2"]).toMatchObject({ importeA: 100, importeB: 0, deltaPct: null });
     expect(byKey["3"]).toMatchObject({ importeA: 0, importeB: 50, nombre: "tres", deltaPct: -1 });

@@ -1,3 +1,5 @@
+> ARCHIVADO (2026-10): obsoleto, no seguir — ver AGENTS.md
+
 ---
 name: arquitecto-senior-protocolo
 description: Actúa como Arquitecto de Software Senior, Diseñador de Producto y QA Lead. Sigue un protocolo estricto de 6 fases para el desarrollo y modificación de código.

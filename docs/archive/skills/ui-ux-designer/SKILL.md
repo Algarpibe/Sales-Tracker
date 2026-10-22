@@ -1,3 +1,5 @@
+> ARCHIVADO (2026-10): obsoleto, no seguir — ver AGENTS.md
+
 ---
 name: ui-ux-designer
 description: Create interface designs, wireframes, and design systems. Masters user research, accessibility standards, and modern design tools.

@@ -15,7 +15,7 @@ export function customerHref(name: string): string {
   return `/clientes/${encodeURIComponent(name)}`;
 }
 ```
-Test: `customerHref("AGQ S.A.S.")` → `"/clientes/AGQ%20S.A.S."`; con acentos codifica bien.
+Test: `customerHref("Acme S.A.S.")` → `"/clientes/Acme%20S.A.S."`; con acentos codifica bien.
 
 ## Tablas (enlace directo)
 

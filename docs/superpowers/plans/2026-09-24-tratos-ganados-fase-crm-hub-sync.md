@@ -876,7 +876,7 @@ Expected: sin salida.
 Para los nombres, el patrón **no se escribe en ningún comando ni fichero del repositorio**: se lee de un fichero de fuera, un término por línea, y el script solo imprime números. Crear el script **fuera del repositorio**, junto al fichero de nombres:
 
 ```bash
-NOMBRES_DIR="/c/Users/algar/AppData/Local/Temp/claude/c--Users-algar-OneDrive-Documentos-Antigravity-Curso-Josema-Fernandez-SalesTracker-salestracker-pro-0-81/edf13d5e-a6ff-48d1-9742-7abb556dc32b/scratchpad"
+NOMBRES_DIR="<ruta-local-fuera-del-repo>"
 cat > "$NOMBRES_DIR/fugas.mjs" <<'EOF'
 // Uso: git diff <rango> | node fugas.mjs <fichero-de-terminos>
 // Busca, sin distinguir mayusculas, cada termino del fichero en las lineas AÑADIDAS del diff.

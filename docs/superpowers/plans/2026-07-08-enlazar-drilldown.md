@@ -19,8 +19,8 @@
 ```ts
 describe("customerHref", () => {
   it("codifica espacios y caracteres especiales", () => {
-    expect(customerHref("AGQ S.A.S.")).toBe("/clientes/AGQ%20S.A.S.");
-    expect(customerHref("Endémica & Co")).toBe("/clientes/End%C3%A9mica%20%26%20Co");
+    expect(customerHref("Acme S.A.S.")).toBe("/clientes/Acme%20S.A.S.");
+    expect(customerHref("Compañía & Co")).toBe("/clientes/Compa%C3%B1%C3%ADa%20%26%20Co");
   });
 });
 ```
