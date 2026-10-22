@@ -37,6 +37,7 @@ import { SearchInput } from "@/components/common/search-input";
 import { ExportMenu } from "@/components/common/export-menu";
 import { EmptyState } from "@/components/common/empty-state";
 import { downloadXlsx, copySheetToClipboard } from "@/lib/excel-client";
+import { runExport, XLSX_EXPORT_MESSAGES } from "@/lib/run-export";
 import { SavedViewsMenu } from "@/components/clientes/saved-views-menu";
 import type { ClientesViewState } from "@/lib/clientes-view-state";
 
@@ -173,10 +174,8 @@ export default function ClientesPage() {
     toast.success("CSV descargado");
   };
 
-  const exportXlsx = () => {
-    downloadXlsx([customerMatrixToExcel(visible, years, grandAll)], `ventas_cliente_${tipo}_${desdeAnio}_${hastaAnio}.xlsx`);
-    toast.success("Excel descargado");
-  };
+  const exportXlsx = () =>
+    runExport(() => downloadXlsx([customerMatrixToExcel(visible, years, grandAll)], `ventas_cliente_${tipo}_${desdeAnio}_${hastaAnio}.xlsx`), toast, XLSX_EXPORT_MESSAGES);
 
   const onCopy = async () => {
     try { await copySheetToClipboard(customerMatrixToExcel(visible, years, grandAll)); toast.success("Tabla copiada"); }

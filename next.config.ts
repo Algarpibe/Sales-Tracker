@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 
 // CSP (F2-02). Solo en producción: en dev rompería el HMR de Next (ws + eval).
 // script/style usan 'unsafe-inline' por compatibilidad con Next (sin nonces);
+// sin 'unsafe-eval': el bundle de producción no evalúa código (SEC-040);
 // el resto queda bloqueado (default/connect/img/font 'self', object/frame-ancestors
 // none, base-uri/form-action 'self'). La app no carga recursos externos
 // (fuentes next/font auto-hospedadas). Endurecer a CSP con nonce queda pendiente.
@@ -15,7 +16,7 @@ const csp = [
   "img-src 'self' data: blob:",
   "font-src 'self' data:",
   "style-src 'self' 'unsafe-inline'",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+  "script-src 'self' 'unsafe-inline'",
   "connect-src 'self'",
   "form-action 'self'",
 ].join("; ");

@@ -1,7 +1,6 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth/client";
 import { getMyProfile } from "@/actions/profile-actions";
 import type { Profile, UserRole } from "@/types/database";
@@ -30,7 +29,6 @@ const AuthContext = createContext<AuthContextType>({
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
   const { data: session, isPending } = authClient.useSession();
   const sessionUser = (session?.user as SessionUser | undefined) ?? null;
   const userId = sessionUser?.id ?? null;
@@ -97,8 +95,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await authClient.signOut();
       setProfile(null);
-      router.push("/login");
-      router.refresh();
+      // Navegación completa (no router.push): descarta TODO el estado en memoria del
+      // cliente, incluida la caché de react-query, cuyas claves (["favorites"],
+      // ["saved-views", …], ["dashboard-layout"]) no llevan el usuario. Con una
+      // navegación SPA, el siguiente usuario de la pestaña vería hasta 60 s los datos
+      // cacheados del anterior (DATA-049). Igual que el SignOutButton de waiting-approval.
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- recarga completa intencionada
+      window.location.href = "/login";
     } catch (err) {
       console.error("Error during sign out:", err);
     }

@@ -79,7 +79,6 @@ export const auth = betterAuth({
     customRules: {
       "/sign-in/email": { window: 60, max: 5 },
       "/sign-up/email": { window: 60, max: 5 },
-      "/forget-password": { window: 60, max: 3 },
     },
   },
   plugins: [nextCookies()], // nextCookies SIEMPRE el último

@@ -24,6 +24,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { ExportMenu } from "@/components/common/export-menu";
 import { downloadXlsx, copySheetToClipboard } from "@/lib/excel-client";
+import { runExport, XLSX_EXPORT_MESSAGES } from "@/lib/run-export";
 import type { ExcelSheet } from "@/lib/excel-types";
 import { getSalesData } from "@/actions/sales-actions";
 import { getCategories } from "@/actions/category-actions";
@@ -133,10 +134,8 @@ export default function TablasPage() {
       { cells: ["TOTAL", ...MONTHS.map((m) => monthlyTotals[m.value]), grandTotal], bold: true },
     ],
   });
-  const handleExportXlsx = () => {
-    downloadXlsx([makeSheet()], `tabla_${typeFilter}_${year}.xlsx`);
-    toast.success("Excel descargado");
-  };
+  const handleExportXlsx = () =>
+    runExport(() => downloadXlsx([makeSheet()], `tabla_${typeFilter}_${year}.xlsx`), toast, XLSX_EXPORT_MESSAGES);
   const onCopy = async () => {
     try { await copySheetToClipboard(makeSheet()); toast.success("Tabla copiada"); }
     catch { toast.error("No se pudo copiar"); }
