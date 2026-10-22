@@ -1,11 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
+import { APP_SERVER_URL, HUB_URL } from "./e2e/db/config.mjs";
 
 const PORT = Number(process.env.E2E_PORT ?? 3100);
 const BASE_URL = `http://127.0.0.1:${PORT}`;
-
-const PG_HOST = process.env.E2E_PG_HOST ?? "127.0.0.1";
-const PG_PORT = process.env.E2E_PG_PORT ?? "55432";
-const PG_BASE = `postgres://postgres:postgres@${PG_HOST}:${PG_PORT}`;
 
 export default defineConfig({
   testDir: "./e2e/specs",
@@ -58,8 +55,8 @@ export default defineConfig({
     stdout: "pipe",
     stderr: "pipe",
     env: {
-      DATABASE_URL: `${PG_BASE}/salestracker_e2e`,
-      HUB_DB_URL: `${PG_BASE}/zoho_hub_e2e`,
+      DATABASE_URL: APP_SERVER_URL,
+      HUB_DB_URL: HUB_URL,
       // Secreto de un entorno efímero: no se usa en ningún sitio real.
       BETTER_AUTH_SECRET: "e2e-secret-solo-para-tests-0123456789abcdef",
       BETTER_AUTH_URL: BASE_URL,
