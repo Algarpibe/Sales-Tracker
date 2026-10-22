@@ -26,6 +26,15 @@ export class AppError extends Error {
   }
 }
 
+// Status HTTP de un error de los guards (requireUser/requireApproved/requireRole)
+// para Route Handlers. null = no es un error de autorización: el llamador lo relanza.
+export function authErrorStatus(e: unknown): 401 | 403 | null {
+  if (!(e instanceof AppError)) return null;
+  if (e.code === "UNAUTHORIZED") return 401;
+  if (e.code === "NOT_APPROVED" || e.code === "FORBIDDEN") return 403;
+  return null;
+}
+
 // Envuelve el cuerpo de una acción y normaliza el error:
 //  - AppError      → su mensaje (esperado, seguro)
 //  - ZodError      → primer mensaje de validación

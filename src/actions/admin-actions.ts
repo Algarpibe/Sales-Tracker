@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import {
   profiles,
@@ -14,6 +14,10 @@ import {
 import { requireRole } from "@/lib/auth/guards";
 import { uuidSchema, roleSchema } from "@/lib/validation";
 import { runAction, AppError, type ActionResult } from "@/lib/errors";
+import { adminChangeError } from "@/lib/admin-guard";
+
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+type Admin = Awaited<ReturnType<typeof requireRole>>;
 
 // Ensures the acting admin and the target user belong to the same company.
 // Returns the admin's profile for any further checks.
@@ -36,10 +40,39 @@ async function assertSameCompany(userId: string) {
   return admin;
 }
 
+// Rejects changes the acting admin applies to their own account, and changes that
+// would leave the company without an active admin. Must run inside the same
+// transaction as the write: the active admins are locked (FOR UPDATE, in id order)
+// so two admins demoting each other concurrently cannot both succeed.
+async function assertAdminChangeAllowed(tx: Tx, admin: Admin, targetId: string, removesAdmin: boolean) {
+  const activeAdmins = await tx
+    .select({ id: profiles.id })
+    .from(profiles)
+    .where(
+      and(
+        eq(profiles.company_id, admin.profile.company_id),
+        eq(profiles.role, "admin"),
+        eq(profiles.is_active, true),
+        eq(profiles.is_approved, true),
+        eq(profiles.is_rejected, false),
+      ),
+    )
+    .orderBy(profiles.id)
+    .for("update");
+
+  const error = adminChangeError({
+    actorId: admin.user.id,
+    targetId,
+    removesAdmin,
+    activeAdminIds: activeAdmins.map((a) => a.id),
+  });
+  if (error) throw new AppError(error, "FORBIDDEN");
+}
+
 export async function approveUser(userId: string, role?: string): Promise<ActionResult> {
   return runAction(async () => {
     const uid = uuidSchema.parse(userId);
-    await assertSameCompany(uid);
+    const admin = await assertSameCompany(uid);
 
     const updateData: {
       is_approved: boolean;
@@ -56,7 +89,11 @@ export async function approveUser(userId: string, role?: string): Promise<Action
       updateData.role = roleSchema.parse(role);
     }
 
-    await db.update(profiles).set(updateData).where(eq(profiles.id, uid));
+    await db.transaction(async (tx) => {
+      const removesAdmin = updateData.role !== undefined && updateData.role !== "admin";
+      await assertAdminChangeAllowed(tx, admin, uid, removesAdmin);
+      await tx.update(profiles).set(updateData).where(eq(profiles.id, uid));
+    });
 
     revalidatePath("/admin/users");
     revalidatePath("/waiting-approval");
@@ -67,12 +104,15 @@ export async function updateUserRole(userId: string, role: string): Promise<Acti
   return runAction(async () => {
     const uid = uuidSchema.parse(userId);
     const validRole = roleSchema.parse(role);
-    await assertSameCompany(uid);
+    const admin = await assertSameCompany(uid);
 
-    await db
-      .update(profiles)
-      .set({ role: validRole })
-      .where(eq(profiles.id, uid));
+    await db.transaction(async (tx) => {
+      await assertAdminChangeAllowed(tx, admin, uid, validRole !== "admin");
+      await tx
+        .update(profiles)
+        .set({ role: validRole })
+        .where(eq(profiles.id, uid));
+    });
 
     revalidatePath("/admin/users");
   });
@@ -81,16 +121,19 @@ export async function updateUserRole(userId: string, role: string): Promise<Acti
 export async function deactivateUser(userId: string): Promise<ActionResult> {
   return runAction(async () => {
     const uid = uuidSchema.parse(userId);
-    await assertSameCompany(uid);
+    const admin = await assertSameCompany(uid);
 
-    await db
-      .update(profiles)
-      .set({
-        is_approved: false,
-        is_rejected: true,
-        is_active: false,
-      })
-      .where(eq(profiles.id, uid));
+    await db.transaction(async (tx) => {
+      await assertAdminChangeAllowed(tx, admin, uid, true);
+      await tx
+        .update(profiles)
+        .set({
+          is_approved: false,
+          is_rejected: true,
+          is_active: false,
+        })
+        .where(eq(profiles.id, uid));
+    });
 
     revalidatePath("/admin/users");
     revalidatePath("/waiting-approval");
@@ -100,9 +143,11 @@ export async function deactivateUser(userId: string): Promise<ActionResult> {
 export async function deleteUser(userId: string): Promise<ActionResult> {
   return runAction(async () => {
     const uid = uuidSchema.parse(userId);
-    await assertSameCompany(uid);
+    const admin = await assertSameCompany(uid);
 
     await db.transaction(async (tx) => {
+    await assertAdminChangeAllowed(tx, admin, uid, true);
+
     // 1) sales_records.created_by / updated_by reference user.id with NO cascade,
     //    so null them out to avoid FK restrict violations.
     await tx

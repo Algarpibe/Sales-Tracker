@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { profiles } from "@/db/schema";
-import { requireUser } from "@/lib/auth/guards";
+import { requireApproved } from "@/lib/auth/guards";
+import { authErrorStatus } from "@/lib/errors";
 
 // Detecta el tipo real por magic bytes (no se confía en file.type del cliente).
 // Solo imágenes rasterizadas seguras (NO SVG: puede contener <script>).
@@ -20,8 +21,17 @@ function sniffImageMime(buf: Buffer): string | null {
 }
 
 // Sube el avatar del usuario actual (multipart 'file') y lo guarda como bytea.
+// Solo cuentas aprobadas y activas: el registro es abierto y una cuenta pendiente
+// no debe poder escribir 2 MB por petición aunque el middleware falle.
 export async function POST(req: NextRequest) {
-  const { user } = await requireUser();
+  let user;
+  try {
+    ({ user } = await requireApproved());
+  } catch (e) {
+    const status = authErrorStatus(e);
+    if (status) return new NextResponse(null, { status });
+    throw e;
+  }
   const form = await req.formData();
   const file = form.get("file");
   if (!(file instanceof File)) {
