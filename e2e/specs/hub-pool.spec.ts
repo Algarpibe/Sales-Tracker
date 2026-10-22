@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import pg from "pg";
 import { HUB_URL } from "../db/config.mjs";
-import { hubPoolConfig } from "../../src/db/hub";
+import { hubPoolConfig } from "../../src/db/hub-config";
 
 /**
  * El pool del zoho-hub abre cada sesión con statement_timeout y en solo lectura

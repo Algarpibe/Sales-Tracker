@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { profiles } from "@/db/schema";
 import { requireApproved } from "@/lib/auth/guards";
 import { authErrorStatus } from "@/lib/errors";
+import { expectedOrigin, isSameOriginRequest } from "@/lib/same-origin";
 
 // Detecta el tipo real por magic bytes (no se confía en file.type del cliente).
 // Solo imágenes rasterizadas seguras (NO SVG: puede contener <script>).
@@ -24,9 +25,18 @@ function sniffImageMime(buf: Buffer): string | null {
 // Solo cuentas aprobadas y activas: el registro es abierto y una cuenta pendiente
 // no debe poder escribir 2 MB por petición aunque el middleware falle.
 export async function POST(req: NextRequest) {
+  // Route handler propio: no tiene la comprobación de origen de las Server Actions.
+  const sameOrigin = isSameOriginRequest({
+    origin: req.headers.get("origin"),
+    secFetchSite: req.headers.get("sec-fetch-site"),
+    expected: expectedOrigin(process.env.BETTER_AUTH_URL, req.nextUrl.origin),
+  });
+  if (!sameOrigin) return new NextResponse(null, { status: 403 });
+
   let user;
   try {
-    ({ user } = await requireApproved());
+    // Escritura: sesión leída de la BD, sin la cookie cache (SEC-038).
+    ({ user } = await requireApproved({ fresh: true }));
   } catch (e) {
     const status = authErrorStatus(e);
     if (status) return new NextResponse(null, { status });

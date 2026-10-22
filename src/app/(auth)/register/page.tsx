@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { signUp } from "@/lib/auth/client";
 import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -15,8 +15,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { BarChart3, Loader2 } from "lucide-react";
+import { BarChart3, CheckCircle2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+
+// Mismo mensaje para un alta nueva y para un email ya registrado: better-auth responde
+// igual en los dos casos (autoSignIn desactivado, SEC-039) y la pantalla no debe
+// delatar qué cuentas existen.
+const REGISTRO_OK =
+  "Cuenta creada. Un administrador debe aprobarla; podrás iniciar sesión cuando esté aprobada.";
 
 export default function RegisterPage() {
   const [fullName, setFullName] = useState("");
@@ -24,7 +31,7 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
+  const [registered, setRegistered] = useState(false);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,10 +57,33 @@ export default function RegisterPage() {
       return;
     }
 
-    toast.success("Cuenta creada, pendiente de aprobación");
-    router.push("/waiting-approval");
-    router.refresh();
+    // Sin sesión: el registro ya no inicia sesión. Se informa y se manda a /login.
+    setRegistered(true);
+    setLoading(false);
   };
+
+  if (registered) {
+    return (
+      <Card className="border-border/50 shadow-xl">
+        <CardHeader className="space-y-3 text-center">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
+            <CheckCircle2 className="h-6 w-6 text-primary" />
+          </div>
+          <CardTitle className="text-2xl font-bold">Solicitud registrada</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p role="status" className="text-center text-muted-foreground leading-relaxed">
+            {REGISTRO_OK}
+          </p>
+        </CardContent>
+        <CardFooter>
+          <Link href="/login" className={cn(buttonVariants(), "w-full")}>
+            Ir a iniciar sesión
+          </Link>
+        </CardFooter>
+      </Card>
+    );
+  }
 
   return (
     <Card className="border-border/50 shadow-xl">

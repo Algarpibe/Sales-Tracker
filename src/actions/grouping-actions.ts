@@ -25,15 +25,20 @@ import type {
 // ─── Validación de entrada (F2-03) ───
 const uuidSchema = z.string().uuid("ID inválido");
 const groupNameSchema = z.string().trim().min(1, "El nombre es obligatorio").max(100);
-const categoryIdsSchema = z.array(uuidSchema).max(500);
+// Sin duplicados: una categoría repetida generaría dos asignaciones iguales (SEC-034).
+const categoryIdsSchema = z
+  .array(uuidSchema)
+  .max(500)
+  .transform((ids) => [...new Set(ids)]);
 const hexColorSchema = z.string().regex(/^#[0-9a-fA-F]{6}$/, "Color inválido");
 
 // ─── Helpers ───
-// getAdminProfile() → requireRole("admin"); getCompanyProfile() → requireApproved().
+// getAdminProfile() → requireRole("admin", { fresh: true }) (solo lo usan mutaciones);
+// getCompanyProfile() → requireApproved() (lecturas, con cookie cache).
 // Both return a profile that always has a company_id (every query is scoped by it).
 
 async function getAdminProfile() {
-  const { user, profile } = await requireRole("admin");
+  const { user, profile } = await requireRole("admin", { fresh: true });
   if (!profile?.company_id) throw new Error("Perfil sin empresa asignada");
   return { profile, userId: user.id };
 }
@@ -183,8 +188,9 @@ export async function updateCategoryGrouping(
   const col = color === undefined ? undefined : hexColorSchema.parse(color);
 
   await db.transaction(async (tx) => {
-    // Update name and color (scoped by company)
-    await tx
+    // Update name and color (scoped by company). Si no actualiza ninguna fila, el
+    // grupo no es de esta empresa (o no existe): no se tocan sus asignaciones (SEC-034).
+    const updated = await tx
       .update(categoryGroups)
       .set({
         name,
@@ -196,7 +202,11 @@ export async function updateCategoryGrouping(
           eq(categoryGroups.id, gid),
           eq(categoryGroups.company_id, companyId)
         )
-      );
+      )
+      .returning({ id: categoryGroups.id });
+    if (updated.length === 0) {
+      throw new AppError("Agrupación no encontrada.", "NOT_FOUND");
+    }
 
     // Replace mappings: delete old, insert new (scoped by company)
     await tx

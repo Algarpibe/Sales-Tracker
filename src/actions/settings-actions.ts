@@ -23,7 +23,7 @@ export async function updateCompany(updates: {
   logo_url?: string | null;
 }): Promise<ActionResult> {
   return runAction(async () => {
-    const { profile } = await requireRole("admin");
+    const { profile } = await requireRole("admin", { fresh: true });
     const parsed = companyUpdateSchema.parse(updates);
     await db
       .update(companies)
@@ -37,7 +37,7 @@ export async function updateCompany(updates: {
 export async function updateMyAccount(updates: { full_name?: string; email?: string }): Promise<ActionResult> {
   return runAction(async () => {
     // Solo cuentas aprobadas y activas: el registro es abierto.
-    const { user: u } = await requireApproved();
+    const { user: u } = await requireApproved({ fresh: true });
     const parsed = accountUpdateSchema.parse(updates);
 
     const set: Record<string, unknown> = {};

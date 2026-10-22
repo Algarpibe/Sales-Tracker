@@ -41,7 +41,7 @@ export async function getSavedViews(viewKey: string): Promise<SavedViewDTO[]> {
 }
 
 export async function saveView(viewKey: string, name: string, state: unknown): Promise<void> {
-  const { profile } = await requireApproved();
+  const { profile } = await requireApproved({ fresh: true });
   const key = savedViewKeySchema.safeParse(viewKey);
   if (!key.success) {
     throw new AppError(key.error.issues[0]?.message ?? "Clave de vista inválida", "VALIDATION");
@@ -77,6 +77,6 @@ export async function saveView(viewKey: string, name: string, state: unknown): P
 }
 
 export async function deleteSavedView(id: string): Promise<void> {
-  const { profile } = await requireApproved();
+  const { profile } = await requireApproved({ fresh: true });
   await db.delete(savedViews).where(and(eq(savedViews.id, id), eq(savedViews.user_id, profile.id)));
 }
