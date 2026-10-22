@@ -4,11 +4,13 @@ import { requireApproved } from "@/lib/auth/guards";
 import { getHubCustomerSales } from "@/db/hub-customer-sales";
 import { getHistoricalCustomerSales, HISTORICAL_LAST_YEAR } from "@/db/historical-customer-sales";
 import { mergeWithHistory } from "@/lib/customer-sales";
+import { hubYearRangeSchema } from "@/lib/validation";
 import type { CustomerSalesFilters, CustomerYearRow } from "@/types/database";
 
 // Lectura: lanza en error (react-query lo maneja). Requiere el hub (HUB_DB_URL).
 export async function getCustomerSales(filters: CustomerSalesFilters): Promise<CustomerYearRow[]> {
   const { profile } = await requireApproved();
+  hubYearRangeSchema.parse(filters);
 
   const hubRows = (await getHubCustomerSales(filters)).map((r) => ({
     ...r,

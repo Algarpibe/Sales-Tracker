@@ -17,7 +17,7 @@ import {
 } from "@/db/hub-kpi";
 import { requireApproved, requireRole } from "@/lib/auth/guards";
 import { ROLES_EDITAN_METAS } from "@/lib/commercial-kpis";
-import { kpiTargetsSchema } from "@/lib/validation";
+import { hubOrderSearchSchema, hubYearSchema, kpiTargetsSchema } from "@/lib/validation";
 import { filaDeMeta } from "@/lib/kpi-metas";
 import { runAction, type ActionResult } from "@/lib/errors";
 import type { DealMonthRow } from "@/lib/kpi-score";
@@ -122,18 +122,21 @@ export async function getKpiMonthlySales(
   owner: KpiScope
 ): Promise<CustomerMonthRow[]> {
   await requireApproved();
+  hubYearSchema.parse(anio);
   return getHubCustomerMonthByOwner({ tipo, anio, owner });
 }
 
 /** Tratos por cuenta y mes del año, opcionalmente de un solo comercial. Lectura: lanza en error. */
 export async function getKpiDealsMonthly(anio: number, owner: KpiScope): Promise<DealMonthRow[]> {
   await requireApproved();
+  hubYearSchema.parse(anio);
   return getHubDealsMonth({ anio, owner });
 }
 
 /** Tratos ganados por cuenta y mes del año, opcionalmente de un solo comercial. Lectura: lanza en error. */
 export async function getKpiWonDealsMonthly(anio: number, owner: KpiScope): Promise<DealMonthRow[]> {
   await requireApproved();
+  hubYearSchema.parse(anio);
   return getHubWonDealsMonth({ anio, owner });
 }
 
@@ -141,9 +144,9 @@ export async function getKpiWonDealsMonthly(anio: number, owner: KpiScope): Prom
  *  usuario aprobado puede buscar, no expone nada que no vea ya en el resto de la app. */
 export async function searchSalesOrdersForProjects(query: string, anio: number): Promise<HubOrderRow[]> {
   await requireApproved();
-  const q = query.trim();
+  const q = hubOrderSearchSchema.parse(query.trim());
   if (q.length < 2) return [];
-  const a = z.number().int().min(2000).max(2100).parse(anio);
+  const a = hubYearSchema.parse(anio);
   return searchHubSalesOrders(q, a);
 }
 
@@ -186,6 +189,6 @@ export async function removeProjectOrder(hubOrderId: string): Promise<ActionResu
  *  comercial al ticket, así que no hay ámbito que filtrar. Lectura: lanza en error. */
 export async function getKpiTicketsChanges(year: number): Promise<CambioFase[]> {
   await requireApproved();
-  const anio = z.number().int().min(2000).max(2100).parse(year);
+  const anio = hubYearSchema.parse(year);
   return getHubCommercialNotificationChanges(anio);
 }

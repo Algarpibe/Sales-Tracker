@@ -30,6 +30,39 @@ export const salesRecordSchema = z.object({
   notes: z.string().max(2000).optional(),
 });
 
+// Filtros de las lecturas del zoho-hub. Acotan el trabajo que una petición puede
+// pedir a Postgres: años desde el primero con historia real (2015, el histórico de
+// /clientes) hasta el siguiente al actual, y rangos con el inicio antes del final.
+// Las lecturas lanzan si no validan (react-query lo maneja), como el resto.
+export const HISTORY_FIRST_YEAR = 2015;
+
+export const hubYearSchema = z
+  .number()
+  .int("Año inválido")
+  .min(HISTORY_FIRST_YEAR, `El año no puede ser anterior a ${HISTORY_FIRST_YEAR}`)
+  .max(currentYear + 1, "Año fuera de rango");
+
+export const hubYearRangeSchema = z
+  .object({ desdeAnio: hubYearSchema, hastaAnio: hubYearSchema })
+  .refine((v) => v.desdeAnio <= v.hastaAnio, {
+    message: "El año inicial no puede ser posterior al final",
+    path: ["hastaAnio"],
+  });
+
+const hubDateSchema = z.iso
+  .date("Fecha inválida")
+  .refine((d) => hubYearSchema.safeParse(Number(d.slice(0, 4))).success, "Fecha fuera de rango");
+
+// Fechas YYYY-MM-DD: el orden de texto coincide con el cronológico.
+export const hubDateRangeSchema = z
+  .object({ desde: hubDateSchema, hasta: hubDateSchema })
+  .refine((v) => v.desde <= v.hasta, {
+    message: "La fecha inicial no puede ser posterior a la final",
+    path: ["hasta"],
+  });
+
+export const hubOrderSearchSchema = z.string().max(100, "La búsqueda admite 100 caracteres como mucho");
+
 export const categoryCreateSchema = z.object({
   name: z.string().trim().min(1, "El nombre es obligatorio").max(120),
   description: z.string().max(500).optional(),

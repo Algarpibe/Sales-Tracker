@@ -2,6 +2,7 @@
 
 import { requireApproved } from "@/lib/auth/guards";
 import { getHubMarginByYear, getHubMarginByItem, getHubMarginByCustomer } from "@/db/hub-margin";
+import { hubYearSchema } from "@/lib/validation";
 import type {
   MarginByYearFilters, MarginFilters,
   MarginYearRow, MarginItemRow, MarginCustomerRow,
@@ -14,10 +15,12 @@ export async function getMarginByYear(f: MarginByYearFilters): Promise<MarginYea
 
 export async function getMarginByItem(f: MarginFilters): Promise<MarginItemRow[]> {
   await requireApproved();
+  hubYearSchema.parse(f.anio);
   return getHubMarginByItem(f);
 }
 
 export async function getMarginByCustomer(f: MarginFilters): Promise<MarginCustomerRow[]> {
   await requireApproved();
+  hubYearSchema.parse(f.anio);
   return getHubMarginByCustomer(f);
 }
