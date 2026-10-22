@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeForecast, type ForecastInput } from "@/lib/forecast";
+import { computeForecast, historyYears, type ForecastInput } from "@/lib/forecast";
 
 const arr = (obj: Record<number, number> = {}) => Array.from({ length: 12 }, (_, i) => obj[i] ?? 0);
 // Año histórico uniforme (cada mes 100) → estacionalidad plana 1/12.
@@ -82,5 +82,19 @@ describe("computeForecast — año pasado", () => {
     const cur = Array.from({ length: 12 }, () => 10); // 120
     const r = computeForecast(baseInput({ currentYearMonthly: cur, isCurrentActualYear: false }));
     expect(r.year.value).toBe(120);
+  });
+});
+
+describe("historyYears", () => {
+  it("devuelve los 3 años anteriores al proyectado, el más reciente primero", () => {
+    expect(historyYears(2026)).toEqual([2025, 2024, 2023]);
+  });
+
+  it("avanza con el año proyectado (no se congela en 2025)", () => {
+    expect(historyYears(2027)).toEqual([2026, 2025, 2024]);
+  });
+
+  it("nunca incluye el propio año proyectado", () => {
+    expect(historyYears(2024)).not.toContain(2024);
   });
 });

@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getSalesData } from "@/actions/sales-actions";
 import { MONTHS, formatUSD, formatCompactUSD } from "@/lib/constants";
-import { computeForecast } from "@/lib/forecast";
+import { computeForecast, historyYears } from "@/lib/forecast";
 import { monthlyTotals, historicalMatrix } from "@/lib/forecast-widget-data";
 import { InfoTooltip } from "@/components/common/info-tooltip";
 import { CHART_HELP } from "@/lib/chart-help";
@@ -33,8 +33,8 @@ export function SeasonalForecastChart({
     const forecast = computeForecast({
       currentYearMonthly: real,
       lastYearMonthly: monthlyTotals(records, year - 1, recordType),
-      historicalMatrix: historicalMatrix(records, [2025, 2024, 2023], recordType),
-      weights: [3, 2, 1], // 2025 / 2024 / 2023
+      historicalMatrix: historicalMatrix(records, historyYears(year), recordType),
+      weights: [3, 2, 1], // año-1 / año-2 / año-3
       now: {
         monthIdx: now.getMonth(),
         day: now.getDate(),

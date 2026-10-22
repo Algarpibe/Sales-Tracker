@@ -12,7 +12,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import dynamic from "next/dynamic";
 import { MeshBackground } from "@/components/ui/mesh-background";
-import { computeForecast } from "@/lib/forecast";
+import { computeForecast, historyYears } from "@/lib/forecast";
 import { monthlyTotals, historicalMatrix } from "@/lib/forecast-widget-data";
 import { buildTechServiceData, gruposServicioTecnico, TECH_SERVICE_CATEGORIES_KEY } from "@/lib/tech-service";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -175,8 +175,8 @@ function AnalyticsContent() {
     return computeForecast({
       currentYearMonthly: monthlyTotals(allRecords, yearA, recordType),
       lastYearMonthly: monthlyTotals(allRecords, yearB, recordType),
-      historicalMatrix: historicalMatrix(allRecords, [2025, 2024, 2023], recordType),
-      weights: [3, 2, 1], // 2025 / 2024 / 2023
+      historicalMatrix: historicalMatrix(allRecords, historyYears(yearA), recordType),
+      weights: [3, 2, 1], // A-1 / A-2 / A-3
       now: {
         monthIdx: now.getMonth(),
         day: now.getDate(),
