@@ -512,7 +512,7 @@ git commit -m "feat(clientes): entrada de menú Clientes"
 ### Task 7: Build + validación
 
 - [ ] **Step 1:** Run `npm run typecheck && npm run lint && npm test && npm run build` → Expected todo verde; ruta `/clientes` en la salida.
-- [ ] **Step 2: Validación de datos (manual, vía hub).** Tras desplegar, abrir `/clientes`, tipo FAC, rango 2015→2025, comprobar que p.ej. **Consultora Endémica 2025 ≈ $209.945** y **Chemilab 2025 ≈ $185.326** (cuadra con el CSV).
+- [ ] **Step 2: Validación de datos (manual, vía hub).** Tras desplegar, abrir `/clientes`, tipo FAC, rango 2015→2025, comprobar que p.ej. **Cliente E 2025 ≈ $X** y **Cliente F 2025 ≈ $Y** (cuadra con el CSV).
 - [ ] **Step 3:** `git push origin main`
 
 ---

@@ -10,7 +10,7 @@
 
 **Tech:** Next 16, react-query, recharts (line/bar/scatter), Tailwind + UI propios, pg, vitest.
 
-**Feasibilidad (verificada en Zoho):** los ítems de Ambientalia (org `714421387`, Inventario activo) tienen `purchase_rate` poblado y variable (márgenes reales 20–50 % en muestra). El hub replica el payload del ítem (ya leemos `raw->>'manufacturer'`), por lo que `raw->>'purchase_rate'` debe existir — **se verifica como Tarea 1 del plan antes de construir las cards.**
+**Feasibilidad (verificada en Zoho):** los ítems de Ambientalia (org `<org-id>`, Inventario activo) tienen `purchase_rate` poblado y variable (márgenes reales 20–50 % en muestra). El hub replica el payload del ítem (ya leemos `raw->>'manufacturer'`), por lo que `raw->>'purchase_rate'` debe existir — **se verifica como Tarea 1 del plan antes de construir las cards.**
 
 ---
 

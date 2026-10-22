@@ -43,7 +43,7 @@ export const auth = betterAuth({
   plugins: [nextCookies()], // nextCookies SIEMPRE el último
 });
 ```
-- [ ] **Step 2:** Añadir env a `.env.local` (local) y al servicio Easypanel (cutover): `BETTER_AUTH_SECRET=<openssl rand -base64 32>`, `BETTER_AUTH_URL=https://sales-tracker.ambientalia.cloud` (local: `http://localhost:3000`).
+- [ ] **Step 2:** Añadir env a `.env.local` (local) y al servicio Easypanel (cutover): `BETTER_AUTH_SECRET=<openssl rand -base64 32>`, `BETTER_AUTH_URL=https://<dominio-app>` (local: `http://localhost:3000`).
 - [ ] **Step 3:** Commit.
 
 ---

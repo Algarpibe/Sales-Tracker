@@ -1,26 +1,12 @@
-# SalesTracker Pro - Workspace Rules
+# SalesTracker Pro — reglas del workspace
 
-## 🎨 UI & Aesthetic Standards (Antigravity Premium)
-- **Glassmorphism**: Use `bg-background/60` with `backdrop-blur-xl` or `backdrop-blur-2xl` for all container surfaces.
-- **Shadows**: Implement soft, deep shadows like `shadow-[0_20px_50px_rgba(0,0,0,0.05)]`.
-- **Borders**: Prefer subtle glowing top/side borders: `border-t-primary/20`, `border-t-cyan-500/20`, etc.
-- **Animations**: Use `framer-motion` for subtle entrance/hover effects and interactive background mesh elements.
-- **Layouts**: Dashboard modules (Analytics, KPIs) must use `max-w-full px-4` to maximize screen real estate.
+Las reglas del proyecto viven en un único sitio: **AGENTS.md** (raíz del repositorio).
+Léelo antes de cambiar nada y síguelo. Este fichero solo apunta allí para que no haya
+dos fuentes que se contradigan.
 
-## 🏗️ Architecture & Best Practices
-- **Framework**: Next.js 16+ with App Router.
-- **Output Mode**: Always keep `output: "standalone"` in `next.config.ts`.
-- **Dockerfile**: Use the multi-stage build optimized for `server.js` (standalone mode).
-- **Data Layer**: Postgres plano con **Drizzle ORM** (`src/db`). Autenticación con **better-auth** (bcryptjs). NO se usa Supabase (migrado fuera).
-- **Data Fetching**: Server Actions (`src/actions/*`) para lecturas y mutaciones; guards de autorización en `src/lib/auth/guards.ts` (`requireUser`/`requireApproved`/`requireRole`).
-- **Environment Variables**: Solo `NEXT_PUBLIC_` para variables realmente públicas (p.ej. `NEXT_PUBLIC_APP_URL`). Secretos (`DATABASE_URL`, `BETTER_AUTH_SECRET`) solo en servidor.
-- **Form Handling**: Use `react-hook-form` and `zod` for validation.
-
-## 💡 Code Quality
-- Ensure all components are responsive (mobile-first approach).
-- Strictly adhere to TypeScript types; avoid `any`.
-- Homogenize styling across all modules: Analytics, KPIs, and Home must share the same premium look.
-- Use `lucide-react` for icons.
-
----
-*Follow these rules to maintain the "Antigravity Pop" premium feel throughout the application.*
+Resumen mínimo (el detalle está en AGENTS.md):
+- Next.js 16 + Server Actions, better-auth, Drizzle sobre Postgres. NO se usa Supabase.
+- El zoho-hub se lee en solo lectura con SQL parametrizado (`src/db/hub-*.ts`).
+- Guards de `src/lib/auth/guards.ts` en cada acción; mutaciones con `runAction`.
+- Nada de datos reales, secretos ni infraestructura en el repositorio.
+- No hacer git add/commit/push sin permiso expreso del usuario.

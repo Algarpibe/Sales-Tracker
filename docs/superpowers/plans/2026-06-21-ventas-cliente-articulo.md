@@ -569,7 +569,7 @@ git commit -m "feat(cliente-articulo): entrada de menú"
 ### Task 7: Build + validación
 
 - [ ] **Step 1:** `npm run typecheck && npm run lint && npm test && npm run build` → todo verde; ruta `/cliente-articulo` en la salida.
-- [ ] **Step 2: Validación (manual, vía hub).** Tras desplegar, abrir `/cliente-articulo`, FAC, año 2025, y comparar con el PDF: p.ej. **Consultora Endémica** → Equipos ≈ $209.945; **Chemical Laboratory** → Equipos ≈ $168.027 + C&R ≈ $8.918 + Mano de Obra ≈ $8.380; **Corola** → Equipos ≈ $50.589.
+- [ ] **Step 2: Validación (manual, vía hub).** Tras desplegar, abrir `/cliente-articulo`, FAC, año 2025, y comparar con el PDF: p.ej. **Cliente E** → Equipos ≈ $X; **Cliente F** → Equipos ≈ $X + C&R ≈ $Y + Mano de Obra ≈ $Z; **Cliente A** → Equipos ≈ $X.
 - [ ] **Step 3:** `git push origin main`
 
 ---

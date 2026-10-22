@@ -6,9 +6,9 @@
 
 **Architecture:** Schema obtenido por **introspección** (`drizzle-kit pull`) del Postgres Supabase actual (fuente de verdad), más las tablas de **better-auth** generadas por su CLI, reconciliando `profiles` (1:1 con `user`). Migración de datos por copia directa (dominio) + transformación auth (`auth.users`→`user`+`account`).
 
-**Tech Stack:** Next.js 16, `drizzle-orm` + `drizzle-kit`, `pg`, `better-auth`, `bcryptjs`. Infra: Easypanel (Postgres), SSH al VPS `72.60.166.93` (clave `~/.ssh/salestracker_migration_ed25519`).
+**Tech Stack:** Next.js 16, `drizzle-orm` + `drizzle-kit`, `pg`, `better-auth`, `bcryptjs`. Infra: Easypanel (Postgres), SSH al VPS `<VPS_IP>` (clave `~/.ssh/<ssh-key>`).
 
-**Referencia de la verdad (ya en el VPS):** `/opt/salestracker-supabase/cloud_public_schema.sql` (esquema) y conteos esperados: companies 4, categories 66, category_groups 6, category_group_mappings 62, sales_records 1527, subscriptions 0, usuarios 2.
+**Referencia de la verdad (ya en el VPS):** `<ruta-compose>/cloud_public_schema.sql` (esquema) y conteos esperados: companies 4, categories 66, category_groups 6, category_group_mappings 62, sales_records 1527, subscriptions 0, usuarios 2.
 
 ---
 
@@ -16,13 +16,13 @@
 
 **Acción manual del usuario (UI) — no automatizable (estado LMDB de Easypanel):**
 
-- [ ] **Step 1:** En `ambientalia_project` → **+ Create** → **Postgres** → nombre `sales-tracker-db`. Versión: **16** (o la misma que usan desk-db/landing-studio-db). Deploy.
+- [ ] **Step 1:** En `<proyecto-easypanel>` → **+ Create** → **Postgres** → nombre `sales-tracker-db`. Versión: **16** (o la misma que usan desk-db/landing-studio-db). Deploy.
 - [ ] **Step 2:** Copiar de la pestaña del servicio: **host interno**, **puerto** (5432), **usuario**, **password**, **database**. (Easypanel los muestra en "Credentials" / "Connection".)
 - [ ] **Step 3 (verificación, por SSH):** confirmar que el contenedor existe y acepta conexiones.
 
 Run:
 ```bash
-ssh -i ~/.ssh/salestracker_migration_ed25519 root@72.60.166.93 \
+ssh -i ~/.ssh/<ssh-key> <ssh-user>@<VPS_IP> \
   "docker ps --filter name=sales-tracker-db --format '{{.Names}} {{.Status}}'"
 ```
 Expected: una línea con el contenedor `...sales-tracker-db...` en `Up`.
@@ -40,7 +40,7 @@ Expected: una línea con el contenedor `...sales-tracker-db...` en `Up`.
 
 Run:
 ```bash
-ssh -i ~/.ssh/salestracker_migration_ed25519 root@72.60.166.93 \
+ssh -i ~/.ssh/<ssh-key> <ssh-user>@<VPS_IP> \
   "docker inspect \$(docker ps -q -f name=sales-tracker-db|head -1) \
    --format '{{range .NetworkSettings.Networks}}{{.IPAddress}} {{end}}'"
 ```
@@ -50,7 +50,7 @@ Expected: una IP tipo `172.x.x.x`.
 
 Run:
 ```bash
-ssh -i ~/.ssh/salestracker_migration_ed25519 -N -L 5544:<IP-interna>:5432 root@72.60.166.93 &
+ssh -i ~/.ssh/<ssh-key> -N -L 5544:<IP-interna>:5432 <ssh-user>@<VPS_IP> &
 ```
 
 - [ ] **Step 3:** Verificar conexión por el túnel.
@@ -120,12 +120,12 @@ DRIZZLE_DATABASE_URL=postgres://<user>:<pw>@localhost:5544/<db>
 grep -qxF '.env.drizzle.local' .gitignore || echo '.env.drizzle.local' >> .gitignore
 ```
 
-- [ ] **Step 3:** Introspectar el **Postgres Supabase ACTUAL** (fuente de verdad) para obtener el schema de dominio. Apuntar temporalmente la URL al túnel del Supabase actual (abrir un segundo túnel 5545→`salestracker_supabase-db-1`), correr pull, y guardar el resultado como base de `src/db/schema.ts`.
+- [ ] **Step 3:** Introspectar el **Postgres Supabase ACTUAL** (fuente de verdad) para obtener el schema de dominio. Apuntar temporalmente la URL al túnel del Supabase actual (abrir un segundo túnel 5545→`<contenedor-supabase-db>`), correr pull, y guardar el resultado como base de `src/db/schema.ts`.
 
 Run:
 ```bash
 # túnel al Supabase actual
-ssh -i ~/.ssh/salestracker_migration_ed25519 -N -L 5545:<IP-supabase-db>:5432 root@72.60.166.93 &
+ssh -i ~/.ssh/<ssh-key> -N -L 5545:<IP-supabase-db>:5432 <ssh-user>@<VPS_IP> &
 DRIZZLE_DATABASE_URL=postgres://postgres:<pw-supabase>@localhost:5545/postgres npx drizzle-kit pull
 ```
 Expected: genera `drizzle/schema.ts` (o `src/db/schema.ts`) con las 7 tablas + enums + vistas del dominio.
@@ -261,7 +261,7 @@ git add drizzle/ && git commit -m "feat(db): initial migration + views applied t
 
 Run (ejemplo companies; repetir por tabla en orden FK: companies → categories → category_groups → category_group_mappings → sales_records → subscriptions):
 ```bash
-ssh -i ~/.ssh/salestracker_migration_ed25519 root@72.60.166.93 '
+ssh -i ~/.ssh/<ssh-key> <ssh-user>@<VPS_IP> '
  docker run --rm postgres:17-alpine pg_dump --data-only -t public.companies \
    "postgres://postgres:<pw-supabase>@<IP-supabase>:5432/postgres" \
  | sed -e "/^\\\\restrict /d" -e "/^\\\\unrestrict /d" -e "/^SET transaction_timeout/d" \
@@ -271,7 +271,7 @@ ssh -i ~/.ssh/salestracker_migration_ed25519 root@72.60.166.93 '
 
 - [ ] **Step 2:** Migrar **auth**: por cada `auth.users` → insertar en `user` (id, email, name=profiles.full_name, emailVerified=true) + `account` (userId, providerId='credential', password=encrypted_password). Y `public.profiles`→`profiles` (sin email/full_name). Script SQL `scripts/migrate-auth.sql` ejecutado contra el Supabase actual leyendo y contra el nuevo escribiendo (o vía `postgres_fdw`/dump intermedio). Implementación concreta: generar INSERTs desde el origen:
 ```bash
-ssh ... 'docker exec -i salestracker_supabase-db-1 psql -U supabase_admin -d postgres -tAc "
+ssh ... 'docker exec -i <contenedor-supabase-db> psql -U supabase_admin -d postgres -tAc "
  SELECT format($f$INSERT INTO \"user\"(id,email,name,\"emailVerified\",\"createdAt\",\"updatedAt\") VALUES (%L,%L,%L,true,%L,%L);$f$,
    u.id, u.email, p.full_name, u.created_at, u.updated_at)
  FROM auth.users u JOIN public.profiles p ON p.id=u.id;"' > /tmp/users.sql

@@ -1,3 +1,5 @@
+> ARCHIVADO (2026-10): obsoleto, no seguir — ver AGENTS.md
+
 # Límites y Alcance - SalesTracker Pro
 
 Este documento define las fronteras operativas y técnicas de la aplicación para evitar ambigüedades en el desarrollo.

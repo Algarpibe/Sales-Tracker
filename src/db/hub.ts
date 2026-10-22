@@ -1,8 +1,13 @@
 import { Pool, type PoolConfig } from "pg";
 
 // Pool de SOLO LECTURA al zoho-hub (hub_reader). Independiente del pool principal
-// (sales-tracker-db). Solo se usa si HUB_DB_URL está definido; si no, la app sigue
-// leyendo sales_records (fallback). Host interno: ambientalia_project_zoho-hub-db:5432.
+// (sales-tracker-db). Solo se crea si HUB_DB_URL está definido.
+// Sin HUB_DB_URL, solo tienen fallback a sales_records las lecturas agregadas que
+// comprueban hubEnabled(): getSalesData, getMonthlyTotals y getAnnualByCategory
+// (sales-actions) y el loader de agrupaciones (grouping-actions). Los módulos
+// hub-* de clientes, artículos, márgenes y KPIs no tienen fallback: getHubPool()
+// lanza y la vista cae a su error boundary.
+// Host: el interno de la BD del hub (red Docker de EasyPanel), dentro de HUB_DB_URL.
 const globalForHub = globalThis as unknown as { __hubPool?: Pool };
 
 // Tope por sentencia. Conservador: la agregación completa de hub-sales recorre todo

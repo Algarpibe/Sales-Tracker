@@ -1,3 +1,5 @@
+> ARCHIVADO (2026-10): obsoleto, no seguir — ver AGENTS.md
+
 # Estándares de Desarrollo - SalesTracker Pro
 
 Este documento define las reglas de oro para mantener la calidad y la estética premium del proyecto.
