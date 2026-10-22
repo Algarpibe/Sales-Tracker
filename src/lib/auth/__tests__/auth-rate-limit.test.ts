@@ -18,3 +18,22 @@ describe("rateLimit.customRules", () => {
     expect(reglas.filter((r) => !rutas.has(r))).toEqual([]);
   });
 });
+
+/**
+ * El contador de better-auth 1.6 solo se reinicia tras `window` segundos SIN
+ * peticiones (lastRequest avanza con cada una). Con tráfico continuo desde una IP
+ * compartida (la oficina tras NAT) /get-session acumula hasta `max` y devuelve 429:
+ * el cliente se queda sin sesión. Es de solo lectura y exige cookie, así que no se
+ * limita; login y registro siguen con sus reglas estrictas.
+ */
+describe("rateLimit de /get-session", () => {
+  it("no se limita: un 429 dejaría al usuario sin sesión en el cliente", () => {
+    expect(auth.options.rateLimit?.customRules?.["/get-session"]).toBe(false);
+  });
+
+  it("login y registro siguen limitados", () => {
+    const reglas = auth.options.rateLimit?.customRules ?? {};
+    expect(reglas["/sign-in/email"]).toEqual({ window: 60, max: 5 });
+    expect(reglas["/sign-up/email"]).toEqual({ window: 60, max: 5 });
+  });
+});

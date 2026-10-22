@@ -71,6 +71,10 @@ export const auth = betterAuth({
     customRules: {
       "/sign-in/email": { window: 60, max: 5 },
       "/sign-up/email": { window: 60, max: 5 },
+      // Sin límite: el contador solo se reinicia tras `window` s sin peticiones, así
+      // que con tráfico continuo desde una IP compartida (oficina tras NAT) llegaría
+      // a 429 y el cliente perdería la sesión. Es de solo lectura y exige cookie.
+      "/get-session": false,
     },
   },
   plugins: [nextCookies()], // nextCookies SIEMPRE el último
