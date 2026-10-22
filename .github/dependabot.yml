@@ -12,6 +12,10 @@ updates:
         update-types:
           - minor
           - patch
+    # TypeScript major (p. ej. 7, reescritura en Go) se migra a mano: rompe el build.
+    ignore:
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
 
   # Mantiene al día las acciones fijadas por SHA en .github/workflows.
   - package-ecosystem: github-actions
