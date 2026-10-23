@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchMarginByItem } from "@/lib/data-client";
-import { buildMarginItems, deriveMargin } from "@/lib/analytics-margin";
+import { buildMarginItems, deriveMargin, marginSummarySeries } from "@/lib/analytics-margin";
+import { ChartFigure } from "@/components/charts/chart-a11y";
 import { formatUSD, formatCompactUSD } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -62,29 +63,36 @@ export function MarginScatterCard({ recordType, year }: { recordType: "SALES_ORD
         ) : points.length === 0 ? (
           <p className="text-sm text-muted-foreground py-10 text-center">Sin datos.</p>
         ) : (
-          <ResponsiveContainer width="100%" height="100%" minHeight={440}>
-            <ScatterChart margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-white/5" />
-              <XAxis type="number" dataKey="ventas" name="Ventas" className="text-xs fill-muted-foreground" tickFormatter={formatCompactUSD} tickLine={false} />
-              <YAxis
-                type="number"
-                dataKey="yPlot"
-                name={mode === "pct" ? "Margen %" : "Margen $"}
-                domain={mode === "pct" ? [FLOOR_PCT, 100] : ["auto", "auto"]}
-                ticks={mode === "pct" ? [-50, -25, 0, 25, 50, 75, 100] : undefined}
-                allowDataOverflow={mode === "pct"}
-                className="text-xs fill-muted-foreground"
-                tickFormatter={mode === "pct" ? (v) => `${Math.round(v)}%` : formatCompactUSD}
-                tickLine={false}
-                axisLine={false}
-              />
-              <ZAxis range={[30, 30]} />
-              <Tooltip content={<ScatterTooltip />} cursor={{ strokeDasharray: "3 3" }} />
-              <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="2 2" />
-              {mode === "pct" && <ReferenceLine y={overallPct} stroke="#f59e0b" strokeDasharray="4 4" />}
-              <Scatter data={points} fill="#6366f1" fillOpacity={0.6} />
-            </ScatterChart>
-          </ResponsiveContainer>
+          <ChartFigure
+            label={`Importe vs margen ${mode === "pct" ? "%" : "$"} ${year}`}
+            // Un punto por artículo: pueden ser cientos. El resumen se queda con los
+            // primeros en el orden de buildMarginItems (mayor margen $) y cuenta el resto.
+            summary={{ data: points, categoryLabel: "Artículo", category: (p) => p.label, series: marginSummarySeries({ costo: false }) }}
+          >
+            <ResponsiveContainer width="100%" height="100%" minHeight={440}>
+              <ScatterChart accessibilityLayer margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-white/5" />
+                <XAxis type="number" dataKey="ventas" name="Ventas" className="text-xs fill-muted-foreground" tickFormatter={formatCompactUSD} tickLine={false} />
+                <YAxis
+                  type="number"
+                  dataKey="yPlot"
+                  name={mode === "pct" ? "Margen %" : "Margen $"}
+                  domain={mode === "pct" ? [FLOOR_PCT, 100] : ["auto", "auto"]}
+                  ticks={mode === "pct" ? [-50, -25, 0, 25, 50, 75, 100] : undefined}
+                  allowDataOverflow={mode === "pct"}
+                  className="text-xs fill-muted-foreground"
+                  tickFormatter={mode === "pct" ? (v) => `${Math.round(v)}%` : formatCompactUSD}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <ZAxis range={[30, 30]} />
+                <Tooltip content={<ScatterTooltip />} cursor={{ strokeDasharray: "3 3" }} />
+                <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="2 2" />
+                {mode === "pct" && <ReferenceLine y={overallPct} stroke="#f59e0b" strokeDasharray="4 4" />}
+                <Scatter data={points} fill="#6366f1" fillOpacity={0.6} />
+              </ScatterChart>
+            </ResponsiveContainer>
+          </ChartFigure>
         )}
       </CardContent>
     </Card>

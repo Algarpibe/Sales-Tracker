@@ -7,6 +7,7 @@ import { customerTopItems } from "@/lib/customer-detail";
 import { formatUSD, formatCompactUSD } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ChartFigure } from "@/components/charts/chart-a11y";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import type { ChartTooltipProps } from "@/lib/chart-types";
 import type { CustomerItemPoint } from "@/lib/customer-detail";
@@ -39,15 +40,25 @@ export function CustomerTopItemsCard({ customer, recordType, year }: { customer:
         ) : top.length === 0 ? (
           <p className="text-sm text-muted-foreground py-10 text-center">Sin datos.</p>
         ) : (
-          <ResponsiveContainer width="100%" height={440}>
-            <BarChart data={top} layout="vertical" margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-white/5" horizontal={false} />
-              <XAxis type="number" className="text-xs fill-muted-foreground" tickFormatter={formatCompactUSD} tickLine={false} axisLine={false} />
-              <YAxis type="category" dataKey="label" width={160} className="text-[10px] fill-muted-foreground" tickLine={false} axisLine={false} />
-              <Tooltip content={<ItemTooltip />} />
-              <Bar dataKey="importe" name="Importe" fill="#6366f1" radius={[0, 4, 4, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          <ChartFigure
+            label={`Top artículos ${year}`}
+            summary={{
+              data: top,
+              categoryLabel: "Artículo",
+              category: (p) => p.label,
+              series: [{ label: "Importe", value: (p) => p.importe, format: formatUSD }],
+            }}
+          >
+            <ResponsiveContainer width="100%" height={440}>
+              <BarChart accessibilityLayer data={top} layout="vertical" margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-white/5" horizontal={false} />
+                <XAxis type="number" className="text-xs fill-muted-foreground" tickFormatter={formatCompactUSD} tickLine={false} axisLine={false} />
+                <YAxis type="category" dataKey="label" width={160} className="text-[10px] fill-muted-foreground" tickLine={false} axisLine={false} />
+                <Tooltip content={<ItemTooltip />} />
+                <Bar dataKey="importe" name="Importe" fill="#6366f1" radius={[0, 4, 4, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartFigure>
         )}
       </CardContent>
     </Card>

@@ -39,6 +39,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { InfoTooltip } from "@/components/common/info-tooltip";
+import { ChartFigure } from "@/components/charts/chart-a11y";
 import { seleccionInicialIds, type SeleccionInicial } from "@/lib/evolution-card";
 import { HUB_FIRST_YEAR, MONTH_LABELS, formatUSDCompactIntl, formatUSDWhole } from "@/lib/constants";
 import { keepYearsFrom } from "@/lib/grouping-analysis";
@@ -425,52 +426,78 @@ export function EvolutionCard({
                 </p>
               </div>
             ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                  <XAxis
-                    dataKey={viewMode === "ANNUAL" ? "year" : viewMode === "QUARTERLY" ? "quarter" : "month"}
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: "var(--muted-foreground)", fontSize: 12, fontWeight: 700 }}
-                    dy={10}
-                  />
-                  <YAxis
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: "var(--muted-foreground)", fontSize: 11, fontWeight: 500 }}
-                    tickFormatter={formatUSDCompactIntl}
-                  />
-                  <RechartsTooltip content={<EvolutionTooltip viewMode={viewMode} year={effectiveYear} />} cursor={{ fill: "rgba(147, 197, 253, 0.15)" }} />
-                  <Legend
-                    verticalAlign="top"
-                    align="right"
-                    iconType="circle"
-                    wrapperStyle={{ fontSize: 12, paddingBottom: 30, fontWeight: 600, textTransform: 'uppercase' }}
-                  />
-                  {selectedGroupDetails.map((group, idx) => (
-                    <Bar
-                      key={group.groupId}
-                      dataKey={group.groupName}
-                      stackId="a"
-                      fill={group.color || "#8884d8"}
-                      radius={idx === selectedGroupDetails.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
-                      maxBarSize={viewMode === "MONTHLY" ? 40 : 60}
-                      animationDuration={1500}
-                    >
-                      {idx === selectedGroupDetails.length - 1 && (
-                        <LabelList
-                          dataKey={(entry) => selectedGroupDetails.reduce((sum, g) => sum + (entry[g.groupName] || 0), 0)}
-                          position="top"
-                          offset={10}
-                          formatter={formatUSDCompactIntl}
-                          style={{ fill: "var(--muted-foreground)", fontSize: 10, fontWeight: 600 }}
-                        />
-                      )}
-                    </Bar>
-                  ))}
-                </BarChart>
-              </ResponsiveContainer>
+              <ChartFigure
+                label={title}
+                summary={{
+                  data: chartData,
+                  categoryLabel: viewMode === "ANNUAL" ? "Año" : viewMode === "QUARTERLY" ? "Trimestre" : "Mes",
+                  // Como el tooltip: trimestre y mes llevan el año elegido.
+                  category: (p) =>
+                    viewMode === "ANNUAL"
+                      ? String(p.year)
+                      : `${viewMode === "QUARTERLY" ? p.quarter : p.month} ${effectiveYear}`,
+                  // Solo las series elegidas (las mismas barras) y el total que pinta la etiqueta.
+                  series: [
+                    ...selectedGroupDetails.map((g) => ({
+                      label: g.groupName,
+                      value: (p: GroupChartPoint) => Number(p[g.groupName] ?? 0),
+                      format: formatUSDWhole,
+                    })),
+                    {
+                      label: "Total",
+                      value: (p: GroupChartPoint) => selectedGroupDetails.reduce((sum, g) => sum + Number(p[g.groupName] ?? 0), 0),
+                      format: formatUSDWhole,
+                    },
+                  ],
+                }}
+              >
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart accessibilityLayer data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                    <XAxis
+                      dataKey={viewMode === "ANNUAL" ? "year" : viewMode === "QUARTERLY" ? "quarter" : "month"}
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fill: "var(--muted-foreground)", fontSize: 12, fontWeight: 700 }}
+                      dy={10}
+                    />
+                    <YAxis
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fill: "var(--muted-foreground)", fontSize: 11, fontWeight: 500 }}
+                      tickFormatter={formatUSDCompactIntl}
+                    />
+                    <RechartsTooltip content={<EvolutionTooltip viewMode={viewMode} year={effectiveYear} />} cursor={{ fill: "rgba(147, 197, 253, 0.15)" }} />
+                    <Legend
+                      verticalAlign="top"
+                      align="right"
+                      iconType="circle"
+                      wrapperStyle={{ fontSize: 12, paddingBottom: 30, fontWeight: 600, textTransform: 'uppercase' }}
+                    />
+                    {selectedGroupDetails.map((group, idx) => (
+                      <Bar
+                        key={group.groupId}
+                        dataKey={group.groupName}
+                        stackId="a"
+                        fill={group.color || "#8884d8"}
+                        radius={idx === selectedGroupDetails.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
+                        maxBarSize={viewMode === "MONTHLY" ? 40 : 60}
+                        animationDuration={1500}
+                      >
+                        {idx === selectedGroupDetails.length - 1 && (
+                          <LabelList
+                            dataKey={(entry) => selectedGroupDetails.reduce((sum, g) => sum + (entry[g.groupName] || 0), 0)}
+                            position="top"
+                            offset={10}
+                            formatter={formatUSDCompactIntl}
+                            style={{ fill: "var(--muted-foreground)", fontSize: 10, fontWeight: 600 }}
+                          />
+                        )}
+                      </Bar>
+                    ))}
+                  </BarChart>
+                </ResponsiveContainer>
+              </ChartFigure>
             )}
           </div>
         </div>

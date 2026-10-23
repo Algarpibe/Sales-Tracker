@@ -15,6 +15,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { InfoTooltip } from "@/components/common/info-tooltip";
 import { Checkbox } from "@/components/ui/checkbox";
+import { ChartFigure } from "@/components/charts/chart-a11y";
 import { CHART_HELP } from "@/lib/chart-help";
 import { formatCompactUSD, formatUSD } from "@/lib/constants";
 import type { ChartTooltipProps } from "@/lib/chart-types";
@@ -110,88 +111,108 @@ export function BarChartMonthly({ data, title = "Ventas Mensuales" }: BarChartMo
       {/* flex-1 + min-h-0: el gráfico toma la altura que le dé el contenedor (el
           widget es redimensionable). minHeight evita que colapse si no hay altura. */}
       <CardContent className="min-h-0 flex-1">
-        <ResponsiveContainer width="100%" height="100%" minHeight={220}>
-          <ComposedChart data={chartData} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" className="stroke-white/5" vertical={false} />
-            <XAxis
-              dataKey="month"
-              className="text-xs fill-muted-foreground"
-              tickLine={false}
-              axisLine={false}
-              dy={10}
-            />
-            <YAxis
-              yAxisId="left"
-              className="text-xs fill-muted-foreground"
-              tickLine={false}
-              axisLine={false}
-              tickFormatter={formatCompactUSD}
-              dx={-5}
-            />
-            {/* Eje propio: el acumulado es de otra magnitud que el importe mensual. */}
-            {showCumulative && (
+        <ChartFigure
+          label={title}
+          summary={{
+            data: chartData,
+            categoryLabel: "Mes",
+            category: (p) => p.month,
+            series: [
+              { label: "Órdenes de Venta", value: (p) => p.sales_orders, format: formatUSD },
+              { label: "Facturas", value: (p) => p.invoices, format: formatUSD },
+              // Las columnas de acumulado solo si sus líneas están a la vista.
+              ...(showCumulative
+                ? [
+                    { label: "Acum. Órdenes", value: (p: (typeof chartData)[number]) => p.cum_sales_orders, format: formatUSD },
+                    { label: "Acum. Facturas", value: (p: (typeof chartData)[number]) => p.cum_invoices, format: formatUSD },
+                  ]
+                : []),
+            ],
+          }}
+        >
+          <ResponsiveContainer width="100%" height="100%" minHeight={220}>
+            <ComposedChart accessibilityLayer data={chartData} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-white/5" vertical={false} />
+              <XAxis
+                dataKey="month"
+                className="text-xs fill-muted-foreground"
+                tickLine={false}
+                axisLine={false}
+                dy={10}
+              />
               <YAxis
-                yAxisId="right"
-                orientation="right"
+                yAxisId="left"
                 className="text-xs fill-muted-foreground"
                 tickLine={false}
                 axisLine={false}
                 tickFormatter={formatCompactUSD}
+                dx={-5}
               />
-            )}
-            <Tooltip
-              content={<CustomTooltip />}
-              cursor={{ fill: "rgba(147, 197, 253, 0.05)" }}
-            />
-            <Legend 
-              verticalAlign="top" 
-              align="right" 
-              height={40}
-              iconType="circle"
-              className="text-xs"
-            />
-            <Bar
-              yAxisId="left"
-              dataKey="sales_orders"
-              name="Órdenes de Venta"
-              fill="oklch(0.65 0.2 255)"
-              radius={[4, 4, 0, 0]}
-              animationDuration={1500}
-            />
-            <Bar
-              yAxisId="left"
-              dataKey="invoices"
-              name="Facturas"
-              fill="oklch(0.7 0.18 190)"
-              radius={[4, 4, 0, 0]}
-              animationDuration={1500}
-            />
-            {/* Acumulado: continua para OV, discontinua para facturación. */}
-            {showCumulative && (
-              <Line
-                yAxisId="right"
-                type="monotone"
-                dataKey="cum_sales_orders"
-                name="Acum. Órdenes"
-                stroke="oklch(0.65 0.2 255)"
-                strokeWidth={3}
-                dot={{ r: 3 }}
+              {/* Eje propio: el acumulado es de otra magnitud que el importe mensual. */}
+              {showCumulative && (
+                <YAxis
+                  yAxisId="right"
+                  orientation="right"
+                  className="text-xs fill-muted-foreground"
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={formatCompactUSD}
+                />
+              )}
+              <Tooltip
+                content={<CustomTooltip />}
+                cursor={{ fill: "rgba(147, 197, 253, 0.05)" }}
               />
-            )}
-            {showCumulative && (
-              <Line
-                yAxisId="right"
-                type="monotone"
-                dataKey="cum_invoices"
-                name="Acum. Facturas"
-                stroke="oklch(0.7 0.18 190)"
-                strokeWidth={2}
-                strokeDasharray="6 4"
-                dot={{ r: 3 }}
+              <Legend 
+                verticalAlign="top" 
+                align="right" 
+                height={40}
+                iconType="circle"
+                className="text-xs"
               />
-            )}
-          </ComposedChart>
-        </ResponsiveContainer>
+              <Bar
+                yAxisId="left"
+                dataKey="sales_orders"
+                name="Órdenes de Venta"
+                fill="oklch(0.65 0.2 255)"
+                radius={[4, 4, 0, 0]}
+                animationDuration={1500}
+              />
+              <Bar
+                yAxisId="left"
+                dataKey="invoices"
+                name="Facturas"
+                fill="oklch(0.7 0.18 190)"
+                radius={[4, 4, 0, 0]}
+                animationDuration={1500}
+              />
+              {/* Acumulado: continua para OV, discontinua para facturación. */}
+              {showCumulative && (
+                <Line
+                  yAxisId="right"
+                  type="monotone"
+                  dataKey="cum_sales_orders"
+                  name="Acum. Órdenes"
+                  stroke="oklch(0.65 0.2 255)"
+                  strokeWidth={3}
+                  dot={{ r: 3 }}
+                />
+              )}
+              {showCumulative && (
+                <Line
+                  yAxisId="right"
+                  type="monotone"
+                  dataKey="cum_invoices"
+                  name="Acum. Facturas"
+                  stroke="oklch(0.7 0.18 190)"
+                  strokeWidth={2}
+                  strokeDasharray="6 4"
+                  dot={{ r: 3 }}
+                />
+              )}
+            </ComposedChart>
+          </ResponsiveContainer>
+        </ChartFigure>
       </CardContent>
     </Card>
   );

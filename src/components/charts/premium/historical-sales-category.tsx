@@ -23,6 +23,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Check, ChevronsUpDown, X, LayoutTemplate, Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { InfoTooltip } from "@/components/common/info-tooltip";
+import { ChartFigure } from "@/components/charts/chart-a11y";
 import { CHART_HELP } from "@/lib/chart-help";
 import { HUB_FIRST_YEAR, formatUSDWhole } from "@/lib/constants";
 import { buildHistoricalCategorySeries, type CategoryChartPoint } from "@/lib/category-series";
@@ -224,44 +225,71 @@ export function HistoricalSalesCategory() {
         transition={{ duration: 0.5 }}
         className="h-[400px] w-full mt-8"
       >
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart
-            data={currentChartData}
-            margin={{ top: 20, right: 30, left: 40, bottom: 5 }}
-            barSize={viewMode === "MONTHLY" ? 30 : 45}
-          >
-            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="color-mix(in oklch, var(--muted-foreground) 10%, transparent)" />
-            <XAxis
-              dataKey={viewMode === "ANNUAL" ? "year" : viewMode === "QUARTERLY" ? "quarter" : "month"}
-              axisLine={false}
-              tickLine={false}
-              tick={{ fill: 'var(--muted-foreground)', fontSize: 12, fontWeight: 500 }}
-              dy={10}
-            />
-            <YAxis
-              tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
-              axisLine={false}
-              tickLine={false}
-              tick={{ fill: 'var(--muted-foreground)', fontSize: 12 }}
-              dx={-10}
-            />
-            <Tooltip content={<HistoricalTooltip viewMode={viewMode} year={effectiveYear} catMap={catMap} />} cursor={{ fill: 'rgba(147, 197, 253, 0.15)' }} />
-
-            {selectedCategories.map((category, index) => (
-              <Bar
-                key={category.id}
-                dataKey={category.id}
-                name={category.name}
-                stackId="a"
-                fill={category.color}
-                radius={
-                  index === selectedCategories.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]
-                }
-                animationDuration={1500}
+        <ChartFigure
+          label={`Histórico ${viewMode === "MONTHLY" ? "Mensual" : viewMode === "QUARTERLY" ? "Trimestral" : "Anual"}`}
+          summary={{
+            data: currentChartData,
+            categoryLabel: viewMode === "ANNUAL" ? "Año" : viewMode === "QUARTERLY" ? "Trimestre" : "Mes",
+            // Como el tooltip: trimestre y mes llevan el año elegido.
+            category: (p) =>
+              viewMode === "ANNUAL"
+                ? String(p.year)
+                : `${viewMode === "QUARTERLY" ? p.quarter : p.month} ${effectiveYear}`,
+            // Una columna por categoría elegida (las mismas barras) y el total del tooltip.
+            series: [
+              ...selectedCategories.map((cat) => ({
+                label: cat.name,
+                value: (p: CategoryChartPoint) => Number(p[cat.id] ?? 0),
+                format: formatUSDWhole,
+              })),
+              {
+                label: "Total",
+                value: (p: CategoryChartPoint) => selectedCategories.reduce((sum, cat) => sum + Number(p[cat.id] ?? 0), 0),
+                format: formatUSDWhole,
+              },
+            ],
+          }}
+        >
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              accessibilityLayer
+              data={currentChartData}
+              margin={{ top: 20, right: 30, left: 40, bottom: 5 }}
+              barSize={viewMode === "MONTHLY" ? 30 : 45}
+            >
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="color-mix(in oklch, var(--muted-foreground) 10%, transparent)" />
+              <XAxis
+                dataKey={viewMode === "ANNUAL" ? "year" : viewMode === "QUARTERLY" ? "quarter" : "month"}
+                axisLine={false}
+                tickLine={false}
+                tick={{ fill: 'var(--muted-foreground)', fontSize: 12, fontWeight: 500 }}
+                dy={10}
               />
-            ))}
-          </BarChart>
-        </ResponsiveContainer>
+              <YAxis
+                tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
+                axisLine={false}
+                tickLine={false}
+                tick={{ fill: 'var(--muted-foreground)', fontSize: 12 }}
+                dx={-10}
+              />
+              <Tooltip content={<HistoricalTooltip viewMode={viewMode} year={effectiveYear} catMap={catMap} />} cursor={{ fill: 'rgba(147, 197, 253, 0.15)' }} />
+
+              {selectedCategories.map((category, index) => (
+                <Bar
+                  key={category.id}
+                  dataKey={category.id}
+                  name={category.name}
+                  stackId="a"
+                  fill={category.color}
+                  radius={
+                    index === selectedCategories.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]
+                  }
+                  animationDuration={1500}
+                />
+              ))}
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartFigure>
       </motion.div>
     );
   };

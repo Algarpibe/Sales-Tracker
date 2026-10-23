@@ -7,6 +7,7 @@ import { customerYearSeries } from "@/lib/customer-detail";
 import { HISTORY_FIRST_YEAR, formatUSD, formatCompactUSD } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ChartFigure } from "@/components/charts/chart-a11y";
 import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import type { ChartTooltipProps } from "@/lib/chart-types";
 import type { CustomerYearPoint } from "@/lib/customer-detail";
@@ -41,19 +42,29 @@ export function CustomerEvolutionCard({ customer, recordType, year }: { customer
         ) : series.length === 0 ? (
           <p className="text-sm text-muted-foreground py-10 text-center">Sin datos.</p>
         ) : (
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={series} margin={{ top: 10, right: 10, left: 10, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-white/5" vertical={false} />
-              <XAxis dataKey="year" className="text-xs fill-muted-foreground" tickLine={false} />
-              <YAxis className="text-xs fill-muted-foreground" tickFormatter={formatCompactUSD} tickLine={false} axisLine={false} />
-              <Tooltip content={<EvoTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
-              <Bar dataKey="ventas" name="Ventas" radius={[4, 4, 0, 0]}>
-                {series.map((s) => (
-                  <Cell key={s.year} fill={s.year === year ? "#6366f1" : "#6366f180"} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+          <ChartFigure
+            label="Evolución anual"
+            summary={{
+              data: series,
+              categoryLabel: "Año",
+              category: (s) => String(s.year),
+              series: [{ label: "Ventas", value: (s) => s.ventas, format: formatUSD }],
+            }}
+          >
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart accessibilityLayer data={series} margin={{ top: 10, right: 10, left: 10, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-white/5" vertical={false} />
+                <XAxis dataKey="year" className="text-xs fill-muted-foreground" tickLine={false} />
+                <YAxis className="text-xs fill-muted-foreground" tickFormatter={formatCompactUSD} tickLine={false} axisLine={false} />
+                <Tooltip content={<EvoTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
+                <Bar dataKey="ventas" name="Ventas" radius={[4, 4, 0, 0]}>
+                  {series.map((s) => (
+                    <Cell key={s.year} fill={s.year === year ? "#6366f1" : "#6366f180"} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartFigure>
         )}
       </CardContent>
     </Card>

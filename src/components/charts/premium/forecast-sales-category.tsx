@@ -45,6 +45,7 @@ import { MONTH_LABELS, formatUSDCompactIntl, formatUSDWhole } from "@/lib/consta
 import { sumByCategoryYearMonth } from "@/lib/category-series";
 import type { ChartTooltipProps } from "@/lib/chart-types";
 import { InfoTooltip } from "@/components/common/info-tooltip";
+import { ChartFigure } from "@/components/charts/chart-a11y";
 import { CHART_HELP } from "@/lib/chart-help";
 
 type RecordType = "SALES_ORDER" | "INVOICE";
@@ -365,74 +366,92 @@ export function ForecastSalesCategory({ baseYear = new Date().getFullYear() }: F
                 </p>
               </div>
             ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                  <defs>
-                    <filter id="glow-emerald" x="-20%" y="-20%" width="140%" height="140%">
-                      <feGaussianBlur stdDeviation="4" result="blur" />
-                      <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                    </filter>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                  <XAxis 
-                    dataKey="month" 
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: "var(--muted-foreground)", fontSize: 12, fontWeight: 700 }}
-                    dy={10}
-                  />
-                  <YAxis 
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: "var(--muted-foreground)", fontSize: 11, fontWeight: 500 }}
-                    tickFormatter={formatUSDCompactIntl}
-                  />
-                  <RechartsTooltip
-                    content={<CategoryForecastTooltip baseYear={baseYear} selectedCategoryIds={selectedCategoryIds} catMap={catMap} />}
-                    cursor={{ fill: "rgba(16, 185, 129, 0.1)" }}
-                  />
-                  <Legend 
-                    verticalAlign="top" 
-                    align="right" 
-                    iconType="circle"
-                    wrapperStyle={{ fontSize: 12, paddingBottom: 30, fontWeight: 600, textTransform: 'uppercase' }}
-                  />
-                  <Line 
-                    name="Forecast Total"
-                    type="monotone" 
-                    dataKey="total_forecast" 
-                    stroke="#10b981" 
-                    strokeWidth={3}
-                    strokeDasharray="8 5"
-                    dot={false}
-                    activeDot={{ r: 6, fill: "#10b981", strokeWidth: 0 }}
-                    filter="url(#glow-emerald)"
-                    animationDuration={2000}
-                  />
-                  {selectedCategories.map((cat, idx) => (
-                    <Bar 
-                      key={cat.id}
-                      dataKey={cat.id}
-                      name={cat.name}
-                      stackId="a"
-                      fill={cat.color || "#8884d8"}
-                      radius={idx === selectedCategories.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
-                      maxBarSize={60}
-                      animationDuration={1500}
-                    >
-                      {idx === selectedCategories.length - 1 && (
-                        <LabelList 
-                          dataKey={(entry) => selectedCategories.reduce((sum, c) => sum + (entry[c.id] || 0), 0)}
-                          position="top" 
-                          offset={10}
-                          formatter={formatUSDCompactIntl}
-                          style={{ fill: "var(--muted-foreground)", fontSize: 10, fontWeight: 600 }}
-                        />
-                      )}
-                    </Bar>
-                  ))}
-                </ComposedChart>
-              </ResponsiveContainer>
+              <ChartFigure
+                label="Forecast Estacional por Categoría"
+                summary={{
+                  data: chartData,
+                  categoryLabel: "Mes",
+                  category: (p) => `${p.month} ${baseYear}`,
+                  // La línea de forecast total y una barra (ventas reales) por categoría elegida.
+                  series: [
+                    { label: "Forecast Total", value: (p) => Number(p.total_forecast ?? 0), format: formatUSDWhole },
+                    ...selectedCategories.map((cat) => ({
+                      label: cat.name,
+                      value: (p: ForecastChartPoint) => Number(p[cat.id] ?? 0),
+                      format: formatUSDWhole,
+                    })),
+                  ],
+                }}
+              >
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart accessibilityLayer data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                    <defs>
+                      <filter id="glow-emerald" x="-20%" y="-20%" width="140%" height="140%">
+                        <feGaussianBlur stdDeviation="4" result="blur" />
+                        <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                      </filter>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                    <XAxis 
+                      dataKey="month" 
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fill: "var(--muted-foreground)", fontSize: 12, fontWeight: 700 }}
+                      dy={10}
+                    />
+                    <YAxis 
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fill: "var(--muted-foreground)", fontSize: 11, fontWeight: 500 }}
+                      tickFormatter={formatUSDCompactIntl}
+                    />
+                    <RechartsTooltip
+                      content={<CategoryForecastTooltip baseYear={baseYear} selectedCategoryIds={selectedCategoryIds} catMap={catMap} />}
+                      cursor={{ fill: "rgba(16, 185, 129, 0.1)" }}
+                    />
+                    <Legend 
+                      verticalAlign="top" 
+                      align="right" 
+                      iconType="circle"
+                      wrapperStyle={{ fontSize: 12, paddingBottom: 30, fontWeight: 600, textTransform: 'uppercase' }}
+                    />
+                    <Line 
+                      name="Forecast Total"
+                      type="monotone" 
+                      dataKey="total_forecast" 
+                      stroke="#10b981" 
+                      strokeWidth={3}
+                      strokeDasharray="8 5"
+                      dot={false}
+                      activeDot={{ r: 6, fill: "#10b981", strokeWidth: 0 }}
+                      filter="url(#glow-emerald)"
+                      animationDuration={2000}
+                    />
+                    {selectedCategories.map((cat, idx) => (
+                      <Bar 
+                        key={cat.id}
+                        dataKey={cat.id}
+                        name={cat.name}
+                        stackId="a"
+                        fill={cat.color || "#8884d8"}
+                        radius={idx === selectedCategories.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
+                        maxBarSize={60}
+                        animationDuration={1500}
+                      >
+                        {idx === selectedCategories.length - 1 && (
+                          <LabelList 
+                            dataKey={(entry) => selectedCategories.reduce((sum, c) => sum + (entry[c.id] || 0), 0)}
+                            position="top" 
+                            offset={10}
+                            formatter={formatUSDCompactIntl}
+                            style={{ fill: "var(--muted-foreground)", fontSize: 10, fontWeight: 600 }}
+                          />
+                        )}
+                      </Bar>
+                    ))}
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </ChartFigure>
             )}
           </div>
         </div>

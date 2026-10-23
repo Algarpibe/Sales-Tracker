@@ -7,6 +7,7 @@ import { customerMonths } from "@/lib/customer-detail";
 import { MONTH_LABELS, formatUSD, formatCompactUSD } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ChartFigure } from "@/components/charts/chart-a11y";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import type { ChartTooltipProps } from "@/lib/chart-types";
 
@@ -41,15 +42,25 @@ export function CustomerSeasonCard({ customer, recordType, year }: { customer: s
         ) : !hasData ? (
           <p className="text-sm text-muted-foreground py-10 text-center">Sin datos.</p>
         ) : (
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={rows} margin={{ top: 10, right: 10, left: 10, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-white/5" vertical={false} />
-              <XAxis dataKey="mes" className="text-[10px] fill-muted-foreground" tickLine={false} />
-              <YAxis className="text-xs fill-muted-foreground" tickFormatter={formatCompactUSD} tickLine={false} axisLine={false} />
-              <Tooltip content={<MonthTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
-              <Bar dataKey="importe" name="Importe" fill="#10b981" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          <ChartFigure
+            label={`Estacionalidad ${year}`}
+            summary={{
+              data: rows,
+              categoryLabel: "Mes",
+              category: (r) => r.mes,
+              series: [{ label: "Importe", value: (r) => r.importe, format: formatUSD }],
+            }}
+          >
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart accessibilityLayer data={rows} margin={{ top: 10, right: 10, left: 10, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-white/5" vertical={false} />
+                <XAxis dataKey="mes" className="text-[10px] fill-muted-foreground" tickLine={false} />
+                <YAxis className="text-xs fill-muted-foreground" tickFormatter={formatCompactUSD} tickLine={false} axisLine={false} />
+                <Tooltip content={<MonthTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
+                <Bar dataKey="importe" name="Importe" fill="#10b981" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartFigure>
         )}
       </CardContent>
     </Card>
