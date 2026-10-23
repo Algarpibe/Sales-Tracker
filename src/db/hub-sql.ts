@@ -37,3 +37,32 @@ export function netAmountExpr(line: string, header: string): string {
 export function netAmountSumExpr(line: string, header: string): string {
   return `round(sum(${netAmountExpr(line, header)})::numeric, 2)::float8`;
 }
+
+/**
+ * Año natural como rango semiabierto sobre una columna `date` (DATA-045). Equivale a
+ * `extract(year from col) = $n` pero sin envolver la columna, así que Postgres puede
+ * usar un índice B-tree sobre ella. `column` y `param` los fija el código.
+ */
+export function yearRangeExpr(column: string, param: string): string {
+  return yearSpanExpr(column, param, param);
+}
+
+/**
+ * Años `from`..`to` (ambos incluidos) como rango semiabierto: equivale a
+ * `extract(year from col) BETWEEN $from AND $to`, sargable.
+ */
+export function yearSpanExpr(column: string, from: string, to: string): string {
+  return `${column} >= make_date(${from}::int, 1, 1) AND ${column} < make_date(${to}::int + 1, 1, 1)`;
+}
+
+/**
+ * Filtro opcional por cliente (DATA-046). Con cliente, lo añade a `params` y devuelve
+ * el predicado con su `$n`; sin él, cadena vacía y `params` intacto. El nombre viaja
+ * SIEMPRE como parámetro. La igualdad de texto de Postgres es la misma que el `===`
+ * con el que se filtraba antes en el navegador.
+ */
+export function customerPredicate(params: unknown[], customer: string | undefined): string {
+  if (customer === undefined) return "";
+  params.push(customer);
+  return `AND h.customer_name = $${params.length}`;
+}

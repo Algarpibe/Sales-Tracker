@@ -1,10 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { eq, and, asc, inArray } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { categories } from "@/db/schema";
 import { requireApproved, requireRole } from "@/lib/auth/guards";
+import { readCategories, readMacroCategorias, readTechServiceCategories } from "@/lib/data-reads";
 import { ROLES_EDITAN_METAS } from "@/lib/commercial-kpis";
 import {
   categoryCreateSchema,
@@ -18,43 +19,17 @@ import { audit } from "@/lib/audit";
 import { BUCKETS } from "@/lib/customer-item";
 import type { Bucket, MacroCategoria, TechServiceCategory } from "@/types/database";
 
+// Las lecturas viven en src/lib/data-reads.ts, compartidas con GET /api/data/*
+// (DATA-043).
 export async function getCategories() {
   const { profile } = await requireApproved();
-  if (!profile) throw new Error("No autenticado");
-
-  const data = await db
-    .select()
-    .from(categories)
-    .where(
-      and(
-        eq(categories.company_id, profile.company_id),
-        eq(categories.is_active, true)
-      )
-    )
-    .orderBy(asc(categories.sort_order), asc(categories.name));
-
-  return data;
+  return readCategories(profile.company_id);
 }
 
-/**
- * Categorías de la compañía con su grupo de Servicio Técnico, activas e inactivas.
- * A diferencia de getCategories(), no filtra por is_active: una categoría desactivada
- * que sigue clasificada tiene ventas históricas que el gráfico y el KPI deben seguir
- * contando al comparar años.
- */
+/** Categorías con su grupo de Servicio Técnico, activas e inactivas (ver readTechServiceCategories). */
 export async function getTechServiceCategories(): Promise<TechServiceCategory[]> {
   const { profile } = await requireApproved();
-  return db
-    .select({
-      id: categories.id,
-      name: categories.name,
-      color: categories.color,
-      is_active: categories.is_active,
-      tech_service_bucket: categories.tech_service_bucket,
-    })
-    .from(categories)
-    .where(eq(categories.company_id, profile.company_id))
-    .orderBy(asc(categories.sort_order), asc(categories.name));
+  return readTechServiceCategories(profile.company_id);
 }
 
 export async function createCategory(cat: {
@@ -175,23 +150,10 @@ export async function saveTechServiceBuckets(st: string[], cr: string[]): Promis
   });
 }
 
-/**
- * Categorías de la compañía con su macro-categoría, activas e inactivas. Las inactivas
- * hacen falta porque sus ventas de años anteriores siguen en los gráficos y deben caer
- * en la misma macro-categoría que cuando estaban activas.
- */
+/** Categorías con su macro-categoría, activas e inactivas (ver readMacroCategorias). */
 export async function getMacroCategorias(): Promise<MacroCategoria[]> {
   const { profile } = await requireApproved();
-  return db
-    .select({
-      id: categories.id,
-      name: categories.name,
-      is_active: categories.is_active,
-      macro_categoria: categories.macro_categoria,
-    })
-    .from(categories)
-    .where(eq(categories.company_id, profile.company_id))
-    .orderBy(asc(categories.sort_order), asc(categories.name));
+  return readMacroCategorias(profile.company_id);
 }
 
 /**

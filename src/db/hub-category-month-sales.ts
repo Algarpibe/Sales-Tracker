@@ -1,5 +1,5 @@
 import { getHubPool } from "@/db/hub";
-import { netAmountSumExpr, sourceFor } from "@/db/hub-sql";
+import { netAmountSumExpr, sourceFor, yearRangeExpr } from "@/db/hub-sql";
 import type { CategoryMonthFilters, CategoryMonthRow } from "@/types/database";
 
 export async function getHubCategoryMonthSales(f: CategoryMonthFilters): Promise<CategoryMonthRow[]> {
@@ -12,7 +12,7 @@ export async function getHubCategoryMonthSales(f: CategoryMonthFilters): Promise
     FROM ${src.lines} l
     JOIN ${src.header} h ON h.${src.fk} = l.${src.fk}
     JOIN books.items it ON it.item_id = l.item_id
-    WHERE extract(year from h.date) = $1
+    WHERE ${yearRangeExpr("h.date", "$1")}
       AND l.bcy_rate IS NOT NULL
       AND h.status NOT IN ('void','draft')
     GROUP BY extract(month from h.date), it.category_name`;

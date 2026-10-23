@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { getCustomerSales } from "@/actions/customer-sales-actions";
+import { fetchCustomerSales } from "@/lib/data-client";
 import { getFavorites, toggleFavorite } from "@/actions/favorites-actions";
 import { FavoriteStar } from "@/components/common/favorite-star";
 import { Switch } from "@/components/ui/switch";
@@ -139,7 +139,7 @@ export default function ClientesPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ["customer-sales", { tipo, desdeAnio, hastaAnio, includeHistory: true }],
-    queryFn: () => getCustomerSales({ tipo, desdeAnio, hastaAnio, includeHistory: true }),
+    queryFn: () => fetchCustomerSales({ tipo, desdeAnio, hastaAnio, includeHistory: true }),
   });
 
   const rows = useMemo<CustomerYearRow[]>(() => data ?? [], [data]);

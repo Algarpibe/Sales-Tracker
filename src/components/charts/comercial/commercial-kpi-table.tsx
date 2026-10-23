@@ -4,23 +4,25 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { getTechServiceCategories } from "@/actions/category-actions";
-import { getCustomerSales } from "@/actions/customer-sales-actions";
+import {
+  fetchCustomerSales,
+  fetchKpiDealsMonthly,
+  fetchKpiMonthlySales,
+  fetchKpiProjectOrders,
+  fetchKpiTargets,
+  fetchKpiTicketsChanges,
+  fetchKpiWonDealsMonthly,
+  fetchSalesData,
+  fetchSalespeople,
+  fetchTechServiceCategories,
+} from "@/lib/data-client";
 import {
   addProjectOrder,
-  getKpiDealsMonthly,
-  getKpiMonthlySales,
-  getKpiProjectOrders,
-  getKpiTargets,
-  getKpiTicketsChanges,
-  getKpiWonDealsMonthly,
-  getSalespeople,
   removeProjectOrder,
   searchSalesOrdersForProjects,
   type KpiScope,
   type KpiTargetRow,
 } from "@/actions/kpi-actions";
-import { getSalesData } from "@/actions/sales-actions";
 import { firstYearByCustomer } from "@/lib/analytics-comercial";
 import { COMMERCIAL_KPIS, KPI_UNIT_LABEL, type KpiDef, type KpiUnit } from "@/lib/commercial-kpis";
 import {
@@ -74,9 +76,9 @@ const CLASE_CELDA_PULSABLE =
   "underline decoration-dotted underline-offset-2 hover:text-primary hover:decoration-solid";
 
 /** Orden de venta con su importe neto calculado en vivo, tal y como la devuelven
- *  searchSalesOrdersForProjects y getKpiProjectOrders. Se deriva del tipo real de
+ *  searchSalesOrdersForProjects y fetchKpiProjectOrders. Se deriva del tipo real de
  *  la acción en vez de importar HubOrderRow desde src/db/hub-kpi (server-only). */
-type OrdenProyecto = Awaited<ReturnType<typeof getKpiProjectOrders>>[number];
+type OrdenProyecto = Awaited<ReturnType<typeof fetchKpiProjectOrders>>[number];
 
 /** "mensual" -> "Mensual". Con CSS, `capitalize` dejaría "nº" como "Nº". */
 function conMayuscula(texto: string): string {
@@ -274,7 +276,7 @@ export function CommercialKpiTable({
 
   const vendedoresQ = useQuery({
     queryKey: ["kpi-salespeople"],
-    queryFn: () => getSalespeople(),
+    queryFn: () => fetchSalespeople(),
   });
 
   // Órdenes marcadas como ingresos de proyecto: no depende de año ni de ámbito,
@@ -282,7 +284,7 @@ export function CommercialKpiTable({
   // diálogo y la fila de la tabla comparten caché y se refrescan juntos.
   const proyectosQ = useQuery({
     queryKey: ["kpi-project-orders"],
-    queryFn: () => getKpiProjectOrders(),
+    queryFn: () => fetchKpiProjectOrders(),
   });
   // Búsqueda del diálogo de gestión: solo se lanza con el diálogo abierto y al
   // menos 2 caracteres, mismo umbral que ya aplica searchSalesOrdersForProjects
@@ -301,18 +303,18 @@ export function CommercialKpiTable({
   // cambio la haría parpadear entera.
   const metasQ = useQuery({
     queryKey: ["kpi-targets", year, owner],
-    queryFn: () => getKpiTargets(year, salesperson),
+    queryFn: () => fetchKpiTargets(year, salesperson),
     placeholderData: keepPreviousData,
   });
   const mensualesQ = useQuery({
     queryKey: ["kpi-monthly", recordType, year, owner],
-    queryFn: () => getKpiMonthlySales(recordType, year, salesperson),
+    queryFn: () => fetchKpiMonthlySales(recordType, year, salesperson),
     placeholderData: keepPreviousData,
   });
   // Los tratos no dependen del conmutador OV/FAC: en CRM no hay tal cosa.
   const tratosQ = useQuery({
     queryKey: ["kpi-deals", year, owner],
-    queryFn: () => getKpiDealsMonthly(year, salesperson),
+    queryFn: () => fetchKpiDealsMonthly(year, salesperson),
     placeholderData: keepPreviousData,
   });
   // Los ganados van aparte de los generados: se cuentan por el mes (en hora de Bogota)
@@ -320,7 +322,7 @@ export function CommercialKpiTable({
   // deducir de los de arriba.
   const ganadosQ = useQuery({
     queryKey: ["kpi-won-deals", year, owner],
-    queryFn: () => getKpiWonDealsMonthly(year, salesperson),
+    queryFn: () => fetchKpiWonDealsMonthly(year, salesperson),
     placeholderData: keepPreviousData,
   });
   // Tickets en plazo: de compañía y sin conmutador OV/FAC (Desk no tiene tal cosa),
@@ -328,24 +330,25 @@ export function CommercialKpiTable({
   // año: cambiar de año no debe desmontar la tabla entera.
   const ticketsQ = useQuery({
     queryKey: ["kpi-tickets", year],
-    queryFn: () => getKpiTicketsChanges(year),
+    queryFn: () => fetchKpiTicketsChanges(year),
     placeholderData: keepPreviousData,
   });
 
-  // Misma clave exacta que /clientes y la ficha de cliente, para compartir su caché.
+  // Misma clave exacta que /clientes, para compartir su caché (la ficha de cliente pide
+  // solo las filas de su cliente, DATA-046).
   const historicoQ = useQuery({
     queryKey: ["customer-sales", { tipo: "INVOICE", desdeAnio: HISTORY_FIRST_YEAR, hastaAnio: thisYear, includeHistory: true }],
-    queryFn: () => getCustomerSales({ tipo: "INVOICE", desdeAnio: HISTORY_FIRST_YEAR, hastaAnio: thisYear, includeHistory: true }),
+    queryFn: () => fetchCustomerSales({ tipo: "INVOICE", desdeAnio: HISTORY_FIRST_YEAR, hastaAnio: thisYear, includeHistory: true }),
   });
 
   // incremento_st no sale del hub: sale de sales_records cruzado con la clasificación
   // de Servicio Técnico guardada en las categorías. Usa las mismas claves que
   // analytics/page.tsx para esos datos, ["sales", {}] y ["categories", "servicio-tecnico"],
   // así que el KPI y el gráfico comparten caché y clasificación.
-  const ventasQ = useQuery({ queryKey: ["sales", {}], queryFn: () => getSalesData({}) });
+  const ventasQ = useQuery({ queryKey: ["sales", {}], queryFn: () => fetchSalesData({}) });
   const categoriasQ = useQuery({
     queryKey: TECH_SERVICE_CATEGORIES_KEY,
-    queryFn: () => getTechServiceCategories(),
+    queryFn: () => fetchTechServiceCategories(),
   });
 
   const metas = useMemo<KpiTargetRow[]>(() => metasQ.data ?? [], [metasQ.data]);

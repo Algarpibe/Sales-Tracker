@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getCustomerMonthSales } from "@/actions/customer-month-actions";
+import { fetchCustomerMonthSales } from "@/lib/data-client";
 import { customerMonths } from "@/lib/customer-detail";
 import { MONTH_LABELS, formatUSD, formatCompactUSD } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,8 +26,8 @@ function MonthTooltip({ active, payload, label }: ChartTooltipProps<MonthPoint>)
 
 export function CustomerSeasonCard({ customer, recordType, year }: { customer: string; recordType: "SALES_ORDER" | "INVOICE"; year: number }) {
   const { data, isLoading } = useQuery({
-    queryKey: ["customer-month", { tipo: recordType, anio: year }],
-    queryFn: () => getCustomerMonthSales({ tipo: recordType, anio: year }),
+    queryKey: ["customer-month", { tipo: recordType, anio: year, customer }],
+    queryFn: () => fetchCustomerMonthSales({ tipo: recordType, anio: year, customer }),
   });
   const rows = useMemo(() => customerMonths(data ?? [], customer).map((importe, i) => ({ mes: MESES[i], importe })), [data, customer]);
   const hasData = useMemo(() => rows.some((r) => r.importe > 0), [rows]);

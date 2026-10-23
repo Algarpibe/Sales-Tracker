@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { getCustomerMonthSales } from "@/actions/customer-month-actions";
+import { fetchCustomerMonthSales } from "@/lib/data-client";
 import { buildMonthHeatmap } from "@/lib/analytics-comercial";
 import { customerHref } from "@/lib/customer-detail";
 import { MONTH_LABELS, formatUSD, formatCompactUSD } from "@/lib/constants";
@@ -17,7 +17,7 @@ const MESES = MONTH_LABELS;
 export function MonthHeatmapCard({ recordType, year }: { recordType: "SALES_ORDER" | "INVOICE"; year: number }) {
   const { data, isLoading } = useQuery({
     queryKey: ["customer-month", { tipo: recordType, anio: year }],
-    queryFn: () => getCustomerMonthSales({ tipo: recordType, anio: year }),
+    queryFn: () => fetchCustomerMonthSales({ tipo: recordType, anio: year }),
   });
 
   const { rows, max } = useMemo(() => {

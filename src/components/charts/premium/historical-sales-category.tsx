@@ -26,8 +26,7 @@ import { InfoTooltip } from "@/components/common/info-tooltip";
 import { CHART_HELP } from "@/lib/chart-help";
 import { HUB_FIRST_YEAR, formatUSDWhole } from "@/lib/constants";
 import { buildHistoricalCategorySeries, type CategoryChartPoint } from "@/lib/category-series";
-import { getSalesData } from "@/actions/sales-actions";
-import { getCategories } from "@/actions/category-actions";
+import { fetchCategories, fetchSalesData } from "@/lib/data-client";
 import type { ChartTooltipEntry, ChartTooltipProps } from "@/lib/chart-types";
 
 // --- Types ---
@@ -119,8 +118,8 @@ export function HistoricalSalesCategory() {
   // todas las ventas (["sales", {}], la misma que la página de Análisis) y se filtra
   // por tipo en cliente: cambiar OV/FAC ya no vuelve a pedir nada. Sin categorías ya
   // no se queda el esqueleto para siempre: se muestra el estado vacío.
-  const salesQ = useQuery({ queryKey: ["sales", {}], queryFn: () => getSalesData({}) });
-  const catsQ = useQuery({ queryKey: ["categories"], queryFn: getCategories });
+  const salesQ = useQuery({ queryKey: ["sales", {}], queryFn: () => fetchSalesData({}) });
+  const catsQ = useQuery({ queryKey: ["categories"], queryFn: fetchCategories });
   const isLoading = salesQ.isPending || catsQ.isPending;
 
   const allCategories = useMemo<CategoryInfo[]>(

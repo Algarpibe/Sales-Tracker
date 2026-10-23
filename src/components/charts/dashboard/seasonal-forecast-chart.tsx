@@ -8,7 +8,7 @@ import {
 import { TrendingUp } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getSalesData } from "@/actions/sales-actions";
+import { fetchSalesData } from "@/lib/data-client";
 import { MONTHS, formatUSD, formatCompactUSD } from "@/lib/constants";
 import { computeForecast, historyYears } from "@/lib/forecast";
 import { monthlyTotals, historicalMatrix } from "@/lib/forecast-widget-data";
@@ -24,7 +24,7 @@ import type { SalesRecord } from "@/types/database";
 export function SeasonalForecastChart({
   recordType, year,
 }: { recordType: "SALES_ORDER" | "INVOICE"; year: number }) {
-  const { data, isLoading } = useQuery({ queryKey: ["sales", {}], queryFn: () => getSalesData({}) });
+  const { data, isLoading } = useQuery({ queryKey: ["sales", {}], queryFn: () => fetchSalesData({}) });
 
   const forecastMonthlyData = useMemo(() => {
     const records = (data ?? []) as SalesRecord[];

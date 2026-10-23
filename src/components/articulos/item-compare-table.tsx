@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getItemSales } from "@/actions/item-sales-actions";
+import { fetchItemSales } from "@/lib/data-client";
 import { buildItemCompare, type ItemCompareRow } from "@/lib/item-compare";
 import { formatUSD } from "@/lib/constants";
 import { DeltaCell } from "@/components/common/delta-cell";
@@ -42,11 +42,11 @@ export function ItemCompareTable({ tipo, yearA, yearB }: { tipo: "SALES_ORDER" |
 
   const qA = useQuery({
     queryKey: ["item-sales", { tipo, desde: `${yearA}-01-01`, hasta: `${yearA}-12-31` }],
-    queryFn: () => getItemSales({ tipo, desde: `${yearA}-01-01`, hasta: `${yearA}-12-31` }),
+    queryFn: () => fetchItemSales({ tipo, desde: `${yearA}-01-01`, hasta: `${yearA}-12-31` }),
   });
   const qB = useQuery({
     queryKey: ["item-sales", { tipo, desde: `${yearB}-01-01`, hasta: `${yearB}-12-31` }],
-    queryFn: () => getItemSales({ tipo, desde: `${yearB}-01-01`, hasta: `${yearB}-12-31` }),
+    queryFn: () => fetchItemSales({ tipo, desde: `${yearB}-01-01`, hasta: `${yearB}-12-31` }),
   });
   const isLoading = qA.isLoading || qB.isLoading;
 

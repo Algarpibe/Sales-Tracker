@@ -2,8 +2,7 @@
 
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getCustomerSales } from "@/actions/customer-sales-actions";
-import { getMarginByCustomer } from "@/actions/margin-actions";
+import { fetchCustomerSales, fetchMarginByCustomer } from "@/lib/data-client";
 import { customerYearSeries, customerSinceYear, customerTotalVentas, customerMarginKpi } from "@/lib/customer-detail";
 import { HISTORY_FIRST_YEAR, formatUSD } from "@/lib/constants";
 import { Card, CardContent } from "@/components/ui/card";
@@ -26,19 +25,19 @@ function Tile({ label, value }: { label: string; value: string }) {
 export function CustomerKpiRow({ customer, recordType, year }: { customer: string; recordType: "SALES_ORDER" | "INVOICE"; year: number }) {
   const thisYear = new Date().getFullYear();
   // Se cargan los dos tipos siempre: "Cliente desde" mira facturas y órdenes a
-  // la vez, así que no cambia al pulsar el conmutador. Misma forma de clave que
-  // /clientes, para compartir la caché de react-query.
+  // la vez, así que no cambia al pulsar el conmutador. Solo se piden las filas de este
+  // cliente (DATA-046), con el cliente en la clave; la evolución anual comparte caché.
   const invoicesQ = useQuery({
-    queryKey: ["customer-sales", { tipo: "INVOICE", desdeAnio: HISTORY_FIRST_YEAR, hastaAnio: thisYear, includeHistory: true }],
-    queryFn: () => getCustomerSales({ tipo: "INVOICE", desdeAnio: HISTORY_FIRST_YEAR, hastaAnio: thisYear, includeHistory: true }),
+    queryKey: ["customer-sales", { tipo: "INVOICE", desdeAnio: HISTORY_FIRST_YEAR, hastaAnio: thisYear, includeHistory: true, customer }],
+    queryFn: () => fetchCustomerSales({ tipo: "INVOICE", desdeAnio: HISTORY_FIRST_YEAR, hastaAnio: thisYear, includeHistory: true, customer }),
   });
   const ordersQ = useQuery({
-    queryKey: ["customer-sales", { tipo: "SALES_ORDER", desdeAnio: HISTORY_FIRST_YEAR, hastaAnio: thisYear, includeHistory: true }],
-    queryFn: () => getCustomerSales({ tipo: "SALES_ORDER", desdeAnio: HISTORY_FIRST_YEAR, hastaAnio: thisYear, includeHistory: true }),
+    queryKey: ["customer-sales", { tipo: "SALES_ORDER", desdeAnio: HISTORY_FIRST_YEAR, hastaAnio: thisYear, includeHistory: true, customer }],
+    queryFn: () => fetchCustomerSales({ tipo: "SALES_ORDER", desdeAnio: HISTORY_FIRST_YEAR, hastaAnio: thisYear, includeHistory: true, customer }),
   });
   const marginQ = useQuery({
-    queryKey: ["margin-customer", { tipo: recordType, anio: year }],
-    queryFn: () => getMarginByCustomer({ tipo: recordType, anio: year }),
+    queryKey: ["margin-customer", { tipo: recordType, anio: year, customer }],
+    queryFn: () => fetchMarginByCustomer({ tipo: recordType, anio: year, customer }),
   });
 
   const kpis = useMemo(() => {

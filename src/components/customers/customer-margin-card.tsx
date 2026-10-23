@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getMarginByCustomer } from "@/actions/margin-actions";
+import { fetchMarginByCustomer } from "@/lib/data-client";
 import { customerMarginKpi } from "@/lib/customer-detail";
 import { formatUSD } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,8 +19,8 @@ function Tile({ label, value }: { label: string; value: string }) {
 
 export function CustomerMarginCard({ customer, recordType, year }: { customer: string; recordType: "SALES_ORDER" | "INVOICE"; year: number }) {
   const { data, isLoading } = useQuery({
-    queryKey: ["margin-customer", { tipo: recordType, anio: year }],
-    queryFn: () => getMarginByCustomer({ tipo: recordType, anio: year }),
+    queryKey: ["margin-customer", { tipo: recordType, anio: year, customer }],
+    queryFn: () => fetchMarginByCustomer({ tipo: recordType, anio: year, customer }),
   });
   const m = useMemo(() => customerMarginKpi(data ?? [], customer), [data, customer]);
 

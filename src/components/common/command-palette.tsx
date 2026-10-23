@@ -3,8 +3,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { getCustomerSales } from "@/actions/customer-sales-actions";
-import { getItemSales } from "@/actions/item-sales-actions";
+import { fetchCustomerSales, fetchItemSales } from "@/lib/data-client";
 import { dedupeCustomers, articleHref } from "@/lib/global-search";
 import { customerHref } from "@/lib/customer-detail";
 import { HUB_FIRST_YEAR } from "@/lib/constants";
@@ -51,13 +50,13 @@ export function CommandProvider({ children }: { children: React.ReactNode }) {
 
   const customersQ = useQuery({
     queryKey: ["search-customers"],
-    queryFn: () => getCustomerSales({ tipo: "INVOICE", desdeAnio: FIRST_YEAR, hastaAnio: thisYear }),
+    queryFn: () => fetchCustomerSales({ tipo: "INVOICE", desdeAnio: FIRST_YEAR, hastaAnio: thisYear }),
     enabled: open,
     staleTime: 5 * 60 * 1000,
   });
   const itemsQ = useQuery({
     queryKey: ["search-items"],
-    queryFn: () => getItemSales({ tipo: "INVOICE", desde: `${FIRST_YEAR}-01-01`, hasta: `${thisYear}-12-31` }),
+    queryFn: () => fetchItemSales({ tipo: "INVOICE", desde: `${FIRST_YEAR}-01-01`, hasta: `${thisYear}-12-31` }),
     enabled: open,
     staleTime: 5 * 60 * 1000,
   });

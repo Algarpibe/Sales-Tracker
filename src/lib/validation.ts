@@ -57,6 +57,13 @@ export const hubDateRangeSchema = z
 
 export const hubOrderSearchSchema = z.string().max(100, "La búsqueda admite 100 caracteres como mucho");
 
+// Cliente de la ficha /clientes/[customer] (DATA-046): el nombre tal cual viene del
+// hub, sin recortar, porque se compara por igualdad exacta. Mismo tope que un favorito.
+export const hubCustomerSchema = z
+  .string()
+  .min(1, "Falta el cliente")
+  .max(300, "El nombre del cliente admite 300 caracteres como mucho");
+
 // Preferencias por usuario (SEC-036): acotan lo que un usuario puede guardar.
 // La clave de vista la fija el código (p. ej. "clientes"); 64 caracteres sobran.
 export const savedViewKeySchema = z

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getMarginByItem } from "@/actions/margin-actions";
+import { fetchMarginByItem } from "@/lib/data-client";
 import { buildMarginItems } from "@/lib/analytics-margin";
 import { formatUSD, formatCompactUSD } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,7 +33,7 @@ export function MarginByItemCard({ recordType, year }: { recordType: "SALES_ORDE
   const [mode, setMode] = useState<AmountMode>("money");
   const { data, isLoading } = useQuery({
     queryKey: ["margin-item", { tipo: recordType, anio: year }],
-    queryFn: () => getMarginByItem({ tipo: recordType, anio: year }),
+    queryFn: () => fetchMarginByItem({ tipo: recordType, anio: year }),
   });
   const top = useMemo(() => {
     const items = buildMarginItems(data ?? []);

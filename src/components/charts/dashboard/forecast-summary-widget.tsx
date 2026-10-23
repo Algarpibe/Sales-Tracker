@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getSalesData } from "@/actions/sales-actions";
+import { fetchSalesData } from "@/lib/data-client";
 import { computeForecast, historyYears } from "@/lib/forecast";
 import { monthlyTotals, historicalMatrix } from "@/lib/forecast-widget-data";
 import { PredictiveRunRateCard } from "@/components/charts/premium/predictive-run-rate";
@@ -21,7 +21,7 @@ export function ForecastSummaryWidget({
   year: number;
   scope: "month" | "year";
 }) {
-  const { data, isLoading } = useQuery({ queryKey: ["sales", {}], queryFn: () => getSalesData({}) });
+  const { data, isLoading } = useQuery({ queryKey: ["sales", {}], queryFn: () => fetchSalesData({}) });
 
   const forecast = useMemo(() => {
     const records = (data ?? []) as SalesRecord[];

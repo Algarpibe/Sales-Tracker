@@ -3,8 +3,7 @@
 import { Fragment, useState, useMemo } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { getCustomerItemSales } from "@/actions/customer-item-actions";
-import { getMacroCategorias } from "@/actions/category-actions";
+import { fetchCustomerItemSales, fetchMacroCategorias } from "@/lib/data-client";
 import { customerHref } from "@/lib/customer-detail";
 import type { CustomerItemRow } from "@/types/database";
 import { usePeriod } from "@/components/providers/period-provider";
@@ -49,7 +48,7 @@ export default function ClienteCategoriaPage() {
   // caché y agregan las mismas filas, así que sus cifras cuadran por construcción.
   const { data, isLoading } = useQuery({
     queryKey: ["customer-item", { tipo, anio }],
-    queryFn: () => getCustomerItemSales({ tipo, anio }),
+    queryFn: () => fetchCustomerItemSales({ tipo, anio }),
     enabled: !compareMode,
   });
 
@@ -58,7 +57,7 @@ export default function ClienteCategoriaPage() {
   // (todo en Equipos). Si la consulta falla, el esqueleto se queda.
   const { data: macro } = useQuery({
     queryKey: MACRO_CATEGORIAS_KEY,
-    queryFn: () => getMacroCategorias(),
+    queryFn: () => fetchMacroCategorias(),
   });
   const mapa = useMemo(() => mapaMacroCategorias(macro ?? []), [macro]);
   const sinClasificacion = macro === undefined;

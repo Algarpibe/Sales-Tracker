@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { getCustomerSales } from "@/actions/customer-sales-actions";
+import { fetchCustomerSales } from "@/lib/data-client";
 import { buildClientPareto } from "@/lib/analytics-comercial";
 import { customerHref } from "@/lib/customer-detail";
 import { formatUSD, formatCompactUSD } from "@/lib/constants";
@@ -33,7 +33,7 @@ function ParetoTooltip({ active, payload, label }: ChartTooltipProps<ParetoPoint
 export function ClientParetoCard({ recordType, year }: { recordType: "SALES_ORDER" | "INVOICE"; year: number }) {
   const { data, isLoading } = useQuery({
     queryKey: ["customer-pareto", { recordType, year }],
-    queryFn: () => getCustomerSales({ tipo: recordType, desdeAnio: year, hastaAnio: year }),
+    queryFn: () => fetchCustomerSales({ tipo: recordType, desdeAnio: year, hastaAnio: year }),
   });
   const top = useMemo(() => buildClientPareto(data ?? []).slice(0, 20), [data]);
   const router = useRouter();

@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getCustomerSales } from "@/actions/customer-sales-actions";
+import { fetchCustomerSales } from "@/lib/data-client";
 import { customerYearSeries } from "@/lib/customer-detail";
 import { HISTORY_FIRST_YEAR, formatUSD, formatCompactUSD } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,8 +27,8 @@ function EvoTooltip({ active, payload, label }: ChartTooltipProps<CustomerYearPo
 export function CustomerEvolutionCard({ customer, recordType, year }: { customer: string; recordType: "SALES_ORDER" | "INVOICE"; year: number }) {
   const thisYear = new Date().getFullYear();
   const { data, isLoading } = useQuery({
-    queryKey: ["customer-sales", { tipo: recordType, desdeAnio: HISTORY_FIRST_YEAR, hastaAnio: thisYear, includeHistory: true }],
-    queryFn: () => getCustomerSales({ tipo: recordType, desdeAnio: HISTORY_FIRST_YEAR, hastaAnio: thisYear, includeHistory: true }),
+    queryKey: ["customer-sales", { tipo: recordType, desdeAnio: HISTORY_FIRST_YEAR, hastaAnio: thisYear, includeHistory: true, customer }],
+    queryFn: () => fetchCustomerSales({ tipo: recordType, desdeAnio: HISTORY_FIRST_YEAR, hastaAnio: thisYear, includeHistory: true, customer }),
   });
   const series = useMemo(() => customerYearSeries(data ?? [], customer), [data, customer]);
 

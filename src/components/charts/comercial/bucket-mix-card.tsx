@@ -2,8 +2,7 @@
 
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getSalesData } from "@/actions/sales-actions";
-import { getMacroCategorias } from "@/actions/category-actions";
+import { fetchMacroCategorias, fetchSalesData } from "@/lib/data-client";
 import type { SalesRecord } from "@/types/database";
 import { buildBucketMixByYear } from "@/lib/analytics-comercial";
 import { BUCKET_COLORS, BUCKET_LABELS, MACRO_CATEGORIAS_KEY, mapaMacroCategorias } from "@/lib/customer-item";
@@ -42,14 +41,14 @@ function MixTooltip({ active, payload, label }: ChartTooltipProps<MixPoint>) {
 }
 
 export function BucketMixCard({ recordType }: { recordType: "SALES_ORDER" | "INVOICE" }) {
-  const { data, isLoading } = useQuery({ queryKey: ["sales", {}], queryFn: () => getSalesData({}) });
+  const { data, isLoading } = useQuery({ queryKey: ["sales", {}], queryFn: () => fetchSalesData({}) });
   // Clasificación guardada en Configuración. Sin ella todo caería en Equipos y el
   // gráfico saltaría después a las cifras buenas, así que hasta que llega se ve el
   // esqueleto. Se mira `data` y no `isPending`: si la consulta falla, el esqueleto se
   // queda en lugar de pintar un reparto equivocado.
   const { data: macro } = useQuery({
     queryKey: MACRO_CATEGORIAS_KEY,
-    queryFn: () => getMacroCategorias(),
+    queryFn: () => fetchMacroCategorias(),
   });
   const mapa = useMemo(() => mapaMacroCategorias(macro ?? []), [macro]);
   const rows = useMemo(

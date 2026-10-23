@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getTechServiceCategories } from "@/actions/category-actions";
+import { fetchTechServiceCategories } from "@/lib/data-client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TechServiceAnalysis } from "@/components/charts/tech-service-analysis";
 import {
@@ -33,7 +33,7 @@ export function TechServiceWidget({
   const [recordType, setRecordType] = useState<"SALES_ORDER" | "INVOICE">("INVOICE");
   const { data: categorias, isPending } = useQuery({
     queryKey: TECH_SERVICE_CATEGORIES_KEY,
-    queryFn: () => getTechServiceCategories(),
+    queryFn: () => fetchTechServiceCategories(),
   });
   const grupos = useMemo(() => gruposServicioTecnico(categorias ?? []), [categorias]);
   const data = useMemo(

@@ -12,7 +12,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { Pencil, Save, RotateCcw, XCircle } from "lucide-react";
 
-import { getDashboardLayout, saveDashboardLayout, resetDashboardLayout } from "@/actions/dashboard-layout-actions";
+import { saveDashboardLayout, resetDashboardLayout } from "@/actions/dashboard-layout-actions";
+import { fetchDashboardLayout } from "@/lib/data-client";
 import { DEFAULT_LAYOUT, type DashboardItem } from "@/lib/dashboard-layout";
 import { WIDGET_MAP, type WidgetContext } from "@/lib/widget-registry";
 import { useDashboardData } from "@/components/dashboard/dashboard-data-provider";
@@ -36,7 +37,7 @@ export function DashboardGrid() {
   const [items, setItems] = useState<DashboardItem[] | null>(null);
   const [backup, setBackup] = useState<DashboardItem[] | null>(null);
 
-  const layoutQ = useQuery({ queryKey: ["dashboard-layout"], queryFn: getDashboardLayout });
+  const layoutQ = useQuery({ queryKey: ["dashboard-layout"], queryFn: fetchDashboardLayout });
 
   // Carga inicial: layout guardado o el por defecto. El setState aquí es
   // intencional (hidrata el layout persistido una sola vez, cuando la query

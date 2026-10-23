@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getItemSales } from "@/actions/item-sales-actions";
+import { fetchItemSales } from "@/lib/data-client";
 import { buildItemPareto } from "@/lib/analytics-comercial";
 import { formatUSD, formatCompactUSD } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,7 +31,7 @@ function ParetoTooltip({ active, payload, label }: ChartTooltipProps<ItemParetoR
 export function SkuParetoCard({ recordType, year }: { recordType: "SALES_ORDER" | "INVOICE"; year: number }) {
   const { data, isLoading } = useQuery({
     queryKey: ["top-items", { recordType, year }],
-    queryFn: () => getItemSales({ tipo: recordType, desde: `${year}-01-01`, hasta: `${year}-12-31` }),
+    queryFn: () => fetchItemSales({ tipo: recordType, desde: `${year}-01-01`, hasta: `${year}-12-31` }),
   });
   const top = useMemo(() => buildItemPareto(data ?? []).slice(0, 30), [data]);
 

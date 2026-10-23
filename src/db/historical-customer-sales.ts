@@ -9,11 +9,13 @@ export const HISTORICAL_LAST_YEAR = 2020;
 /**
  * Ventas por cliente y año anteriores al zoho-hub (2015-2020).
  * Devuelve el mismo shape que el hub para poder concatenarlas sin transformar.
+ * Con `customer`, solo las de ese cliente (ficha /clientes/[customer], DATA-046).
  */
 export async function getHistoricalCustomerSales(
   companyId: string,
   desdeAnio: number,
-  hastaAnio: number
+  hastaAnio: number,
+  customer?: string
 ): Promise<CustomerYearRow[]> {
   const rows = await db
     .select({
@@ -26,7 +28,8 @@ export async function getHistoricalCustomerSales(
       and(
         eq(historicalCustomerSales.company_id, companyId),
         gte(historicalCustomerSales.record_year, desdeAnio),
-        lte(historicalCustomerSales.record_year, Math.min(hastaAnio, HISTORICAL_LAST_YEAR))
+        lte(historicalCustomerSales.record_year, Math.min(hastaAnio, HISTORICAL_LAST_YEAR)),
+        customer === undefined ? undefined : eq(historicalCustomerSales.customer_name, customer)
       )
     );
 

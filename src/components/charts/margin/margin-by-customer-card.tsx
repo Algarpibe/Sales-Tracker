@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { getMarginByCustomer } from "@/actions/margin-actions";
+import { fetchMarginByCustomer } from "@/lib/data-client";
 import { buildMarginCustomers } from "@/lib/analytics-margin";
 import { customerHref } from "@/lib/customer-detail";
 import { formatUSD, formatCompactUSD } from "@/lib/constants";
@@ -34,7 +34,7 @@ export function MarginByCustomerCard({ recordType, year }: { recordType: "SALES_
   const [mode, setMode] = useState<AmountMode>("money");
   const { data, isLoading } = useQuery({
     queryKey: ["margin-customer", { tipo: recordType, anio: year }],
-    queryFn: () => getMarginByCustomer({ tipo: recordType, anio: year }),
+    queryFn: () => fetchMarginByCustomer({ tipo: recordType, anio: year }),
   });
   const top = useMemo(() => {
     const items = buildMarginCustomers(data ?? []);

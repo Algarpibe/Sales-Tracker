@@ -5,12 +5,11 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Loader2, Save, Target } from "lucide-react";
 import {
-  getKpiTargets,
-  getSalespeople,
   saveKpiTargets,
   type KpiScope,
   type KpiTargetRow,
 } from "@/actions/kpi-actions";
+import { fetchKpiTargets, fetchSalespeople } from "@/lib/data-client";
 import {
   COMMERCIAL_KPIS, KPI_CON_PLAZO, KPI_UNIT_LABEL, getKpiYearRange, puedeEditarMetas,
 } from "@/lib/commercial-kpis";
@@ -192,7 +191,7 @@ export function KpiTargetsForm() {
 
   const vendedoresQ = useQuery({
     queryKey: ["kpi-salespeople"],
-    queryFn: () => getSalespeople(),
+    queryFn: () => fetchSalespeople(),
     enabled: conPerfil,
   });
 
@@ -200,7 +199,7 @@ export function KpiTargetsForm() {
   // está deshabilitada esperando al perfil, isLoading ya vale false.
   const { data } = useQuery({
     queryKey: ["kpi-targets", year, scope],
-    queryFn: () => getKpiTargets(year, salesperson),
+    queryFn: () => fetchKpiTargets(year, salesperson),
     enabled: conPerfil,
   });
 

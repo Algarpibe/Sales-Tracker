@@ -3,8 +3,7 @@
 import { useEffect, useState, useMemo, Suspense } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
-import { getSalesData } from "@/actions/sales-actions";
-import { getCategories, getTechServiceCategories } from "@/actions/category-actions";
+import { fetchCategories, fetchSalesData, fetchTechServiceCategories } from "@/lib/data-client";
 import { getYearRange } from "@/lib/constants";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -154,19 +153,23 @@ function AnalyticsContent() {
   // react-query: 3 fuentes cacheadas. ["sales", {}] = todas las ventas (histórico).
   const { data: recordsData, isLoading: l1 } = useQuery({
     queryKey: ["sales", {}],
-    queryFn: () => getSalesData({}),
+    queryFn: () => fetchSalesData({}),
   });
   const { data: catsData, isLoading: l2 } = useQuery({
     queryKey: ["categories"],
-    queryFn: getCategories,
+    queryFn: fetchCategories,
   });
   // Clasificación ST / C&R guardada, incluidas las categorías inactivas: la misma
   // consulta que usan el widget del dashboard y el KPI de la tabla comercial.
   const { data: techCatsData, isLoading: l3 } = useQuery({
     queryKey: TECH_SERVICE_CATEGORIES_KEY,
-    queryFn: () => getTechServiceCategories(),
+    queryFn: () => fetchTechServiceCategories(),
   });
-  const loading = l1 || l2 || l3;
+  // FE-054: la cabecera y las pestañas se pintan ya. Solo Exploración y Forecast usan
+  // estas tres fuentes (el histórico completo es la lectura más pesada) y muestran su
+  // propio esqueleto mientras llegan; Comercial y Margen cargan con sus tarjetas.
+  const loadingExploration = l1 || l2 || l3;
+  const loadingForecast = l1;
 
   const allRecords: SalesRecord[] = useMemo(() => recordsData ?? [], [recordsData]);
   const categories = useMemo<Category[]>(() => (catsData as Category[]) ?? [], [catsData]);
@@ -198,14 +201,12 @@ function AnalyticsContent() {
     return buildTechServiceData(dataA, dataB, gruposST, techServiceRecordType, techServiceViewMode);
   }, [allRecords, gruposST, yearA, yearB, techServiceRecordType, techServiceViewMode]);
 
-  if (loading) {
-    return (
-      <div className="space-y-6">
-        <Skeleton className="h-[400px] w-full" />
-        <Skeleton className="h-[600px] w-full" />
-      </div>
-    );
-  }
+  const tabSkeleton = (
+    <div className="space-y-6">
+      <Skeleton className="h-[400px] w-full" />
+      <Skeleton className="h-[600px] w-full" />
+    </div>
+  );
 
   return (
     <div className="relative min-h-screen">
@@ -239,6 +240,7 @@ function AnalyticsContent() {
           </div>
 
           <TabsContent value="exploration" className="outline-none">
+            {loadingExploration ? tabSkeleton : (
             <motion.div
               initial={{ opacity: 0, scale: 0.98 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -312,9 +314,11 @@ function AnalyticsContent() {
                 <MacroEvolutionCard recordType={recordType} />
               </CardErrorBoundary>
             </motion.div>
+            )}
           </TabsContent>
 
           <TabsContent value="forecast" className="outline-none">
+            {loadingForecast ? tabSkeleton : (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -388,6 +392,7 @@ function AnalyticsContent() {
                 <ForecastSalesCategory baseYear={yearA} />
               </CardErrorBoundary>
             </motion.div>
+            )}
           </TabsContent>
           <TabsContent value="comercial" className="outline-none">
             <div className="space-y-6">

@@ -38,8 +38,7 @@ import {
   ChevronsUpDown
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getSalesData } from "@/actions/sales-actions";
-import { getCategories } from "@/actions/category-actions";
+import { fetchCategories, fetchSalesData } from "@/lib/data-client";
 import { calculateSeasonalityFactors, getSeasonalForecast, calculateRunRate } from "@/lib/math-utils";
 import { historyYears } from "@/lib/forecast";
 import { MONTH_LABELS, formatUSDCompactIntl, formatUSDWhole } from "@/lib/constants";
@@ -148,8 +147,8 @@ export function ForecastSalesCategory({ baseYear = new Date().getFullYear() }: F
   // FE-057: react-query en vez de useEffect + server action. Misma caché de ventas que
   // la página de Análisis (["sales", {}]), filtrada por tipo en cliente. Sin categorías
   // ya no se queda el esqueleto para siempre: se muestra el estado vacío.
-  const salesQ = useQuery({ queryKey: ["sales", {}], queryFn: () => getSalesData({}) });
-  const catsQ = useQuery({ queryKey: ["categories"], queryFn: getCategories });
+  const salesQ = useQuery({ queryKey: ["sales", {}], queryFn: () => fetchSalesData({}) });
+  const catsQ = useQuery({ queryKey: ["categories"], queryFn: fetchCategories });
   const isLoading = salesQ.isPending || catsQ.isPending;
 
   const allCategories = useMemo<CategoryInfo[]>(

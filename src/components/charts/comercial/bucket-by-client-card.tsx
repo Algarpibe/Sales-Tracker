@@ -3,8 +3,7 @@
 import { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { getCustomerItemSales } from "@/actions/customer-item-actions";
-import { getMacroCategorias } from "@/actions/category-actions";
+import { fetchCustomerItemSales, fetchMacroCategorias } from "@/lib/data-client";
 import { buildBucketByClient, type BucketClientRow } from "@/lib/analytics-comercial";
 import { BUCKET_COLORS, BUCKET_LABELS, MACRO_CATEGORIAS_KEY, mapaMacroCategorias } from "@/lib/customer-item";
 import { customerHref } from "@/lib/customer-detail";
@@ -43,14 +42,14 @@ function BClientTooltip({ active, payload, label }: ChartTooltipProps<BucketClie
 export function BucketByClientCard({ recordType, year }: { recordType: "SALES_ORDER" | "INVOICE"; year: number }) {
   const { data, isLoading } = useQuery({
     queryKey: ["customer-item", { tipo: recordType, anio: year }],
-    queryFn: () => getCustomerItemSales({ tipo: recordType, anio: year }),
+    queryFn: () => fetchCustomerItemSales({ tipo: recordType, anio: year }),
   });
   // Clasificación guardada en Configuración. Hasta que llega se ve el esqueleto, nunca
   // un reparto con el mapa vacío (todo en Equipos). Si la consulta falla, el esqueleto
   // se queda.
   const { data: macro } = useQuery({
     queryKey: MACRO_CATEGORIAS_KEY,
-    queryFn: () => getMacroCategorias(),
+    queryFn: () => fetchMacroCategorias(),
   });
   const mapa = useMemo(() => mapaMacroCategorias(macro ?? []), [macro]);
   const top = useMemo(() => buildBucketByClient(data ?? [], mapa).slice(0, 15), [data, mapa]);

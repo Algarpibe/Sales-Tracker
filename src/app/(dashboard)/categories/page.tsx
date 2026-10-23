@@ -3,7 +3,8 @@
 import { useId, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Category } from "@/types/database";
-import { getCategories, createCategory, updateCategory, deleteCategory } from "@/actions/category-actions";
+import { createCategory, updateCategory, deleteCategory } from "@/actions/category-actions";
+import { fetchCategories } from "@/lib/data-client";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,7 +28,7 @@ export default function CategoriesPage() {
   // y se refrescan invalidando tras cada mutación. Mismo action, mismos datos.
   const { data, isLoading: loading } = useQuery({
     queryKey: ["categories"],
-    queryFn: getCategories,
+    queryFn: fetchCategories,
   });
   const categories = (data as Category[]) ?? [];
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["categories"] });
