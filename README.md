@@ -38,6 +38,9 @@ Variables que lee el código:
 | `HUB_POOL_MAX` | Tamaño del pool del hub (por defecto 5). |
 | `HUB_STATEMENT_TIMEOUT_MS` | Tope por consulta al hub, en ms (por defecto 30000). |
 | `KPI_EXCLUDED_SALESPEOPLE` | Nombres separados por comas que no se ofrecen como comercial en los KPIs. |
+| `RATE_LIMIT_READS_PER_MINUTE` | Opcional. Lecturas de `/api/data` por usuario y minuto (por defecto 600). Pasado el límite: 429 con `Retry-After`. |
+| `RATE_LIMIT_MUTATIONS_PER_MINUTE` | Opcional. Mutaciones (Server Actions de escritura y subida de avatar) por usuario y minuto (por defecto 120). |
+| `RATE_LIMIT_EXPORTS_PER_MINUTE` | Opcional. Exportaciones a Excel por usuario y minuto (por defecto 30). |
 | `DRIZZLE_DATABASE_URL` | Opcional, solo para `drizzle-kit`. Debe ser una URL con el usuario `postgres`. |
 
 Nunca se commitean `.env*` reales (solo `.env.example`).

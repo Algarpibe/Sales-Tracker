@@ -46,6 +46,7 @@ vi.mock("@/db/hub", () => ({
 vi.mock("@/db/hub-sales", () => ({ getHubSalesRows: async () => state.salesRows }));
 
 import { handleDataRequest } from "@/lib/data-api";
+import { resetRateLimits } from "@/lib/rate-limit";
 
 const USER = "11111111-1111-4111-8111-111111111111";
 const COMPANY = "99999999-9999-4999-8999-999999999999";
@@ -316,5 +317,69 @@ describe("GET /api/data/[resource]", () => {
     });
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual([]);
+  });
+});
+
+/**
+ * SEC-006: límite por usuario de las lecturas. Cuenta tras resolver la sesión (por id
+ * de usuario, no por IP) y responde 429 con el JSON de error de siempre y Retry-After.
+ */
+describe("límite de peticiones por usuario", () => {
+  beforeEach(() => {
+    vi.stubEnv("RATE_LIMIT_READS_PER_MINUTE", "2");
+    resetRateLimits();
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    resetRateLimits();
+  });
+
+  it("429 JSON con Retry-After al pasar el límite, sin consultar nada", async () => {
+    for (let i = 0; i < 2; i++) {
+      loginAs();
+      expect((await get("categories")).res.status).toBe(200);
+    }
+    loginAs();
+    const selectsAntes = state.selects.length;
+    const { res, body } = await get("macro-categorias");
+    expect(res.status).toBe(429);
+    expect(body).toEqual({
+      error: "Demasiadas solicitudes. Espera un momento e inténtalo de nuevo.",
+      code: "RATE_LIMITED",
+    });
+    const retry = Number(res.headers.get("retry-after"));
+    expect(Number.isInteger(retry)).toBe(true);
+    expect(retry).toBeGreaterThanOrEqual(1);
+    expect(retry).toBeLessThanOrEqual(60);
+    expect(res.headers.get("cache-control")).toBe("private, no-store");
+    // Solo se leyó el perfil del guard: la lectura en sí no llegó a ejecutarse.
+    expect(state.selects.length).toBe(selectsAntes - 1);
+  });
+
+  it("sin sesión responde 401 (no 429) y no gasta el cupo de nadie", async () => {
+    for (let i = 0; i < 5; i++) expect((await get("categories")).res.status).toBe(401);
+    loginAs();
+    expect((await get("categories")).res.status).toBe(200);
+  });
+
+  it("el cupo es por usuario: otro usuario sigue leyendo", async () => {
+    for (let i = 0; i < 3; i++) {
+      loginAs();
+      await get("categories");
+    }
+    state.session = { user: { id: "22222222-2222-4222-8222-222222222222", email: "otro@example.test" } };
+    state.selects.push([
+      {
+        id: "22222222-2222-4222-8222-222222222222",
+        company_id: COMPANY,
+        role: "lector",
+        is_active: true,
+        is_approved: true,
+        is_rejected: false,
+        has_avatar: false,
+      },
+    ]);
+    expect((await get("categories")).res.status).toBe(200);
   });
 });

@@ -7,6 +7,14 @@ vi.mock("@/lib/auth/new-user-profile", () => ({
   },
 }));
 
+const purge = vi.hoisted(() => ({ calls: 0, impl: (): Promise<void> => Promise.resolve() }));
+vi.mock("@/lib/auth/session-purge", () => ({
+  purgeExpiredAuthRows: () => {
+    purge.calls += 1;
+    return purge.impl();
+  },
+}));
+
 import { auth } from "@/lib/auth/auth";
 import { MIN_PASSWORD_LENGTH } from "@/lib/auth/auth-error-message";
 
@@ -30,6 +38,19 @@ describe("configuración de better-auth", () => {
     expect(after).toBeTypeOf("function");
     await after!({ id: "user-1" } as never);
     expect(created).toEqual(["user-1"]);
+  });
+});
+
+// PRIV-093: al crear una sesión se purgan las caducadas (con su IP y user-agent). Se
+// lanza sin esperarla: una purga lenta o colgada no puede retrasar el login.
+describe("purga de sesiones caducadas al iniciar sesión", () => {
+  it("al crear una sesión lanza la purga y no espera a que termine", async () => {
+    const after = auth.options.databaseHooks?.session?.create?.after;
+    expect(after).toBeTypeOf("function");
+    purge.calls = 0;
+    purge.impl = () => new Promise<void>(() => {}); // nunca termina
+    await expect(after!()).resolves.toBeUndefined();
+    expect(purge.calls).toBe(1);
   });
 });
 

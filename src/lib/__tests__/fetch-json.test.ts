@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { AppError } from "@/lib/errors";
+import { AppError, RATE_LIMITED_MESSAGE } from "@/lib/errors";
 import { dataUrl, fetchJson } from "@/lib/fetch-json";
 
 /**
@@ -78,6 +78,16 @@ describe("fetchJson", () => {
     const e = await fetchJson("sales").catch((x: unknown) => x);
     expect(e).toBeInstanceOf(AppError);
     expect(e).toMatchObject({ message: body.error, code: body.code });
+  });
+
+  it("429 del límite por usuario (SEC-006): AppError RATE_LIMITED con el mensaje del servidor", async () => {
+    fetchMock.mockResolvedValue(respuesta(JSON.stringify({ error: RATE_LIMITED_MESSAGE, code: "RATE_LIMITED" }), 429));
+    await expect(fetchJson("sales")).rejects.toMatchObject({ message: RATE_LIMITED_MESSAGE, code: "RATE_LIMITED" });
+  });
+
+  it("un 429 sin el JSON del servidor también se explica como límite, no como fallo genérico", async () => {
+    fetchMock.mockResolvedValue(respuesta("Too Many Requests", 429, "text/plain"));
+    await expect(fetchJson("sales")).rejects.toMatchObject({ message: RATE_LIMITED_MESSAGE, code: "RATE_LIMITED" });
   });
 
   it("un error sin JSON (HTML, texto) no filtra el cuerpo: mensaje genérico", async () => {

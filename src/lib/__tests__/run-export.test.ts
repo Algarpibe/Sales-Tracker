@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { runExport } from "@/lib/run-export";
+import { AppError, RATE_LIMITED_MESSAGE } from "@/lib/errors";
 
 const notifier = () => ({ success: vi.fn(), error: vi.fn() });
 
@@ -24,5 +25,14 @@ describe("runExport", () => {
     ).resolves.toBe(false);
     expect(n.error).toHaveBeenCalledWith("No se pudo generar el Excel");
     expect(n.success).not.toHaveBeenCalled();
+  });
+
+  it("un error esperado (AppError, p. ej. el límite de exportaciones) muestra su mensaje", async () => {
+    const n = notifier();
+    await runExport(() => Promise.reject(new AppError(RATE_LIMITED_MESSAGE, "RATE_LIMITED")), n, {
+      ok: "Excel descargado",
+      error: "No se pudo generar el Excel",
+    });
+    expect(n.error).toHaveBeenCalledWith(RATE_LIMITED_MESSAGE);
   });
 });

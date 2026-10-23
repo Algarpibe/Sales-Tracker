@@ -1,4 +1,4 @@
-import { AppError } from "@/lib/errors";
+import { AppError, RATE_LIMITED_CODE, RATE_LIMITED_MESSAGE } from "@/lib/errors";
 
 // Fetcher de las lecturas por GET /api/data (DATA-043). Lo usan los queryFn de
 // react-query en el navegador: a diferencia de las Server Actions, que Next despacha de
@@ -41,5 +41,8 @@ export async function fetchJson<T>(resource: string, params?: DataParams): Promi
   const body: unknown = json ? await res.json().catch(() => null) : null;
   const { error, code } = (body ?? {}) as { error?: unknown; code?: unknown };
   if (typeof error === "string" && error && typeof code === "string") throw new AppError(error, code);
+  // Un 429 sin el JSON del servidor (p. ej. de un proxy delante) se explica igual que
+  // el límite por usuario (SEC-006): hay que esperar, no es un fallo de la app.
+  if (res.status === 429) throw new AppError(RATE_LIMITED_MESSAGE, RATE_LIMITED_CODE);
   throw new AppError(FALLO, `HTTP_${res.status}`);
 }

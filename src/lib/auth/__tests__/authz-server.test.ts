@@ -423,3 +423,69 @@ describe("auditoria de acciones de administrador", () => {
     log.mockRestore();
   });
 });
+
+/**
+ * SEC-006: límite por usuario de las mutaciones. El punto único es el guard: toda
+ * mutación pide la sesión con `fresh: true` (ver "frescura de la sesion en los guards"),
+ * y requireApproved descuenta del cupo de mutaciones del usuario ya aprobado. Las
+ * lecturas (sin fresh) no gastan ese cupo. La exportación a Excel tiene su propio cupo.
+ */
+describe("limite de peticiones por usuario", () => {
+  const LIMITE = "Demasiadas solicitudes. Espera un momento e inténtalo de nuevo.";
+
+  beforeEach(async () => {
+    vi.stubEnv("RATE_LIMIT_MUTATIONS_PER_MINUTE", "1");
+    vi.stubEnv("RATE_LIMIT_EXPORTS_PER_MINUTE", "1");
+    (await import("@/lib/rate-limit")).resetRateLimits();
+  });
+
+  afterEach(async () => {
+    (await import("@/lib/rate-limit")).resetRateLimits();
+  });
+
+  it("una accion pasado el limite devuelve RATE_LIMITED sin tocar la BD", async () => {
+    const { updateMyAccount } = await import("@/actions/settings-actions");
+    loginAs(ADMIN_ID);
+    expect(await updateMyAccount({ full_name: "Uno" })).toEqual({ ok: true, data: undefined });
+    loginAs(ADMIN_ID);
+    const res = await updateMyAccount({ full_name: "Dos" });
+    expect(res).toEqual({ ok: false, error: LIMITE, code: "RATE_LIMITED" });
+    expect(state.updates).toHaveLength(1);
+  });
+
+  it("el cupo es por usuario y las lecturas no lo gastan", async () => {
+    const { updateMyAccount, getCompany } = await import("@/actions/settings-actions");
+    loginAs(ADMIN_ID);
+    await updateMyAccount({ full_name: "Uno" });
+    loginAs(ADMIN_ID);
+    await getCompany();
+    loginAs(OTRO_ADMIN_ID);
+    expect(await updateMyAccount({ full_name: "Otro" })).toEqual({ ok: true, data: undefined });
+  });
+
+  it("una cuenta pendiente sigue viendo NOT_APPROVED, no RATE_LIMITED", async () => {
+    const { updateMyAccount } = await import("@/actions/settings-actions");
+    for (let i = 0; i < 3; i++) {
+      loginAs(PENDIENTE_ID, PENDIENTE);
+      expect(await updateMyAccount({ full_name: "X" })).toMatchObject({ ok: false, code: "NOT_APPROVED" });
+    }
+  });
+
+  it("POST /api/avatar pasado el limite responde 429 y no guarda nada", async () => {
+    const { POST } = await import("@/app/api/avatar/route");
+    loginAs(ADMIN_ID);
+    expect((await POST(uploadRequest())).status).toBe(200);
+    loginAs(ADMIN_ID);
+    expect((await POST(uploadRequest())).status).toBe(429);
+    expect(state.updates).toHaveLength(1);
+  });
+
+  it("generateXlsx tiene su propio cupo y devuelve RATE_LIMITED al pasarlo", async () => {
+    const { generateXlsx } = await import("@/actions/export-actions");
+    loginAs(ADMIN_ID);
+    const primera = await generateXlsx([]);
+    expect(primera.ok).toBe(true);
+    loginAs(ADMIN_ID);
+    expect(await generateXlsx([])).toEqual({ ok: false, error: LIMITE, code: "RATE_LIMITED" });
+  });
+});

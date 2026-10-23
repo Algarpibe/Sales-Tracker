@@ -11,6 +11,10 @@ describe("authErrorStatus", () => {
     expect(authErrorStatus(new AppError("Sin permisos", "FORBIDDEN"))).toBe(403);
   });
 
+  it("traduce el límite de peticiones por usuario (SEC-006) a 429", () => {
+    expect(authErrorStatus(new AppError("Demasiadas", "RATE_LIMITED"))).toBe(429);
+  });
+
   it("deja pasar cualquier otro error", () => {
     expect(authErrorStatus(new AppError("Otro", "VALIDATION"))).toBeNull();
     expect(authErrorStatus(new Error("boom"))).toBeNull();
