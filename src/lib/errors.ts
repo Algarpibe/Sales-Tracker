@@ -26,12 +26,24 @@ export class AppError extends Error {
   }
 }
 
+// Límite de peticiones por usuario (SEC-006, src/lib/rate-limit.ts). El código y el
+// mensaje los comparten servidor y cliente: el cliente los usa para explicar un 429
+// en vez de mostrar un error genérico.
+export const RATE_LIMITED_CODE = "RATE_LIMITED";
+export const RATE_LIMITED_MESSAGE = "Demasiadas solicitudes. Espera un momento e inténtalo de nuevo.";
+
+export function isRateLimited(e: unknown): boolean {
+  return e instanceof AppError && e.code === RATE_LIMITED_CODE;
+}
+
 // Status HTTP de un error de los guards (requireUser/requireApproved/requireRole)
 // para Route Handlers. null = no es un error de autorización: el llamador lo relanza.
-export function authErrorStatus(e: unknown): 401 | 403 | null {
+// El guard también corta por el límite de mutaciones (SEC-006): 429.
+export function authErrorStatus(e: unknown): 401 | 403 | 429 | null {
   if (!(e instanceof AppError)) return null;
   if (e.code === "UNAUTHORIZED") return 401;
   if (e.code === "NOT_APPROVED" || e.code === "FORBIDDEN") return 403;
+  if (e.code === RATE_LIMITED_CODE) return 429;
   return null;
 }
 

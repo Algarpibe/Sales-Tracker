@@ -2,7 +2,7 @@
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
-import { throwOnlyWithoutData } from "@/lib/query-errors";
+import { retryUnlessRateLimited, throwOnlyWithoutData } from "@/lib/query-errors";
 
 export function QueryProvider({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -12,7 +12,8 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
           queries: {
             staleTime: 60 * 1000, // 1 minute
             refetchOnWindowFocus: false,
-            retry: 1,
+            // Un reintento, salvo un 429 del límite por usuario (SEC-006).
+            retry: retryUnlessRateLimited,
             // FE-056: el error de una lectura sube al error boundary MÁS CERCANO. Cada
             // tarjeta/widget tiene el suyo (CardErrorBoundary): si falla una, solo esa
             // muestra «Reintentar»; las lecturas que sostienen la página entera caen en

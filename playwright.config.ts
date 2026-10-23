@@ -61,6 +61,11 @@ export default defineConfig({
       BETTER_AUTH_SECRET: "e2e-secret-solo-para-tests-0123456789abcdef",
       BETTER_AUTH_URL: BASE_URL,
       NEXT_TELEMETRY_DISABLED: "1",
+      // Límite de lecturas por usuario (SEC-006). La suite va en serie con UN usuario
+      // sembrado y encadena cargas de /analytics (~25 lecturas cada una) en pocos
+      // segundos: con el default (600/min) podría tocar el límite y dar 429 que no
+      // existen con uso humano. Se sube SOLO aquí; producción mantiene el default.
+      RATE_LIMIT_READS_PER_MINUTE: "100000",
     },
   },
 });

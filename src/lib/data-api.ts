@@ -2,8 +2,9 @@ import "server-only";
 import { NextResponse } from "next/server";
 import { z, ZodError } from "zod";
 import { requireApproved } from "@/lib/auth/guards";
-import { AppError, authErrorStatus } from "@/lib/errors";
+import { AppError, authErrorStatus, RATE_LIMITED_CODE, RATE_LIMITED_MESSAGE } from "@/lib/errors";
 import { logError } from "@/lib/logger";
+import { consumeRateLimit } from "@/lib/rate-limit";
 import { recordTypeSchema, uuidSchema } from "@/lib/validation";
 import {
   readCategories,
@@ -39,6 +40,7 @@ import {
  *               defensa en profundidad).
  *  - 404        recurso desconocido (solo con sesión aprobada: no se revela qué existe).
  *  - 400        filtros inválidos; no se llega a consultar.
+ *  - 429        límite de lecturas por usuario superado (SEC-006), con Retry-After.
  *  - 500        error inesperado: mensaje genérico; el detalle solo va al log.
  */
 
@@ -129,6 +131,15 @@ function errorResponse(e: unknown, resource: string): NextResponse {
 export async function handleDataRequest(resource: string, search: URLSearchParams): Promise<NextResponse> {
   try {
     const session = await requireApproved();
+    // SEC-006: límite por usuario (id de sesión), después de autorizar: sin sesión es
+    // 401 y no gasta el cupo de nadie.
+    const limit = consumeRateLimit("read", session.user.id);
+    if (!limit.ok) {
+      return NextResponse.json(
+        { error: RATE_LIMITED_MESSAGE, code: RATE_LIMITED_CODE },
+        { status: 429, headers: { ...HEADERS, "Retry-After": String(limit.retryAfterSeconds) } }
+      );
+    }
     // hasOwn: "constructor" o "__proto__" no son recursos.
     if (!Object.hasOwn(ROUTES, resource)) return json({ error: "Recurso no encontrado.", code: "NOT_FOUND" }, 404);
     const def = ROUTES[resource as DataResource] as {

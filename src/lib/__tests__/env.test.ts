@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { assertRuntimeEnv, enforceRuntimeEnv } from "@/lib/env";
+import { assertRuntimeEnv, enforceRuntimeEnv, RATE_LIMIT_DEFAULTS, rateLimitConfig } from "@/lib/env";
 
 const PROD_OK = {
   NODE_ENV: "production",
@@ -79,4 +79,30 @@ describe("enforceRuntimeEnv", () => {
   it("propaga el error si falta una obligatoria", () => {
     expect(() => enforceRuntimeEnv({ NODE_ENV: "production" }, vi.fn())).toThrow("DATABASE_URL");
   });
+});
+
+// SEC-006: los límites por usuario se pueden ajustar por entorno, pero producción no
+// necesita configurar nada: sin variables (o con valores inválidos) valen los defaults.
+describe("rateLimitConfig", () => {
+  it("sin variables usa los valores por defecto", () => {
+    expect(rateLimitConfig({})).toEqual(RATE_LIMIT_DEFAULTS);
+    expect(RATE_LIMIT_DEFAULTS).toEqual({ read: 600, mutation: 120, export: 30 });
+  });
+
+  it("lee cada límite (peticiones por minuto) de su variable", () => {
+    expect(
+      rateLimitConfig({
+        RATE_LIMIT_READS_PER_MINUTE: "5000",
+        RATE_LIMIT_MUTATIONS_PER_MINUTE: " 300 ",
+        RATE_LIMIT_EXPORTS_PER_MINUTE: "10",
+      })
+    ).toEqual({ read: 5000, mutation: 300, export: 10 });
+  });
+
+  it.each(["", "  ", "0", "-5", "abc", "1.5", "10abc", "1e3"])(
+    "un valor inválido (%j) cae al valor por defecto, nunca deja la app sin límite",
+    (v) => {
+      expect(rateLimitConfig({ RATE_LIMIT_READS_PER_MINUTE: v }).read).toBe(RATE_LIMIT_DEFAULTS.read);
+    }
+  );
 });

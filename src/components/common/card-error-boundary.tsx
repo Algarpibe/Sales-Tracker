@@ -6,6 +6,7 @@ import { AlertTriangle, RotateCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { logError } from "@/lib/logger";
+import { READ_ERROR_MESSAGE, readErrorMessage } from "@/lib/query-errors";
 
 /**
  * Error local de una tarjeta/widget (FE-056). Si una lectura falla (react-query lanza
@@ -41,10 +42,13 @@ export function CardErrorBoundary({
 
 export function CardErrorFallback({
   title,
+  message = READ_ERROR_MESSAGE,
   onRetry,
   className,
 }: {
   title?: string;
+  /** Texto seguro del aviso (readErrorMessage): nunca el detalle del error. */
+  message?: string;
   onRetry: () => void;
   className?: string;
 }) {
@@ -59,7 +63,7 @@ export function CardErrorFallback({
     >
       <AlertTriangle className="h-6 w-6 text-destructive" aria-hidden />
       {title && <p className="text-sm font-semibold">{title}</p>}
-      <p className="text-sm text-muted-foreground">No se pudieron cargar los datos.</p>
+      <p className="text-sm text-muted-foreground">{message}</p>
       <Button variant="outline" size="sm" onClick={onRetry}>
         <RotateCw className="mr-2 h-4 w-4" /> Reintentar
       </Button>
@@ -80,11 +84,13 @@ function keysChanged(a: readonly unknown[] = [], b: readonly unknown[] = []): bo
 }
 
 // Los error boundaries siguen exigiendo un componente de clase en React 19.
-class Boundary extends Component<BoundaryProps, { failed: boolean }> {
-  state = { failed: false };
+class Boundary extends Component<BoundaryProps, { failed: boolean; message: string }> {
+  state = { failed: false, message: READ_ERROR_MESSAGE };
 
-  static getDerivedStateFromError(): { failed: boolean } {
-    return { failed: true };
+  // El texto del aviso sale de readErrorMessage: genérico, salvo el límite por
+  // usuario (SEC-006), que explica que basta con esperar y reintentar.
+  static getDerivedStateFromError(error: unknown): { failed: boolean; message: string } {
+    return { failed: true, message: readErrorMessage(error) };
   }
 
   componentDidCatch(error: unknown) {
@@ -102,7 +108,14 @@ class Boundary extends Component<BoundaryProps, { failed: boolean }> {
 
   render() {
     if (this.state.failed) {
-      return <CardErrorFallback title={this.props.title} onRetry={this.retry} className={this.props.className} />;
+      return (
+        <CardErrorFallback
+          title={this.props.title}
+          message={this.state.message}
+          onRetry={this.retry}
+          className={this.props.className}
+        />
+      );
     }
     return this.props.children;
   }

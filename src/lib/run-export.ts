@@ -1,3 +1,5 @@
+import { userErrorMessage } from "@/lib/errors";
+
 // Ejecuta una exportación asíncrona (p. ej. generar el .xlsx en el servidor) y
 // avisa al terminar: éxito solo cuando de verdad ha acabado, error si falla.
 // Devuelve si salió bien. El aviso se inyecta (toast de sonner en la UI).
@@ -15,8 +17,10 @@ export async function runExport(
     await task();
     notify.success(messages.ok);
     return true;
-  } catch {
-    notify.error(messages.error);
+  } catch (e) {
+    // Un AppError (esperado, saneado: p. ej. el límite de exportaciones) se muestra
+    // tal cual; cualquier otro error, con el mensaje genérico.
+    notify.error(userErrorMessage(e, messages.error));
     return false;
   }
 }

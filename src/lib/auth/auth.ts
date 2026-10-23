@@ -8,6 +8,7 @@ import { db } from "@/db";
 import { enforceRuntimeEnv } from "@/lib/env";
 import { user, session, account, verification } from "@/db/schema";
 import { createProfileForNewUser } from "./new-user-profile";
+import { purgeExpiredAuthRows } from "./session-purge";
 import { MIN_PASSWORD_LENGTH } from "./auth-error-message";
 import { signInFailureAudit } from "./auth-audit";
 import { audit } from "@/lib/audit";
@@ -61,6 +62,16 @@ export const auth = betterAuth({
       create: {
         after: async (createdUser) => {
           await createProfileForNewUser(createdUser.id);
+        },
+      },
+    },
+    // PRIV-093: al crear una sesión (login) se borran las caducadas, con su IP y
+    // user-agent: se borran al expirar, como tarde en el siguiente inicio de sesión
+    // (session-purge.ts). Sin await: el login no espera a la purga, que nunca lanza.
+    session: {
+      create: {
+        after: async () => {
+          void purgeExpiredAuthRows();
         },
       },
     },

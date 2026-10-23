@@ -42,3 +42,36 @@ export function enforceRuntimeEnv(
   warnings.forEach((w) => warn(w));
   globalForEnv.__runtimeEnvWarned = true;
 }
+
+// Límites por usuario (SEC-006, src/lib/rate-limit.ts), en peticiones por minuto.
+// Opcionales: sin variables valen estos defaults y producción no necesita configurar
+// nada. Están muy por encima del uso normal: la página más pesada (/analytics con
+// todas sus pestañas) lanza unas 25 lecturas a /api/data al cargar y un cambio de
+// filtro unas 15, así que 600/min cubre ~20 cargas completas por minuto.
+export const RATE_LIMIT_DEFAULTS = { read: 600, mutation: 120, export: 30 } as const;
+
+export type RateLimitBucket = keyof typeof RATE_LIMIT_DEFAULTS;
+export type RateLimitConfig = Record<RateLimitBucket, number>;
+
+const RATE_LIMIT_ENV: Record<RateLimitBucket, string> = {
+  read: "RATE_LIMIT_READS_PER_MINUTE",
+  mutation: "RATE_LIMIT_MUTATIONS_PER_MINUTE",
+  export: "RATE_LIMIT_EXPORTS_PER_MINUTE",
+};
+
+// Un valor inválido (vacío, 0, negativo, decimal, texto) cae al default: un error de
+// configuración nunca deja la app sin límite ni la bloquea.
+function positiveInt(raw: string | undefined, fallback: number): number {
+  const v = raw?.trim();
+  if (!v || !/^\d+$/.test(v)) return fallback;
+  const n = Number(v);
+  return Number.isSafeInteger(n) && n > 0 ? n : fallback;
+}
+
+export function rateLimitConfig(env: Env = process.env): RateLimitConfig {
+  return {
+    read: positiveInt(env[RATE_LIMIT_ENV.read], RATE_LIMIT_DEFAULTS.read),
+    mutation: positiveInt(env[RATE_LIMIT_ENV.mutation], RATE_LIMIT_DEFAULTS.mutation),
+    export: positiveInt(env[RATE_LIMIT_ENV.export], RATE_LIMIT_DEFAULTS.export),
+  };
+}

@@ -4,6 +4,7 @@ import { auth } from "./auth";
 import { db } from "@/db";
 import { profiles } from "@/db/schema";
 import { AppError } from "@/lib/errors";
+import { assertRateLimit } from "@/lib/rate-limit";
 
 /**
  * `fresh: true` lee la sesión de la BD saltándose la cookie cache de better-auth
@@ -11,6 +12,8 @@ import { AppError } from "@/lib/errors";
  * en otro dispositivo, cambio de contraseña) deja de valer al instante en vez de
  * seguir pasando hasta que caduque la cookie (SEC-038). Las lecturas y el
  * proxy siguen en la cookie cache, que ahorra una consulta por request.
+ * Además, en requireApproved/requireRole `fresh` descuenta del límite de mutaciones
+ * del usuario (SEC-006): pasado el límite lanza AppError RATE_LIMITED.
  */
 export type GuardOptions = { fresh?: boolean };
 
@@ -52,6 +55,10 @@ export async function requireApproved(opts: GuardOptions = {}) {
   if (!profile || !profile.is_approved || profile.is_rejected || !profile.is_active) {
     throw new AppError("Tu cuenta está pendiente de aprobación.", "NOT_APPROVED");
   }
+  // SEC-006: `fresh` marca una ESCRITURA (toda mutación lo pasa, también vía
+  // requireRole; lo comprueba authz-server.test.ts), así que este es el punto único
+  // del límite de mutaciones por usuario. Solo cuenta a usuarios ya aprobados.
+  if (opts.fresh) assertRateLimit("mutation", u.user.id);
   // profile queda garantizado no-nulo para los consumidores.
   return { user: u.user, profile };
 }
