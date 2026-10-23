@@ -185,7 +185,9 @@ export function AccountSettingsForm() {
           <div className="flex flex-col items-center mb-8 space-y-4">
             <div className="relative group">
               <Avatar className="h-32 w-32 border-4 border-primary/20 shadow-2xl transition-transform group-hover:scale-105">
-                <AvatarImage src={user ? `/api/avatar/${user.id}` : undefined} className="object-cover" />
+                {/* URL calculada en AuthProvider: sin foto no hay petición (ni 404) y se ven
+                    las iniciales; tras subir otra, refreshProfile trae una URL versionada. */}
+                <AvatarImage src={profile?.avatar_url ?? undefined} className="object-cover" />
                 <AvatarFallback className="bg-primary/10 text-primary text-3xl font-black">
                   {initials}
                 </AvatarFallback>
