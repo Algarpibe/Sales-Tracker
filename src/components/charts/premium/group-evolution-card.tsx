@@ -3,6 +3,7 @@
 import { EvolutionCard, type EvolutionCardTextos } from "@/components/charts/premium/evolution-card";
 import { getGroupingAnalysisData } from "@/actions/grouping-actions";
 import { CHART_HELP } from "@/lib/chart-help";
+import { groupingAnalysisKey } from "@/lib/grouping-analysis";
 import type { RecordType } from "@/types/database";
 
 interface GroupEvolutionCardProps {
@@ -35,6 +36,9 @@ export function GroupEvolutionCard({ recordType }: GroupEvolutionCardProps) {
       description={descripcion}
       help={CHART_HELP.grupoEvolucion}
       fetcher={getGroupingAnalysisData}
+      // Misma clave que el análisis y el forecast por grupo: comparten caché y se
+      // refrescan juntos al editar las agrupaciones.
+      queryKeyFor={groupingAnalysisKey}
       // Los grupos pueden ser muchos: al abrir, solo los tres primeros.
       seleccionInicial="primeras3"
       textos={TEXTOS}

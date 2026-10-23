@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   BarChart,
@@ -23,6 +24,8 @@ import { Check, ChevronsUpDown, X, LayoutTemplate, Activity } from "lucide-react
 import { cn } from "@/lib/utils";
 import { InfoTooltip } from "@/components/common/info-tooltip";
 import { CHART_HELP } from "@/lib/chart-help";
+import { HUB_FIRST_YEAR, formatUSDWhole } from "@/lib/constants";
+import { buildHistoricalCategorySeries, type CategoryChartPoint } from "@/lib/category-series";
 import { getSalesData } from "@/actions/sales-actions";
 import { getCategories } from "@/actions/category-actions";
 import type { ChartTooltipEntry, ChartTooltipProps } from "@/lib/chart-types";
@@ -30,8 +33,6 @@ import type { ChartTooltipEntry, ChartTooltipProps } from "@/lib/chart-types";
 // --- Types ---
 type RecordType = "SALES_ORDER" | "INVOICE";
 type ViewMode = "ANNUAL" | "MONTHLY" | "QUARTERLY";
-// Punto del gráfico: una clave de eje (year/month/quarter) + montos por category_id.
-type ChartPoint = Record<string, string | number>;
 
 interface CategoryInfo {
   id: string;
@@ -39,157 +40,109 @@ interface CategoryInfo {
   color: string;
 }
 
-const MONTHS = [
-  "Ene", "Feb", "Mar", "Abr", "May", "Jun", 
-  "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"
-];
-
 // Fallback color if a category has no color set
 const DEFAULT_COLOR = "#6366f1";
 
-const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(value);
-};
+// Tooltip fuera del componente (FE-008: no se crean componentes en cada render).
+// Recharts clona el elemento con active/payload/label y conserva estas props extra.
+function HistoricalTooltip({
+  active,
+  payload,
+  label,
+  viewMode,
+  year,
+  catMap,
+}: ChartTooltipProps & { viewMode: ViewMode; year: number | null; catMap: Map<string, CategoryInfo> }) {
+  if (active && payload && payload.length) {
+    const sortedPayload = [...payload].sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
+    const total = sortedPayload.reduce((sum: number, entry) => sum + (entry.value ?? 0), 0);
+    // Con muchas categorías el tooltip crecía tanto que el total quedaba fuera de
+    // pantalla: ahora va en la cabecera y la lista se acota con un resumen del resto.
+    const MAX_ROWS = 12;
+    const shown = sortedPayload.slice(0, MAX_ROWS);
+    const rest = sortedPayload.slice(MAX_ROWS);
+    const restTotal = rest.reduce((sum: number, entry) => sum + (entry.value ?? 0), 0);
 
-// Primer año con datos completos. El resto de la app arranca igual (ver
-// getYearRange en @/lib/constants); 2020 es parcial y distorsiona la comparación.
-const FIRST_YEAR = 2021;
+    return (
+      <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-black/5 dark:border-white/5 p-4 rounded-xl shadow-2xl min-w-[240px]">
+        <div className="mb-3 flex items-baseline justify-between gap-6 border-b border-black/5 dark:border-white/5 pb-2">
+          <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">
+            {viewMode === "ANNUAL" ? label : `${label} ${year}`}
+          </h3>
+          <div className="text-right">
+            <div className="text-[10px] uppercase tracking-wider text-slate-400">Total</div>
+            <div className="font-mono font-bold text-primary">{formatUSDWhole(total)}</div>
+          </div>
+        </div>
+        <div className="space-y-2">
+          {shown.map((entry: ChartTooltipEntry, index: number) => {
+            const category = catMap.get(String(entry.dataKey));
+            return (
+              <div key={`item-${index}`} className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-2">
+                  <div
+                    className="w-3 h-3 rounded-full"
+                    style={{ backgroundColor: entry.color }}
+                  />
+                  <span className="text-slate-500 truncate max-w-[140px]">
+                    {category?.name || entry.name}
+                  </span>
+                </div>
+                <span className="font-mono font-bold text-slate-700 dark:text-slate-300">
+                  {formatUSDWhole(entry.value ?? 0)}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+        {rest.length > 0 && (
+          <div className="mt-3 flex items-center justify-between border-t border-black/5 pt-2 text-sm text-slate-400 dark:border-white/5">
+            <span>+{rest.length} categorías más</span>
+            <span className="font-mono">{formatUSDWhole(restTotal)}</span>
+          </div>
+        )}
+      </div>
+    );
+  }
+  return null;
+}
 
 export function HistoricalSalesCategory() {
-  const [isLoading, setIsLoading] = useState(true);
   const [recordType, setRecordType] = useState<RecordType>("SALES_ORDER");
   const [viewMode, setViewMode] = useState<ViewMode>("ANNUAL");
-  const [allCategories, setAllCategories] = useState<CategoryInfo[]>([]);
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
-  const [annualData, setAnnualData] = useState<ChartPoint[]>([]);
-  const [monthlyData, setMonthlyData] = useState<Record<number, ChartPoint[]>>({});
-  const [quarterlyData, setQuarterlyData] = useState<Record<number, ChartPoint[]>>({});
   const [openPopover, setOpenPopover] = useState(false);
-  const [availableYears, setAvailableYears] = useState<number[]>([]);
+  // null = el usuario aún no eligió: se usa el último año con datos.
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
 
-  // Fetch categories once on mount
-  useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const data = await getCategories();
+  // FE-057: react-query en vez de useEffect + server action. Se reutiliza la caché de
+  // todas las ventas (["sales", {}], la misma que la página de Análisis) y se filtra
+  // por tipo en cliente: cambiar OV/FAC ya no vuelve a pedir nada. Sin categorías ya
+  // no se queda el esqueleto para siempre: se muestra el estado vacío.
+  const salesQ = useQuery({ queryKey: ["sales", {}], queryFn: () => getSalesData({}) });
+  const catsQ = useQuery({ queryKey: ["categories"], queryFn: getCategories });
+  const isLoading = salesQ.isPending || catsQ.isPending;
 
-        const cats: CategoryInfo[] = (data || []).map((cat) => ({
-          id: String(cat.id),
-          name: String(cat.name),
-          color: cat.color || DEFAULT_COLOR,
-        }));
+  const allCategories = useMemo<CategoryInfo[]>(
+    () =>
+      (catsQ.data ?? []).map((cat) => ({
+        id: String(cat.id),
+        name: String(cat.name),
+        color: cat.color || DEFAULT_COLOR,
+      })),
+    [catsQ.data]
+  );
 
-        setAllCategories(cats);
-      } catch (error) {
-        console.error("Error fetching categories:", error);
-      }
-    };
-
-    fetchCategories();
-  }, []);
-
-  // Fetch sales data when record type changes
-  useEffect(() => {
-    const fetchSalesData = async () => {
-      setIsLoading(true);
-      try {
-        const records = await getSalesData({ record_type: recordType });
-
-        // --- 1. Available Years ---
-        const yearsSet = new Set<number>();
-        records.forEach((r) => yearsSet.add(Number(r.record_year)));
-        const years = Array.from(yearsSet).filter((y) => y >= FIRST_YEAR).sort((a, b) => a - b);
-        setAvailableYears(years);
-        if (!selectedYear && years.length > 0) {
-          setSelectedYear(years[years.length - 1]); // Default to latest
-        }
-
-        // --- 2. Annual Aggregation ---
-        const annualGrouped: Record<number, Record<string, number>> = {};
-        years.forEach(y => { annualGrouped[y] = {}; });
-
-        records.forEach((r) => {
-          const year = Number(r.record_year);
-          // Sin bucket = año anterior a FIRST_YEAR: se ignora. Sin esta guarda,
-          // annualGrouped[year] es undefined y el throw vacía todo el gráfico.
-          if (!annualGrouped[year]) return;
-          const catId = String(r.category_id);
-          const amount = Number(r.amount_usd) || 0;
-          annualGrouped[year][catId] = (annualGrouped[year][catId] || 0) + amount;
-        });
-
-        const annChartData = years.map(year => {
-          const dataPoint: ChartPoint = { year: String(year) };
-          Object.entries(annualGrouped[year]).forEach(([catId, total]) => {
-            dataPoint[catId] = Math.round(total * 100) / 100;
-          });
-          return dataPoint;
-        });
-        setAnnualData(annChartData);
-
-        // --- 3. Monthly Aggregation for each year ---
-        const monthlyRecords: Record<number, ChartPoint[]> = {};
-        const quarterlyRecords: Record<number, ChartPoint[]> = {};
-
-        years.forEach(year => {
-          // Initialize 12 months
-          const yearMonths = MONTHS.map((m, idx) => ({ month: m, monthIdx: idx + 1 }));
-          const yearGrouped: Record<number, Record<string, number>> = {};
-          for (let i = 1; i <= 12; i++) yearGrouped[i] = {};
-
-          records.filter((r) => Number(r.record_year) === year).forEach((r) => {
-            const month = Number(r.record_month);
-            const catId = String(r.category_id);
-            const amount = Number(r.amount_usd) || 0;
-            yearGrouped[month][catId] = (yearGrouped[month][catId] || 0) + amount;
-          });
-
-          monthlyRecords[year] = yearMonths.map(m => {
-            const dataPoint: ChartPoint = { month: m.month };
-            Object.entries(yearGrouped[m.monthIdx]).forEach(([catId, total]) => {
-              dataPoint[catId] = Math.round(total * 100) / 100;
-            });
-            return dataPoint;
-          });
-
-          // --- 4. Quarterly Aggregation ---
-          const qs = [
-            { label: "T1", months: [1, 2, 3] },
-            { label: "T2", months: [4, 5, 6] },
-            { label: "T3", months: [7, 8, 9] },
-            { label: "T4", months: [10, 11, 12] },
-          ];
-
-          quarterlyRecords[year] = qs.map(q => {
-            const dataPoint: ChartPoint = { quarter: q.label };
-            q.months.forEach(mIdx => {
-              Object.entries(yearGrouped[mIdx]).forEach(([catId, total]) => {
-                dataPoint[catId] = (Number(dataPoint[catId]) || 0) + (Math.round(total * 100) / 100);
-              });
-            });
-            return dataPoint;
-          });
-        });
-
-        setMonthlyData(monthlyRecords);
-        setQuarterlyData(quarterlyRecords);
-
-      } catch (err) {
-        console.error("Critical error fetching sales data:", err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    if (allCategories.length > 0) {
-      fetchSalesData();
-    }
-  }, [recordType, allCategories]);
+  const series = useMemo(
+    () =>
+      buildHistoricalCategorySeries(
+        (salesQ.data ?? []).filter((r) => r.record_type === recordType),
+        HUB_FIRST_YEAR
+      ),
+    [salesQ.data, recordType]
+  );
+  const availableYears = series.years;
+  const effectiveYear = selectedYear ?? availableYears[availableYears.length - 1] ?? null;
 
   // Category lookup helper
   const catMap = useMemo(() => {
@@ -208,62 +161,6 @@ export function HistoricalSalesCategory() {
 
   const handleClearCategories = () => setSelectedCategoryIds([]);
 
-  // --- Custom Tooltip ---
-  const CustomTooltip = ({ active, payload, label }: ChartTooltipProps) => {
-    if (active && payload && payload.length) {
-      const sortedPayload = [...payload].sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
-      const total = sortedPayload.reduce((sum: number, entry) => sum + (entry.value ?? 0), 0);
-      // Con muchas categorías el tooltip crecía tanto que el total quedaba fuera de
-      // pantalla: ahora va en la cabecera y la lista se acota con un resumen del resto.
-      const MAX_ROWS = 12;
-      const shown = sortedPayload.slice(0, MAX_ROWS);
-      const rest = sortedPayload.slice(MAX_ROWS);
-      const restTotal = rest.reduce((sum: number, entry) => sum + (entry.value ?? 0), 0);
-
-      return (
-        <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-black/5 dark:border-white/5 p-4 rounded-xl shadow-2xl min-w-[240px]">
-          <div className="mb-3 flex items-baseline justify-between gap-6 border-b border-black/5 dark:border-white/5 pb-2">
-            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">
-              {viewMode === "ANNUAL" ? label : `${label} ${selectedYear}`}
-            </h3>
-            <div className="text-right">
-              <div className="text-[10px] uppercase tracking-wider text-slate-400">Total</div>
-              <div className="font-mono font-bold text-primary">{formatCurrency(total)}</div>
-            </div>
-          </div>
-          <div className="space-y-2">
-            {shown.map((entry: ChartTooltipEntry, index: number) => {
-              const category = catMap.get(String(entry.dataKey));
-              return (
-                <div key={`item-${index}`} className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="w-3 h-3 rounded-full"
-                      style={{ backgroundColor: entry.color }}
-                    />
-                    <span className="text-slate-500 truncate max-w-[140px]">
-                      {category?.name || entry.name}
-                    </span>
-                  </div>
-                  <span className="font-mono font-bold text-slate-700 dark:text-slate-300">
-                    {formatCurrency(entry.value ?? 0)}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-          {rest.length > 0 && (
-            <div className="mt-3 flex items-center justify-between border-t border-black/5 pt-2 text-sm text-slate-400 dark:border-white/5">
-              <span>+{rest.length} categorías más</span>
-              <span className="font-mono">{formatCurrency(restTotal)}</span>
-            </div>
-          )}
-        </div>
-      );
-    }
-    return null;
-  };
-
   // Selected category objects in order
   const selectedCategories = useMemo(() => {
     return selectedCategoryIds
@@ -271,11 +168,11 @@ export function HistoricalSalesCategory() {
       .filter(Boolean) as CategoryInfo[];
   }, [selectedCategoryIds, catMap]);
 
-  const currentChartData = useMemo(() => {
-    if (viewMode === "ANNUAL") return annualData;
-    if (viewMode === "QUARTERLY") return selectedYear ? quarterlyData[selectedYear] || [] : [];
-    return selectedYear ? monthlyData[selectedYear] || [] : [];
-  }, [viewMode, annualData, monthlyData, quarterlyData, selectedYear]);
+  const currentChartData = useMemo<CategoryChartPoint[]>(() => {
+    if (viewMode === "ANNUAL") return series.annual;
+    if (viewMode === "QUARTERLY") return effectiveYear ? series.quarterly[effectiveYear] || [] : [];
+    return effectiveYear ? series.monthly[effectiveYear] || [] : [];
+  }, [viewMode, series, effectiveYear]);
 
   const renderContent = () => {
     if (isLoading) {
@@ -290,6 +187,14 @@ export function HistoricalSalesCategory() {
               </div>
             ))}
           </div>
+        </div>
+      );
+    }
+
+    if (availableYears.length === 0 || allCategories.length === 0) {
+      return (
+        <div className="h-[400px] w-full mt-8 flex items-center justify-center text-center text-sm text-muted-foreground">
+          Sin datos para el periodo
         </div>
       );
     }
@@ -314,7 +219,7 @@ export function HistoricalSalesCategory() {
 
     return (
       <motion.div
-        key={`${recordType}-${viewMode}-${selectedYear}`}
+        key={`${recordType}-${viewMode}-${effectiveYear}`}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.5 }}
@@ -341,7 +246,7 @@ export function HistoricalSalesCategory() {
               tick={{ fill: 'var(--muted-foreground)', fontSize: 12 }}
               dx={-10}
             />
-            <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(147, 197, 253, 0.15)' }} />
+            <Tooltip content={<HistoricalTooltip viewMode={viewMode} year={effectiveYear} catMap={catMap} />} cursor={{ fill: 'rgba(147, 197, 253, 0.15)' }} />
 
             {selectedCategories.map((category, index) => (
               <Bar
@@ -371,9 +276,11 @@ export function HistoricalSalesCategory() {
               <Activity className="h-5 w-5 text-primary" /> Histórico {viewMode === "MONTHLY" ? "Mensual" : viewMode === "QUARTERLY" ? "Trimestral" : "Anual"}
               <InfoTooltip text={CHART_HELP.historicoCategoria} />
             </CardTitle>
-              {viewMode === "ANNUAL" 
-                ? `Evolución de ventas anuales segmentadas (${availableYears[0]}–${availableYears[availableYears.length - 1]}).`
-                : `Evolución ${viewMode === "QUARTERLY" ? "trimestral" : "mensual"} del año ${selectedYear} para categorías seleccionadas.`}
+              {viewMode === "ANNUAL"
+                ? (availableYears.length > 0
+                    ? `Evolución de ventas anuales segmentadas (${availableYears[0]}–${availableYears[availableYears.length - 1]}).`
+                    : "Evolución de ventas anuales segmentadas.")
+                : `Evolución ${viewMode === "QUARTERLY" ? "trimestral" : "mensual"} del año ${effectiveYear ?? ""} para categorías seleccionadas.`}
           </div>
 
           <div className="flex flex-col sm:flex-row items-end sm:items-center gap-4 w-full lg:w-auto">
@@ -473,7 +380,7 @@ export function HistoricalSalesCategory() {
                   onClick={() => setSelectedYear(year)}
                   className={cn(
                     "px-4 py-2 text-sm font-bold rounded-xl transition-all duration-300",
-                    selectedYear === year 
+                    effectiveYear === year 
                       ? "bg-primary text-primary-foreground shadow-lg scale-105" 
                       : "text-muted-foreground hover:bg-white/10 hover:text-foreground"
                   )}

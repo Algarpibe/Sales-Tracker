@@ -1,4 +1,5 @@
 import { bucketForCategory, type Bucket } from "@/lib/customer-item";
+import { HUB_FIRST_YEAR } from "@/lib/constants";
 import type { CustomerYearRow, ItemSalesRow, CustomerItemRow, CustomerMonthRow, CategoryMonthRow } from "@/types/database";
 
 export interface BucketMixYear {
@@ -21,7 +22,7 @@ export function buildBucketMixByYear(records: MixRecord[], tipo: string, mapa: M
   const map = new Map<number, BucketMixYear>();
   for (const r of records) {
     if (r.record_type !== tipo) continue;
-    if (r.record_year < 2021) continue;
+    if (r.record_year < HUB_FIRST_YEAR) continue;
     let row = map.get(r.record_year);
     if (!row) {
       row = { year: r.record_year, mano_obra: 0, cr: 0, equipos: 0, operacion: 0 };

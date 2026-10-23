@@ -2,6 +2,7 @@
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
+import { throwOnlyWithoutData } from "@/lib/query-errors";
 
 export function QueryProvider({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -12,9 +13,12 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
             staleTime: 60 * 1000, // 1 minute
             refetchOnWindowFocus: false,
             retry: 1,
-            // Los errores de lectura suben al error boundary (error.tsx) para una
-            // pantalla de error consistente en vez de quedarse en blanco.
-            throwOnError: true,
+            // FE-056: el error de una lectura sube al error boundary MÁS CERCANO. Cada
+            // tarjeta/widget tiene el suyo (CardErrorBoundary): si falla una, solo esa
+            // muestra «Reintentar»; las lecturas que sostienen la página entera caen en
+            // (dashboard)/error.tsx. Solo se lanza sin datos que mostrar: un refetch
+            // fallido con datos previos deja la tarjeta con lo último bueno.
+            throwOnError: throwOnlyWithoutData,
           },
         },
       })

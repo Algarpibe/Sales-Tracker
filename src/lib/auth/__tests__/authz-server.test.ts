@@ -363,3 +363,63 @@ describe("frescura de la sesion en los guards", () => {
     expect(await sessionQueryOf(call)).toBeUndefined();
   });
 });
+
+/**
+ * ARQ-078: rastro de auditoria de las acciones de administrador. Una linea JSON con
+ * event "audit", quien actua, sobre que y en que empresa; nunca emails ni nombres.
+ */
+describe("auditoria de acciones de administrador", () => {
+  function auditLines(spy: ReturnType<typeof vi.spyOn>) {
+    return spy.mock.calls
+      .map((c: unknown[]) => JSON.parse(String(c[0])) as Record<string, unknown>)
+      .filter((l: Record<string, unknown>) => l.event === "audit");
+  }
+
+  function prepare(activeAdminIds: string[]) {
+    loginAs(ADMIN_ID);
+    state.selects.push([{ company_id: COMPANY }]);
+    state.selects.push(activeAdminIds.map((id) => ({ id })));
+  }
+
+  it("updateUserRole deja una entrada con actor, destino, empresa y rol", async () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    const { updateUserRole } = await import("@/actions/admin-actions");
+    prepare([ADMIN_ID, OTRO_ADMIN_ID]);
+    const res = await updateUserRole(OTRO_ADMIN_ID, "editor");
+    expect(res.ok).toBe(true);
+    const lines = auditLines(log);
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toMatchObject({
+      level: "info",
+      event: "audit",
+      action: "user.role_update",
+      actorId: ADMIN_ID,
+      targetId: OTRO_ADMIN_ID,
+      companyId: COMPANY,
+      role: "editor",
+    });
+    expect(JSON.stringify(lines[0])).not.toMatch(/@example\.test/);
+    log.mockRestore();
+  });
+
+  it("deleteUser deja una entrada user.delete", async () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    const { deleteUser } = await import("@/actions/admin-actions");
+    prepare([ADMIN_ID, OTRO_ADMIN_ID]);
+    await deleteUser(OTRO_ADMIN_ID);
+    expect(auditLines(log)).toEqual([
+      expect.objectContaining({ action: "user.delete", actorId: ADMIN_ID, targetId: OTRO_ADMIN_ID, companyId: COMPANY }),
+    ]);
+    log.mockRestore();
+  });
+
+  it("una accion rechazada no deja entrada de auditoria", async () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    const { updateUserRole } = await import("@/actions/admin-actions");
+    prepare([ADMIN_ID, OTRO_ADMIN_ID]);
+    const res = await updateUserRole(ADMIN_ID, "lector");
+    expect(res.ok).toBe(false);
+    expect(auditLines(log)).toHaveLength(0);
+    log.mockRestore();
+  });
+});

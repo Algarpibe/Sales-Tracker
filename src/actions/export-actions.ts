@@ -2,10 +2,18 @@
 
 import { requireApproved } from "@/lib/auth/guards";
 import type { ExcelSheet } from "@/lib/excel-types";
+import { audit } from "@/lib/audit";
 
 // Genera un .xlsx en el servidor (exceljs) y lo devuelve en base64.
 export async function generateXlsx(sheets: ExcelSheet[]): Promise<string> {
-  await requireApproved();
+  const { profile } = await requireApproved();
+  // Quién exporta qué: nombres de hoja y nº de filas, nunca el contenido de las celdas.
+  audit({
+    action: "export.xlsx",
+    actorId: profile.id,
+    companyId: profile.company_id,
+    meta: { sheets: sheets.map((s) => ({ sheet: s.name, rows: s.rows.length })) },
+  });
   const ExcelJS = (await import("exceljs")).default;
   const wb = new ExcelJS.Workbook();
 

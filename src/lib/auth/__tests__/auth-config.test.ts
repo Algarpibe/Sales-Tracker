@@ -32,3 +32,9 @@ describe("configuración de better-auth", () => {
     expect(created).toEqual(["user-1"]);
   });
 });
+
+describe("auditoría de login (ARQ-078)", () => {
+  it("registra un hook after para auditar los logins fallidos", () => {
+    expect(auth.options.hooks?.after).toBeTypeOf("function");
+  });
+});

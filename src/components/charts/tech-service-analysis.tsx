@@ -72,74 +72,82 @@ function formatYoY(value: number | null): React.ReactNode {
   );
 }
 
-export function TechServiceAnalysis({ data, yearA, yearB, viewMode, onViewModeChange, recordType, onRecordTypeChange }: TechServiceAnalysisProps) {
-  // Activo por defecto: las líneas de acumulado ya formaban parte del gráfico.
-  const [showCumulative, setShowCumulative] = useState(true);
-  // Custom Tooltip
-  const CustomTooltip = ({ active, payload, label }: ChartTooltipProps) => {
-    if (active && payload && payload.length) {
-      const qData = data.find(d => d.label === label);
-      if (!qData) return null;
+// Tooltip fuera del componente (FE-008). Recharts lo clona con active/payload/label y
+// conserva data/yearA/yearB.
+function TechServiceTooltip({
+active,
+payload,
+label,
+data,
+yearA,
+yearB,
+}: ChartTooltipProps & { data: TechServiceDataPoint[]; yearA?: number; yearB?: number }) {
+  if (active && payload && payload.length) {
+    const qData = data.find(d => d.label === label);
+    if (!qData) return null;
 
-      const yoyAcum = getYoY(qData.acum, qData.acum_prev);
+    const yoyAcum = getYoY(qData.acum, qData.acum_prev);
 
-      return (
-        <div className="rounded-xl border border-black/10 bg-white/80 p-4 shadow-2xl backdrop-blur-xl ring-1 ring-black/5 min-w-[280px]">
-          <p className="mb-2 font-bold text-slate-800 border-b border-black/5 pb-2 text-base">{label} - Comparativa</p>
-          
-          <div className="space-y-4">
-            {/* Año Principal */}
-            <div>
-              <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-1">{yearA}</p>
-              <div className="space-y-1 text-sm">
-                <p className="flex justify-between gap-6">
-                  <span className="text-slate-500 font-medium">Servicio Técnico (ST):</span>
-                  <span className="font-mono font-bold text-slate-700">{formatUSD(qData.st)}</span>
-                </p>
-                <p className="flex justify-between gap-6">
-                  <span className="text-slate-500 font-medium">Consumibles (C&R):</span>
-                  <span className="font-mono font-bold text-slate-700">{formatUSD(qData.cr)}</span>
-                </p>
-              </div>
-            </div>
-
-            {/* Año Previo */}
-            <div className="pt-2 border-t border-black/5">
-              <p className="text-[10px] font-black text-orange-500 uppercase tracking-widest mb-1">{yearB}</p>
-              <div className="space-y-1 text-sm">
-                <p className="flex justify-between gap-6">
-                  <span className="text-orange-600/70 font-medium">Servicio Técnico (ST):</span>
-                  <span className="font-mono font-bold text-orange-700">{formatUSD(qData.st_prev)}</span>
-                </p>
-                <p className="flex justify-between gap-6">
-                  <span className="text-amber-600/70 font-medium">Consumibles (C&R):</span>
-                  <span className="font-mono font-bold text-amber-600">{formatUSD(qData.cr_prev)}</span>
-                </p>
-              </div>
-            </div>
-
-            {/* Métricas Acumuladas */}
-            <div className="pt-3 border-t border-black/5">
-              <p className="flex justify-between gap-6 font-bold text-sm">
-                <span className="text-emerald-600">Acumulado {yearA}:</span>
-                <span className="font-mono text-emerald-500">{formatUSD(qData.acum)}</span>
+    return (
+      <div className="rounded-xl border border-black/10 bg-white/80 p-4 shadow-2xl backdrop-blur-xl ring-1 ring-black/5 min-w-[280px]">
+        <p className="mb-2 font-bold text-slate-800 border-b border-black/5 pb-2 text-base">{label} - Comparativa</p>
+        
+        <div className="space-y-4">
+          {/* Año Principal */}
+          <div>
+            <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-1">{yearA}</p>
+            <div className="space-y-1 text-sm">
+              <p className="flex justify-between gap-6">
+                <span className="text-slate-500 font-medium">Servicio Técnico (ST):</span>
+                <span className="font-mono font-bold text-slate-700">{formatUSD(qData.st)}</span>
               </p>
-              <p className="flex justify-between gap-6 font-bold text-sm pt-1">
-                <span className="text-orange-600">Acumulado {yearB}:</span>
-                <span className="font-mono text-orange-500">{formatUSD(qData.acum_prev)}</span>
-              </p>
-              <p className="flex justify-between gap-6 pt-1 text-xs">
-                <span className="text-slate-500 font-medium">Variación (Acum):</span>
-                <span className="font-mono font-bold">{formatYoY(yoyAcum)}</span>
+              <p className="flex justify-between gap-6">
+                <span className="text-slate-500 font-medium">Consumibles (C&R):</span>
+                <span className="font-mono font-bold text-slate-700">{formatUSD(qData.cr)}</span>
               </p>
             </div>
           </div>
-        </div>
-      );
-    }
-    return null;
-  };
 
+          {/* Año Previo */}
+          <div className="pt-2 border-t border-black/5">
+            <p className="text-[10px] font-black text-orange-500 uppercase tracking-widest mb-1">{yearB}</p>
+            <div className="space-y-1 text-sm">
+              <p className="flex justify-between gap-6">
+                <span className="text-orange-600/70 font-medium">Servicio Técnico (ST):</span>
+                <span className="font-mono font-bold text-orange-700">{formatUSD(qData.st_prev)}</span>
+              </p>
+              <p className="flex justify-between gap-6">
+                <span className="text-amber-600/70 font-medium">Consumibles (C&R):</span>
+                <span className="font-mono font-bold text-amber-600">{formatUSD(qData.cr_prev)}</span>
+              </p>
+            </div>
+          </div>
+
+          {/* Métricas Acumuladas */}
+          <div className="pt-3 border-t border-black/5">
+            <p className="flex justify-between gap-6 font-bold text-sm">
+              <span className="text-emerald-600">Acumulado {yearA}:</span>
+              <span className="font-mono text-emerald-500">{formatUSD(qData.acum)}</span>
+            </p>
+            <p className="flex justify-between gap-6 font-bold text-sm pt-1">
+              <span className="text-orange-600">Acumulado {yearB}:</span>
+              <span className="font-mono text-orange-500">{formatUSD(qData.acum_prev)}</span>
+            </p>
+            <p className="flex justify-between gap-6 pt-1 text-xs">
+              <span className="text-slate-500 font-medium">Variación (Acum):</span>
+              <span className="font-mono font-bold">{formatYoY(yoyAcum)}</span>
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  return null;
+}
+
+export function TechServiceAnalysis({ data, yearA, yearB, viewMode, onViewModeChange, recordType, onRecordTypeChange }: TechServiceAnalysisProps) {
+  // Activo por defecto: las líneas de acumulado ya formaban parte del gráfico.
+  const [showCumulative, setShowCumulative] = useState(true);
   const totals = data.reduce(
     (acc, curr) => ({
       st: acc.st + curr.st,
@@ -242,7 +250,7 @@ export function TechServiceAnalysis({ data, yearA, yearB, viewMode, onViewModeCh
                 />
               )}
               <Tooltip 
-                content={<CustomTooltip />} 
+                content={<TechServiceTooltip data={data} yearA={yearA} yearB={yearB} />}
                 cursor={{ fill: "rgba(147, 197, 253, 0.15)", radius: 10 }} 
               />
               <Legend verticalAlign="top" height={60} iconType="circle" wrapperStyle={{ paddingBottom: '30px', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase' }} />

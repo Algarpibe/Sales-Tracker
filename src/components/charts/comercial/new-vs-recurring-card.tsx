@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getCustomerSales } from "@/actions/customer-sales-actions";
 import { buildNewVsRecurring } from "@/lib/analytics-comercial";
 import type { NewVsRecurringRow } from "@/lib/analytics-comercial";
-import { formatUSD, formatCompactUSD } from "@/lib/constants";
+import { HUB_FIRST_YEAR, formatUSD, formatCompactUSD } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { InfoTooltip } from "@/components/common/info-tooltip";
@@ -15,7 +15,7 @@ import {
 } from "recharts";
 import type { ChartTooltipProps } from "@/lib/chart-types";
 
-const FIRST_YEAR = 2021;
+const FIRST_YEAR = HUB_FIRST_YEAR;
 
 function NvrTooltip({ active, payload, label }: ChartTooltipProps<NewVsRecurringRow>) {
   if (!active || !payload || !payload.length) return null;

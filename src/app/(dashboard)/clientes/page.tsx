@@ -9,7 +9,7 @@ import { FavoriteStar } from "@/components/common/favorite-star";
 import { Switch } from "@/components/ui/switch";
 import type { CustomerYearRow } from "@/types/database";
 import { usePeriod } from "@/components/providers/period-provider";
-import { formatUSD } from "@/lib/constants";
+import { HISTORY_FIRST_YEAR, formatUSD } from "@/lib/constants";
 import {
   buildCustomerMatrix,
   computeColumnTotals,
@@ -37,13 +37,15 @@ import { SearchInput } from "@/components/common/search-input";
 import { ExportMenu } from "@/components/common/export-menu";
 import { EmptyState } from "@/components/common/empty-state";
 import { downloadXlsx, copySheetToClipboard } from "@/lib/excel-client";
+import { downloadText } from "@/lib/download";
+import { unwrapAction, userErrorMessage } from "@/lib/errors";
 import { runExport, XLSX_EXPORT_MESSAGES } from "@/lib/run-export";
 import { SavedViewsMenu } from "@/components/clientes/saved-views-menu";
 import type { ClientesViewState } from "@/lib/clientes-view-state";
 
-// 2015 porque esta vista (y SOLO esta) incorpora el histórico previo al hub.
-// Las otras nueve constantes FIRST_YEAR de la app siguen en 2021.
-const FIRST_YEAR = 2015;
+// HISTORY_FIRST_YEAR (2015) porque esta vista incorpora el histórico previo al hub; el
+// resto de selectores arranca en HUB_FIRST_YEAR (2021).
+const FIRST_YEAR = HISTORY_FIRST_YEAR;
 
 function range(from: number, to: number): number[] {
   const out: number[] = [];
@@ -102,9 +104,9 @@ export default function ClientesPage() {
   const favQ = useQuery({ queryKey: ["favorites"], queryFn: getFavorites });
   const favSet = useMemo(() => new Set(favQ.data ?? []), [favQ.data]);
   const favMut = useMutation({
-    mutationFn: toggleFavorite,
+    mutationFn: async (customer: string) => unwrapAction(await toggleFavorite(customer)),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["favorites"] }),
-    onError: () => toast.error("No se pudo guardar el favorito"),
+    onError: (e) => toast.error(userErrorMessage(e, "No se pudo guardar el favorito")),
   });
 
   const currentView: ClientesViewState = useMemo(
@@ -162,15 +164,7 @@ export default function ClientesPage() {
   const grandAll = useMemo(() => computeColumnTotals(matrix, years).grand, [matrix, years]);
 
   const exportCsv = () => {
-    const blob = new Blob([customerMatrixToCsv(visible, years, grandAll)], {
-      type: "text/csv;charset=utf-8",
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `ventas_cliente_${tipo}_${desdeAnio}_${hastaAnio}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadText(customerMatrixToCsv(visible, years, grandAll), `ventas_cliente_${tipo}_${desdeAnio}_${hastaAnio}.csv`);
     toast.success("CSV descargado");
   };
 

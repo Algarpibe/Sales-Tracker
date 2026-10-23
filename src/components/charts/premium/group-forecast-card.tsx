@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useMemo } from "react";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ComposedChart,
@@ -39,70 +40,117 @@ import { cn } from "@/lib/utils";
 import { getGroupingAnalysisData } from "@/actions/grouping-actions";
 import { calculateSeasonalityFactors, getSeasonalForecast, calculateRunRate } from "@/lib/math-utils";
 import { historyYears } from "@/lib/forecast";
-import type { GroupingAnalysisResult, RecordType } from "@/types/database";
+import type { RecordType } from "@/types/database";
 import type { ChartTooltipEntry, ChartTooltipProps } from "@/lib/chart-types";
 import { InfoTooltip } from "@/components/common/info-tooltip";
 import { CHART_HELP } from "@/lib/chart-help";
+import { MONTH_LABELS, formatUSDCompactIntl, formatUSDWhole } from "@/lib/constants";
+import { groupingAnalysisKey } from "@/lib/grouping-analysis";
 
 // Punto del gráfico: clave de eje (month) + claves dinámicas por grupo y forecast.
 type ForecastChartPoint = Record<string, string | number>;
-
-const MONTHS = [
-  "Ene", "Feb", "Mar", "Abr", "May", "Jun", 
-  "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"
-];
-
-const formatCurrencyCompact = (value: number) => {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    notation: "compact",
-    maximumFractionDigits: 1,
-  }).format(value);
-};
-
-const formatCurrencyFull = (value: number) => {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(value);
-};
 
 interface GroupForecastCardProps {
   recordType: RecordType;
   baseYear?: number;
 }
 
+// Tooltip fuera del componente (FE-008). Recharts lo clona con active/payload/label y
+// conserva baseYear.
+function GroupForecastTooltip({ active, payload, label, baseYear }: ChartTooltipProps<ForecastChartPoint> & { baseYear: number }) {
+  if (active && payload && payload.length) {
+    const sortedPayload = [...payload].sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
+    
+    return (
+      <div className="bg-background/95 backdrop-blur-xl border border-white/10 p-4 rounded-xl shadow-2xl min-w-[260px]">
+        <div className="flex items-center gap-2 mb-3 border-b border-white/5 pb-2">
+          <TrendingUp className="h-4 w-4 text-primary" />
+          <span className="font-bold text-foreground text-lg">
+            {label} {baseYear}
+          </span>
+        </div>
+        <div className="mb-3 flex justify-between items-center text-xs">
+          <span className="text-muted-foreground font-bold">Total Forecast:</span>
+          <span className="text-primary font-mono font-bold text-sm">{formatUSDWhole(Number(payload[0].payload?.total_forecast ?? 0))}</span>
+        </div>
+        <div className="space-y-4">
+          {sortedPayload
+            .filter((entry: ChartTooltipEntry<ForecastChartPoint>) => entry.dataKey !== "total_forecast")
+            .map((entry: ChartTooltipEntry<ForecastChartPoint>, index: number) => {
+              const groupName = String(entry.name ?? "");
+              const color = String(entry.payload?.[`${groupName}_color`] ?? "");
+              const percent = Number(entry.payload?.[`${groupName}_percent`] ?? 0);
+              const forecastVal = Number(entry.payload?.[`${groupName}_forecast`] || 0);
+              const realSalesVal = Number(entry.payload?.[groupName] || 0);
+              
+              return (
+                <div key={index} className="space-y-1.5 border-l-2 pl-3 py-1" style={{ borderLeftColor: color }}>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-sm font-bold text-foreground">{groupName}</span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-2">
+                      <div className="size-1.5 rounded-full bg-slate-400 opacity-50" />
+                      <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Ventas Reales:</span>
+                    </div>
+                    <span className="text-xs font-mono font-bold text-slate-400">
+                      {formatUSDWhole(realSalesVal)}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-2">
+                      <div className="size-1.5 rounded-full bg-indigo-500" />
+                      <span className="text-[10px] uppercase tracking-wider text-indigo-400 font-bold">Proyección:</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-mono font-bold text-foreground">
+                        {formatUSDWhole(forecastVal)}
+                      </span>
+                      <Badge variant="outline" className="text-[9px] py-0 px-1 h-3.5 bg-indigo-500/5 text-indigo-400 border-indigo-500/20">
+                        {(percent || 0).toFixed(1)}%
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+        </div>
+      </div>
+    );
+  }
+  return null;
+}
+
 export function GroupForecastCard({ recordType: initialRecordType, baseYear = new Date().getFullYear() }: GroupForecastCardProps) {
-  const [loading, setLoading] = useState(true);
-  const [data, setData] = useState<GroupingAnalysisResult | null>(null);
   const [recordType, setRecordType] = useState<RecordType>(initialRecordType);
-  const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
+  // El tipo de fuera manda cuando cambia; dentro, el conmutador de la tarjeta es libre.
+  // Se ajusta durante el render (patrón de React) en vez de con un efecto (FE-008).
+  const [prevInitial, setPrevInitial] = useState<RecordType>(initialRecordType);
+  if (initialRecordType !== prevInitial) {
+    setPrevInitial(initialRecordType);
+    setRecordType(initialRecordType);
+  }
+  // null = el usuario aún no eligió: por defecto, los tres primeros grupos.
+  const [userSelection, setUserSelection] = useState<string[] | null>(null);
   const [popoverOpen, setPopoverOpen] = useState(false);
 
-  useEffect(() => {
-    setRecordType(initialRecordType);
-  }, [initialRecordType]);
+  // FE-057: react-query con la misma clave que el análisis y la evolución por grupo
+  // (comparten caché). Al cambiar de tipo se mantienen los datos previos mientras carga
+  // y una respuesta antigua ya no puede pisar a la nueva.
+  const { data, isPending } = useQuery({
+    queryKey: groupingAnalysisKey(recordType),
+    queryFn: () => getGroupingAnalysisData(recordType),
+    placeholderData: keepPreviousData,
+  });
 
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      const result = await getGroupingAnalysisData(recordType);
-      setData(result);
-      if (selectedGroupIds.length === 0 && result.rows.length > 0) {
-        setSelectedGroupIds(result.rows.slice(0, 3).map(r => r.groupId));
-      }
-    } catch (err) {
-      console.error("Error fetching evolution data:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-  }, [recordType]);
+  const selectedGroupIds = useMemo(
+    () => userSelection ?? (data?.rows ?? []).slice(0, 3).map((r) => r.groupId),
+    [userSelection, data]
+  );
+  const setSelectedGroupIds = (update: (prev: string[]) => string[]) =>
+    setUserSelection(update(selectedGroupIds));
 
   const chartData = useMemo(() => {
     if (!data) return [];
@@ -114,7 +162,7 @@ export function GroupForecastCard({ recordType: initialRecordType, baseYear = ne
     const currentMonthIdx = now.getMonth();
     const lastElapsedMonth = isCurrentActualYear ? currentMonthIdx + 1 : 12;
 
-    const monthlyEntries = MONTHS.map((name, idx) => {
+    const monthlyEntries = MONTH_LABELS.map((name, idx) => {
       const entry: ForecastChartPoint = { month: name };
       const monthNum = idx + 1;
       let totalForecastVal = 0;
@@ -122,11 +170,11 @@ export function GroupForecastCard({ recordType: initialRecordType, baseYear = ne
       data.rows.forEach(row => {
         if (selectedGroupIds.includes(row.groupId)) {
           const historicalMatrix = historicalYears.map(y => {
-              return MONTHS.map((_, mIdx) => row.months?.[y]?.[mIdx + 1] || 0);
+              return MONTH_LABELS.map((_, mIdx) => row.months?.[y]?.[mIdx + 1] || 0);
           });
           const seasonalityFactors = calculateSeasonalityFactors(historicalMatrix, [3, 2, 1]);
 
-          const currentYearRawData = MONTHS.map((_, mIdx) => row.months?.[currentYear]?.[mIdx + 1] || 0);
+          const currentYearRawData = MONTH_LABELS.map((_, mIdx) => row.months?.[currentYear]?.[mIdx + 1] || 0);
           const currentYearElapsedData = currentYearRawData.slice(0, lastElapsedMonth);
 
           if (isCurrentActualYear && currentYearElapsedData.length > currentMonthIdx) {
@@ -176,73 +224,7 @@ export function GroupForecastCard({ recordType: initialRecordType, baseYear = ne
     return data?.rows.filter(r => selectedGroupIds.includes(r.groupId)) || [];
   }, [data, selectedGroupIds]);
 
-  const CustomTooltip = ({ active, payload, label }: ChartTooltipProps<ForecastChartPoint>) => {
-    if (active && payload && payload.length) {
-      const sortedPayload = [...payload].sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
-      
-      return (
-        <div className="bg-background/95 backdrop-blur-xl border border-white/10 p-4 rounded-xl shadow-2xl min-w-[260px]">
-          <div className="flex items-center gap-2 mb-3 border-b border-white/5 pb-2">
-            <TrendingUp className="h-4 w-4 text-primary" />
-            <span className="font-bold text-foreground text-lg">
-              {label} {baseYear}
-            </span>
-          </div>
-          <div className="mb-3 flex justify-between items-center text-xs">
-            <span className="text-muted-foreground font-bold">Total Forecast:</span>
-            <span className="text-primary font-mono font-bold text-sm">{formatCurrencyFull(Number(payload[0].payload?.total_forecast ?? 0))}</span>
-          </div>
-          <div className="space-y-4">
-            {sortedPayload
-              .filter((entry: ChartTooltipEntry<ForecastChartPoint>) => entry.dataKey !== "total_forecast")
-              .map((entry: ChartTooltipEntry<ForecastChartPoint>, index: number) => {
-                const groupName = String(entry.name ?? "");
-                const color = String(entry.payload?.[`${groupName}_color`] ?? "");
-                const percent = Number(entry.payload?.[`${groupName}_percent`] ?? 0);
-                const forecastVal = Number(entry.payload?.[`${groupName}_forecast`] || 0);
-                const realSalesVal = Number(entry.payload?.[groupName] || 0);
-                
-                return (
-                  <div key={index} className="space-y-1.5 border-l-2 pl-3 py-1" style={{ borderLeftColor: color }}>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-sm font-bold text-foreground">{groupName}</span>
-                    </div>
-                    
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="flex items-center gap-2">
-                        <div className="size-1.5 rounded-full bg-slate-400 opacity-50" />
-                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Ventas Reales:</span>
-                      </div>
-                      <span className="text-xs font-mono font-bold text-slate-400">
-                        {formatCurrencyFull(realSalesVal)}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="flex items-center gap-2">
-                        <div className="size-1.5 rounded-full bg-indigo-500" />
-                        <span className="text-[10px] uppercase tracking-wider text-indigo-400 font-bold">Proyección:</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-mono font-bold text-foreground">
-                          {formatCurrencyFull(forecastVal)}
-                        </span>
-                        <Badge variant="outline" className="text-[9px] py-0 px-1 h-3.5 bg-indigo-500/5 text-indigo-400 border-indigo-500/20">
-                          {(percent || 0).toFixed(1)}%
-                        </Badge>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-          </div>
-        </div>
-      );
-    }
-    return null;
-  };
-
-  if (loading && !data) {
+  if (isPending) {
     return (
       <Card className="border-t border-t-primary/20 bg-background/60 backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden min-h-[500px]">
         <CardContent className="p-8 space-y-6">
@@ -346,7 +328,11 @@ export function GroupForecastCard({ recordType: initialRecordType, baseYear = ne
           </AnimatePresence>
 
           <div className="h-[450px] w-full relative">
-            {selectedGroupIds.length === 0 ? (
+            {!data || data.rows.length === 0 ? (
+              <div className="absolute inset-0 flex items-center justify-center text-center text-sm text-muted-foreground">
+                Sin datos para el periodo
+              </div>
+            ) : selectedGroupIds.length === 0 ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center text-center space-y-6">
                 <h4 className="text-xl font-bold">Visualiza el Forecast</h4>
                 <p className="text-muted-foreground text-sm max-w-sm">
@@ -374,9 +360,9 @@ export function GroupForecastCard({ recordType: initialRecordType, baseYear = ne
                     axisLine={false}
                     tickLine={false}
                     tick={{ fill: "var(--muted-foreground)", fontSize: 11, fontWeight: 500 }}
-                    tickFormatter={formatCurrencyCompact}
+                    tickFormatter={formatUSDCompactIntl}
                   />
-                  <RechartsTooltip content={<CustomTooltip />} cursor={{ fill: "rgba(147, 197, 253, 0.15)" }} />
+                  <RechartsTooltip content={<GroupForecastTooltip baseYear={baseYear} />} cursor={{ fill: "rgba(147, 197, 253, 0.15)" }} />
                   <Legend 
                     verticalAlign="top" 
                     align="right" 
@@ -410,7 +396,7 @@ export function GroupForecastCard({ recordType: initialRecordType, baseYear = ne
                           dataKey={(entry) => selectedGroupDetails.reduce((sum, g) => sum + (entry[g.groupName] || 0), 0)}
                           position="top" 
                           offset={10}
-                          formatter={formatCurrencyCompact}
+                          formatter={formatUSDCompactIntl}
                           style={{ fill: "var(--muted-foreground)", fontSize: 10, fontWeight: 600 }}
                         />
                       )}

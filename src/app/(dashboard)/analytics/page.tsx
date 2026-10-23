@@ -24,6 +24,7 @@ import { motion } from "framer-motion";
 import type { SalesRecord } from "@/types/database";
 import { usePeriod } from "@/components/providers/period-provider";
 import { CHART_HELP } from "@/lib/chart-help";
+import { CardErrorBoundary } from "@/components/common/card-error-boundary";
 
 // Lazy-load de los charts pesados (recharts/framer) con next/dynamic (F3-02):
 // cada uno es su propio chunk y se carga en cliente bajo demanda, aligerando el
@@ -127,7 +128,16 @@ const MarginByCustomerCard = dynamic(
 );
 
 function AnalyticsContent() {
-  const [activeTab, setActiveTab] = useState("exploration");
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const [activeTab, setActiveTab] = useState(tabParam === "forecast" ? "forecast" : "exploration");
+  // Si cambia ?tab= se ajusta la pestaña durante el render (patrón de React) en vez de
+  // con setState dentro de un efecto (FE-008).
+  const [prevTabParam, setPrevTabParam] = useState(tabParam);
+  if (tabParam !== prevTabParam) {
+    setPrevTabParam(tabParam);
+    setActiveTab(tabParam === "forecast" ? "forecast" : "exploration");
+  }
   const { tipo: recordType, setTipo: setRecordType, year: yearA, setYear: setYearA } = usePeriod();
   const [yearB, setYearB] = useState(new Date().getFullYear() - 1);
   const [techServiceViewMode, setTechServiceViewMode] = useState<"MONTHLY" | "QUARTERLY" | "ANNUAL">("QUARTERLY");
@@ -135,18 +145,11 @@ function AnalyticsContent() {
   // independiente del tipo global de usePeriod(), que gobierna el resto de la pestaña.
   const [techServiceRecordType, setTechServiceRecordType] = useState<"SALES_ORDER" | "INVOICE">("INVOICE");
 
-  const searchParams = useSearchParams();
-
   useEffect(() => {
-    const tab = searchParams.get("tab");
-    if (tab === "forecast") {
-      setActiveTab("forecast");
-      // Forzamos el año actual para el Forecast por petición del usuario
-      setYearA(new Date().getFullYear());
-    } else {
-      setActiveTab("exploration");
-    }
-  }, [searchParams, setYearA]);
+    // Forzamos el año actual para el Forecast por petición del usuario (el año vive en
+    // PeriodProvider, otro componente: por eso va en un efecto).
+    if (tabParam === "forecast") setYearA(new Date().getFullYear());
+  }, [tabParam, setYearA]);
 
   // react-query: 3 fuentes cacheadas. ["sales", {}] = todas las ventas (histórico).
   const { data: recordsData, isLoading: l1 } = useQuery({
@@ -273,29 +276,41 @@ function AnalyticsContent() {
               </div>
 
               <div className="h-[480px]">
-                <MonthlyComparisonChart
-                  recordType={recordType}
-                  yearA={yearA}
-                  yearB={yearB}
-                  records={allRecords}
-                  prevRecords={allRecords}
-                />
+                <CardErrorBoundary title="Ventas mensuales (año A vs B)">
+                  <MonthlyComparisonChart
+                    recordType={recordType}
+                    yearA={yearA}
+                    yearB={yearB}
+                    records={allRecords}
+                    prevRecords={allRecords}
+                  />
+                </CardErrorBoundary>
               </div>
 
-              <TechServiceAnalysis
-                data={techServiceData}
-                yearA={yearA}
-                yearB={yearB}
-                viewMode={techServiceViewMode}
-                onViewModeChange={setTechServiceViewMode}
-                recordType={techServiceRecordType}
-                onRecordTypeChange={setTechServiceRecordType}
-              />
+              <CardErrorBoundary title="Análisis de Servicio Técnico">
+                <TechServiceAnalysis
+                  data={techServiceData}
+                  yearA={yearA}
+                  yearB={yearB}
+                  viewMode={techServiceViewMode}
+                  onViewModeChange={setTechServiceViewMode}
+                  recordType={techServiceRecordType}
+                  onRecordTypeChange={setTechServiceRecordType}
+                />
+              </CardErrorBoundary>
 
-              <HistoricalSalesCategory />
-              <GroupingAnalysisCard categories={categories} recordType={recordType} />
-              <GroupEvolutionCard recordType={recordType} />
-              <MacroEvolutionCard recordType={recordType} />
+              <CardErrorBoundary title="Histórico por categoría">
+                <HistoricalSalesCategory />
+              </CardErrorBoundary>
+              <CardErrorBoundary title="Análisis por agrupaciones" resetKeys={[recordType]}>
+                <GroupingAnalysisCard categories={categories} recordType={recordType} />
+              </CardErrorBoundary>
+              <CardErrorBoundary title="Evolución por grupo" resetKeys={[recordType]}>
+                <GroupEvolutionCard recordType={recordType} />
+              </CardErrorBoundary>
+              <CardErrorBoundary title="Evolución por macro-categoría" resetKeys={[recordType]}>
+                <MacroEvolutionCard recordType={recordType} />
+              </CardErrorBoundary>
             </motion.div>
           </TabsContent>
 
@@ -359,13 +374,19 @@ function AnalyticsContent() {
 
                 {/* Task 2: Trend Chart in its own row */}
                 <div className="h-[560px]">
-                  <SeasonalForecastChart recordType={recordType} year={yearA} />
+                  <CardErrorBoundary title="Histórico con proyección estacional" resetKeys={[recordType, yearA]}>
+                    <SeasonalForecastChart recordType={recordType} year={yearA} />
+                  </CardErrorBoundary>
                 </div>
               </div>
 
               {/* Task 3: Group Forecast Card */}
-              <GroupForecastCard recordType={recordType} baseYear={yearA} />
-              <ForecastSalesCategory baseYear={yearA} />
+              <CardErrorBoundary title="Forecast por grupo" resetKeys={[recordType, yearA]}>
+                <GroupForecastCard recordType={recordType} baseYear={yearA} />
+              </CardErrorBoundary>
+              <CardErrorBoundary title="Forecast por categoría" resetKeys={[yearA]}>
+                <ForecastSalesCategory baseYear={yearA} />
+              </CardErrorBoundary>
             </motion.div>
           </TabsContent>
           <TabsContent value="comercial" className="outline-none">
@@ -377,21 +398,41 @@ function AnalyticsContent() {
                 onYearChange={setYearA}
               />
 
-              <CommercialKpiTable recordType={recordType} year={yearA} />
+              <CardErrorBoundary title="KPIs comerciales" resetKeys={[recordType, yearA]}>
+                <CommercialKpiTable recordType={recordType} year={yearA} />
+              </CardErrorBoundary>
 
-              <BucketMixCard recordType={recordType} />
+              <CardErrorBoundary title="Mix por macro-categoría" resetKeys={[recordType]}>
+                <BucketMixCard recordType={recordType} />
+              </CardErrorBoundary>
               <div className="grid gap-6 lg:grid-cols-2">
-                <ClientParetoCard recordType={recordType} year={yearA} />
-                <TopItemsCard recordType={recordType} year={yearA} />
+                <CardErrorBoundary title="Pareto de clientes" resetKeys={[recordType, yearA]}>
+                  <ClientParetoCard recordType={recordType} year={yearA} />
+                </CardErrorBoundary>
+                <CardErrorBoundary title="Top 15 artículos" resetKeys={[recordType, yearA]}>
+                  <TopItemsCard recordType={recordType} year={yearA} />
+                </CardErrorBoundary>
               </div>
-              <SkuParetoCard recordType={recordType} year={yearA} />
+              <CardErrorBoundary title="Pareto de SKUs" resetKeys={[recordType, yearA]}>
+                <SkuParetoCard recordType={recordType} year={yearA} />
+              </CardErrorBoundary>
               <div className="grid gap-6 lg:grid-cols-2">
-                <BucketByClientCard recordType={recordType} year={yearA} />
-                <BrandMixCard recordType={recordType} year={yearA} />
+                <CardErrorBoundary title="Macro-categoría × cliente" resetKeys={[recordType, yearA]}>
+                  <BucketByClientCard recordType={recordType} year={yearA} />
+                </CardErrorBoundary>
+                <CardErrorBoundary title="Mix por marca" resetKeys={[recordType, yearA]}>
+                  <BrandMixCard recordType={recordType} year={yearA} />
+                </CardErrorBoundary>
               </div>
-              <NewVsRecurringCard recordType={recordType} />
-              <MonthHeatmapCard recordType={recordType} year={yearA} />
-              <SeasonByBucketCard recordType={recordType} year={yearA} />
+              <CardErrorBoundary title="Nuevos vs recurrentes" resetKeys={[recordType]}>
+                <NewVsRecurringCard recordType={recordType} />
+              </CardErrorBoundary>
+              <CardErrorBoundary title="Heatmap cliente × mes" resetKeys={[recordType, yearA]}>
+                <MonthHeatmapCard recordType={recordType} year={yearA} />
+              </CardErrorBoundary>
+              <CardErrorBoundary title="Estacionalidad por categoría" resetKeys={[recordType, yearA]}>
+                <SeasonByBucketCard recordType={recordType} year={yearA} />
+              </CardErrorBoundary>
             </div>
           </TabsContent>
           <TabsContent value="margen" className="outline-none">
@@ -402,12 +443,20 @@ function AnalyticsContent() {
                 year={yearA}
                 onYearChange={setYearA}
               />
-              <MarginKpiCard recordType={recordType} />
+              <CardErrorBoundary title="Margen bruto estimado" resetKeys={[recordType]}>
+                <MarginKpiCard recordType={recordType} />
+              </CardErrorBoundary>
               <div className="grid gap-6 lg:grid-cols-2">
-                <MarginByItemCard recordType={recordType} year={yearA} />
-                <MarginScatterCard recordType={recordType} year={yearA} />
+                <CardErrorBoundary title="Margen por artículo" resetKeys={[recordType, yearA]}>
+                  <MarginByItemCard recordType={recordType} year={yearA} />
+                </CardErrorBoundary>
+                <CardErrorBoundary title="Importe vs margen" resetKeys={[recordType, yearA]}>
+                  <MarginScatterCard recordType={recordType} year={yearA} />
+                </CardErrorBoundary>
               </div>
-              <MarginByCustomerCard recordType={recordType} year={yearA} />
+              <CardErrorBoundary title="Margen por cliente" resetKeys={[recordType, yearA]}>
+                <MarginByCustomerCard recordType={recordType} year={yearA} />
+              </CardErrorBoundary>
             </div>
           </TabsContent>
         </Tabs>

@@ -4,13 +4,13 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getCustomerMonthSales } from "@/actions/customer-month-actions";
 import { customerMonths } from "@/lib/customer-detail";
-import { formatUSD, formatCompactUSD } from "@/lib/constants";
+import { MONTH_LABELS, formatUSD, formatCompactUSD } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import type { ChartTooltipProps } from "@/lib/chart-types";
 
-const MESES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+const MESES = MONTH_LABELS;
 
 type MonthPoint = { mes: string; importe: number };
 

@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useId } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import React, { useState, useId } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
   DialogContent,
@@ -35,6 +35,7 @@ import {
   reorderCategoryGroupings,
 } from "@/actions/grouping-actions";
 import type { CategoryGroup, Category } from "@/types/database";
+import { GROUPINGS_KEY, GROUPINGS_LIST_KEY } from "@/lib/grouping-analysis";
 
 interface GroupingManagerProps {
   categories: Category[];
@@ -48,14 +49,13 @@ export function GroupingManager({ categories, onGroupsChanged }: GroupingManager
   // Crear, editar, borrar y reordenar exigen admin en el servidor (requireRole("admin")
   // en grouping-actions): a un editor o lector solo se le muestra la lista.
   const canEdit = profile?.role === "admin";
-  // Invalida la caché react-query de agrupaciones (F3-03) y avisa al padre.
+  // Invalida TODO lo que cuelga de ["groupings"] (lista, análisis, evolución y forecast
+  // por grupo: FE-057) y avisa al padre.
   const notifyChanged = () => {
-    queryClient.invalidateQueries({ queryKey: ["groupings"] });
+    queryClient.invalidateQueries({ queryKey: GROUPINGS_KEY });
     onGroupsChanged?.();
   };
   const [open, setOpen] = useState(false);
-  const [groups, setGroups] = useState<CategoryGroup[]>([]);
-  const [loading, setLoading] = useState(false);
 
   // Form state
   const [groupName, setGroupName] = useState("");
@@ -77,21 +77,20 @@ export function GroupingManager({ categories, onGroupsChanged }: GroupingManager
     "#64748b", "#78716c"
   ];
 
-  const loadGroups = useCallback(async () => {
-    setLoading(true);
-    try {
-      const { groups: data } = await getSavedCategoryGroupings();
-      setGroups(data);
-    } catch {
-      toast.error("Error al cargar agrupaciones");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (open) loadGroups();
-  }, [open, loadGroups]);
+  // Lista de agrupaciones con react-query (FE-057), solo con el diálogo abierto. El
+  // error no sube a un boundary (el diálogo no es una tarjeta): se muestra dentro del
+  // diálogo con «Reintentar».
+  const groupsQ = useQuery({
+    queryKey: GROUPINGS_LIST_KEY,
+    queryFn: async () => (await getSavedCategoryGroupings()).groups,
+    enabled: open,
+    throwOnError: false,
+  });
+  const groups: CategoryGroup[] = groupsQ.data ?? [];
+  const loading = groupsQ.isLoading;
+  const loadGroups = async () => {
+    await queryClient.invalidateQueries({ queryKey: GROUPINGS_LIST_KEY });
+  };
 
   const resetForm = () => {
     setGroupName("");
@@ -155,7 +154,7 @@ export function GroupingManager({ categories, onGroupsChanged }: GroupingManager
     if (targetIndex < 0 || targetIndex >= newGroups.length) return;
 
     [newGroups[index], newGroups[targetIndex]] = [newGroups[targetIndex], newGroups[index]];
-    setGroups(newGroups);
+    queryClient.setQueryData(GROUPINGS_LIST_KEY, newGroups);
 
     try {
       const res = await reorderCategoryGroupings(newGroups.map(g => g.id));
@@ -337,7 +336,14 @@ export function GroupingManager({ categories, onGroupsChanged }: GroupingManager
         {/* Existing Groups List */}
         <div className={cn("space-y-3", canEdit && "border-t pt-4")}>
           <h4 className="text-sm font-semibold text-foreground">Agrupaciones guardadas</h4>
-          {loading ? (
+          {groupsQ.isError && !groupsQ.data ? (
+            <div role="alert" className="flex flex-col items-center gap-2 py-4 text-center text-sm text-muted-foreground">
+              No se pudieron cargar los datos.
+              <Button variant="outline" size="sm" onClick={() => groupsQ.refetch()}>
+                Reintentar
+              </Button>
+            </div>
+          ) : loading ? (
             <p className="text-sm text-muted-foreground">Cargando...</p>
           ) : groups.length === 0 ? (
             <p className="text-sm text-muted-foreground">Aún no hay agrupaciones creadas.</p>

@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useMemo } from "react";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   PieChart,
@@ -41,87 +42,87 @@ import { InfoTooltip } from "@/components/common/info-tooltip";
 import { CHART_HELP } from "@/lib/chart-help";
 import { GroupingManager } from "./grouping-manager";
 import { getGroupingAnalysisData } from "@/actions/grouping-actions";
-import type { Category, GroupingAnalysisResult, RecordType } from "@/types/database";
+import { HUB_FIRST_YEAR, formatPct, formatUSDWhole } from "@/lib/constants";
+import { groupingAnalysisKey, trimGroupingFromYear } from "@/lib/grouping-analysis";
+import type { Category, RecordType } from "@/types/database";
 import type { ChartTooltipProps } from "@/lib/chart-types";
 
-// --- Helpers ---
-const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(value);
-};
+type SortConfig = { key: string; direction: "asc" | "desc" };
 
-const formatPercent = (value: number) => {
-  return `${value.toFixed(1)}%`;
-};
+function SortIcon({ columnKey, sortConfig }: { columnKey: string; sortConfig: SortConfig | null }) {
+  if (sortConfig?.key !== columnKey) {
+    return <ArrowUpDown className="ml-1 h-3 w-3 opacity-30 group-hover:opacity-60 transition-opacity" />;
+  }
+  return sortConfig.direction === "asc" ? (
+    <ArrowUp className="ml-1 h-3 w-3 text-primary animate-in fade-in zoom-in-50 duration-300" />
+  ) : (
+    <ArrowDown className="ml-1 h-3 w-3 text-primary animate-in fade-in zoom-in-50 duration-300" />
+  );
+}
+
+type PiePoint = { name?: string; value?: number; amount?: number; color?: string };
+
+function PieTooltip({ active, payload }: ChartTooltipProps<PiePoint>) {
+  if (active && payload && payload.length) {
+    const entry = payload[0].payload;
+    return (
+      <div className="bg-background/80 backdrop-blur-xl border border-white/10 p-4 rounded-xl shadow-2xl ring-1 ring-black/5 min-w-[200px]">
+        <div className="flex items-center gap-2 mb-2">
+          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry?.color }} />
+          <span className="font-bold text-foreground">{entry?.name}</span>
+        </div>
+        <div className="space-y-1 text-sm">
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Promedio Anu.:</span>
+            <span className="font-mono font-medium">{formatUSDWhole(entry?.amount ?? 0)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Participación:</span>
+            <span className="font-mono font-bold text-primary">{formatPct(entry?.value ?? 0)}</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  return null;
+}
 
 interface GroupingAnalysisCardProps {
   categories: Category[];
   recordType: RecordType;
 }
 
-// Primer año con datos completos, igual que el resto de la app (ver getYearRange
-// en @/lib/constants). 2020 es parcial y distorsiona la comparación.
-const FIRST_YEAR = 2021;
-
 export function GroupingAnalysisCard({ categories, recordType: initialRecordType }: GroupingAnalysisCardProps) {
-  const [loading, setLoading] = useState(true);
-  const [data, setData] = useState<GroupingAnalysisResult | null>(null);
-  const [refreshKey, setRefreshKey] = useState(0);
   const [recordType, setRecordType] = useState<RecordType>(initialRecordType);
-  const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
-  const [popoverOpen, setPopoverOpen] = useState(false);
-  const [sortConfig, setSortConfig] = useState<{
-    key: string;
-    direction: "asc" | "desc";
-  } | null>(null);
-
-  // Sync with prop if it changes from outside
-  useEffect(() => {
+  // El tipo de fuera manda cuando cambia; dentro, el conmutador de la tarjeta es libre.
+  // Se ajusta durante el render (patrón de React) en vez de con un efecto (FE-008).
+  const [prevInitial, setPrevInitial] = useState<RecordType>(initialRecordType);
+  if (initialRecordType !== prevInitial) {
+    setPrevInitial(initialRecordType);
     setRecordType(initialRecordType);
-  }, [initialRecordType]);
+  }
+  // null = sin elegir: todos los grupos. Una recarga no pisa la elección del usuario.
+  const [userSelection, setUserSelection] = useState<string[] | null>(null);
+  const [popoverOpen, setPopoverOpen] = useState(false);
+  const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
 
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      const raw = await getGroupingAnalysisData(recordType);
-      // Se recorta el rango en el origen (punto único). Importante: además de las
-      // columnas hay que recalcular el promedio y descartar el año de cada fila, o
-      // las columnas PROMEDIO/TOTAL seguirían incluyendo el año oculto y no cuadrarían.
-      const years = raw.years.filter((y) => y >= FIRST_YEAR);
-      const rows = raw.rows.map((row) => {
-        const yearsKept = Object.fromEntries(
-          Object.entries(row.years).filter(([y]) => Number(y) >= FIRST_YEAR)
-        ) as typeof row.years;
-        const vals = Object.values(yearsKept);
-        const n = vals.length || 1;
-        return {
-          ...row,
-          years: yearsKept,
-          average: {
-            amount: vals.reduce((sum, v) => sum + v.amount, 0) / n,
-            percentage: vals.reduce((sum, v) => sum + v.percentage, 0) / n,
-          },
-        };
-      });
-      const result = { ...raw, years, rows };
-      setData(result);
-      // Auto-select all by default if none selected yet
-      if (selectedGroupIds.length === 0 && result.rows.length > 0) {
-        setSelectedGroupIds(result.rows.map(r => r.groupId));
-      }
-    } catch (err) {
-      console.error("Error fetching grouping analysis:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // FE-057: react-query con la clave compartida con la evolución y el forecast por grupo.
+  // GroupingManager invalida ["groupings"] al guardar, así que ya no hace falta un
+  // refreshKey: se refrescan todas las tarjetas de grupos a la vez.
+  const { data: raw, isPending } = useQuery({
+    queryKey: groupingAnalysisKey(recordType),
+    queryFn: () => getGroupingAnalysisData(recordType),
+    placeholderData: keepPreviousData,
+  });
+  // Se recorta el rango en el origen (punto único), recalculando los promedios.
+  const data = useMemo(() => (raw ? trimGroupingFromYear(raw, HUB_FIRST_YEAR) : null), [raw]);
 
-  useEffect(() => {
-    fetchData();
-  }, [recordType, refreshKey]);
+  const selectedGroupIds = useMemo(
+    () => userSelection ?? (data?.rows ?? []).map((r) => r.groupId),
+    [userSelection, data]
+  );
+  const setSelectedGroupIds = (next: string[] | ((prev: string[]) => string[])) =>
+    setUserSelection(typeof next === "function" ? next(selectedGroupIds) : next);
 
   // Filtered rows for the table
   const filteredRows = useMemo(() => {
@@ -174,17 +175,6 @@ export function GroupingAnalysisCard({ categories, recordType: initialRecordType
     setSortConfig({ key, direction });
   };
 
-  const SortIcon = ({ columnKey }: { columnKey: string }) => {
-    if (sortConfig?.key !== columnKey) {
-      return <ArrowUpDown className="ml-1 h-3 w-3 opacity-30 group-hover:opacity-60 transition-opacity" />;
-    }
-    return sortConfig.direction === "asc" ? (
-      <ArrowUp className="ml-1 h-3 w-3 text-primary animate-in fade-in zoom-in-50 duration-300" />
-    ) : (
-      <ArrowDown className="ml-1 h-3 w-3 text-primary animate-in fade-in zoom-in-50 duration-300" />
-    );
-  };
-
   // Pie chart data from averages
   const pieData = useMemo(() => {
     return filteredRows
@@ -231,34 +221,7 @@ export function GroupingAnalysisCard({ categories, recordType: initialRecordType
     return pieData.reduce((acc, item) => acc + item.value, 0);
   }, [pieData]);
 
-  // --- Custom Tooltip ---
-  type PiePoint = { name?: string; value?: number; amount?: number; color?: string };
-  const CustomPieTooltip = ({ active, payload }: ChartTooltipProps<PiePoint>) => {
-    if (active && payload && payload.length) {
-      const entry = payload[0].payload;
-      return (
-        <div className="bg-background/80 backdrop-blur-xl border border-white/10 p-4 rounded-xl shadow-2xl ring-1 ring-black/5 min-w-[200px]">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry?.color }} />
-            <span className="font-bold text-foreground">{entry?.name}</span>
-          </div>
-          <div className="space-y-1 text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Promedio Anu.:</span>
-              <span className="font-mono font-medium">{formatCurrency(entry?.amount ?? 0)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Participación:</span>
-              <span className="font-mono font-bold text-primary">{formatPercent(entry?.value ?? 0)}</span>
-            </div>
-          </div>
-        </div>
-      );
-    }
-    return null;
-  };
-
-  if (loading && !data) {
+  if (isPending) {
     return (
       <Card className="border-t border-t-primary/20 bg-background/60 backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
         <CardHeader className="flex flex-row items-center justify-between">
@@ -286,7 +249,7 @@ export function GroupingAnalysisCard({ categories, recordType: initialRecordType
               Agrupa tus categorías para obtener una visión financiera segmentada y comparativa.
             </CardDescription>
           </div>
-          <GroupingManager categories={categories} onGroupsChanged={() => setRefreshKey(k => k + 1)} />
+          <GroupingManager categories={categories} />
         </CardHeader>
         <CardContent className="flex flex-col items-center justify-center py-20 text-center">
           <div className="w-20 h-20 rounded-full bg-primary/5 flex items-center justify-center mb-6">
@@ -297,7 +260,7 @@ export function GroupingAnalysisCard({ categories, recordType: initialRecordType
             Configura tus agrupaciones personalizadas para empezar a visualizar el análisis multi-anual y la distribución de ventas.
           </p>
           <div className="mt-8">
-            <GroupingManager categories={categories} onGroupsChanged={() => setRefreshKey(k => k + 1)} />
+            <GroupingManager categories={categories} />
           </div>
         </CardContent>
       </Card>
@@ -396,7 +359,7 @@ export function GroupingAnalysisCard({ categories, recordType: initialRecordType
           </Popover>
 
           <div className="w-px h-6 bg-white/5" />
-          <GroupingManager categories={categories} onGroupsChanged={() => setRefreshKey(k => k + 1)} />
+          <GroupingManager categories={categories} />
         </div>
       </CardHeader>
 
@@ -420,7 +383,7 @@ export function GroupingAnalysisCard({ categories, recordType: initialRecordType
                     onClick={() => onSort("name")}
                   >
                     <div className="flex items-center">
-                      Grupo <SortIcon columnKey="name" />
+                      Grupo <SortIcon sortConfig={sortConfig} columnKey="name" />
                     </div>
                   </TableHead>
                   {data.years.map(year => (
@@ -441,7 +404,7 @@ export function GroupingAnalysisCard({ categories, recordType: initialRecordType
                         onClick={() => onSort(`year_${year}_amount`)}
                       >
                         <div className="flex items-center justify-center">
-                          Monto <SortIcon columnKey={`year_${year}_amount`} />
+                          Monto <SortIcon sortConfig={sortConfig} columnKey={`year_${year}_amount`} />
                         </div>
                       </TableHead>
                       <TableHead 
@@ -449,7 +412,7 @@ export function GroupingAnalysisCard({ categories, recordType: initialRecordType
                         onClick={() => onSort(`year_${year}_percentage`)}
                       >
                         <div className="flex items-center justify-center">
-                          % <SortIcon columnKey={`year_${year}_percentage`} />
+                          % <SortIcon sortConfig={sortConfig} columnKey={`year_${year}_percentage`} />
                         </div>
                       </TableHead>
                     </React.Fragment>
@@ -460,7 +423,7 @@ export function GroupingAnalysisCard({ categories, recordType: initialRecordType
                       onClick={() => onSort("avg_amount")}
                     >
                       <div className="flex items-center justify-center font-bold">
-                        Promedio <SortIcon columnKey="avg_amount" />
+                        Promedio <SortIcon sortConfig={sortConfig} columnKey="avg_amount" />
                       </div>
                     </TableHead>
                     <TableHead 
@@ -468,7 +431,7 @@ export function GroupingAnalysisCard({ categories, recordType: initialRecordType
                       onClick={() => onSort("total_amount")}
                     >
                       <div className="flex items-center justify-center font-bold">
-                        Total <SortIcon columnKey="total_amount" />
+                        Total <SortIcon sortConfig={sortConfig} columnKey="total_amount" />
                       </div>
                     </TableHead>
                     <TableHead 
@@ -476,7 +439,7 @@ export function GroupingAnalysisCard({ categories, recordType: initialRecordType
                       onClick={() => onSort("avg_pcnt")}
                     >
                       <div className="flex items-center justify-center font-bold">
-                        % <SortIcon columnKey="avg_pcnt" />
+                        % <SortIcon sortConfig={sortConfig} columnKey="avg_pcnt" />
                       </div>
                     </TableHead>
                   </React.Fragment>
@@ -495,13 +458,13 @@ export function GroupingAnalysisCard({ categories, recordType: initialRecordType
                       return (
                         <React.Fragment key={`${row.groupId}-${year}`}>
                           <TableCell className="text-center font-mono text-sm border-l border-white/5">
-                            {formatCurrency(yearData.amount)}
+                            {formatUSDWhole(yearData.amount)}
                           </TableCell>
                           <TableCell className="text-center font-bold text-xs">
                             <span className={cn(
                               yearData.percentage >= 50 ? "text-primary glow-text" : "text-muted-foreground"
                             )}>
-                              {formatPercent(yearData.percentage)}
+                              {formatPct(yearData.percentage)}
                             </span>
                           </TableCell>
                         </React.Fragment>
@@ -510,14 +473,14 @@ export function GroupingAnalysisCard({ categories, recordType: initialRecordType
 
                     {/* Promedio Column */}
                     <TableCell className="text-center font-mono text-xs bg-primary/5 border-l border-white/5 font-medium text-slate-400">
-                      {formatCurrency(row.average.amount)}
+                      {formatUSDWhole(row.average.amount)}
                     </TableCell>
                     {/* Total Column */}
                     <TableCell className="text-center font-mono text-sm bg-primary/10 border-l border-white/5 font-black text-foreground">
-                      {formatCurrency(Object.values(row.years).reduce((sum, y) => sum + y.amount, 0))}
+                      {formatUSDWhole(Object.values(row.years).reduce((sum, y) => sum + y.amount, 0))}
                     </TableCell>
                     <TableCell className="text-center font-black text-xs bg-primary/5 text-primary">
-                      {formatPercent(row.average.percentage)}
+                      {formatPct(row.average.percentage)}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -533,22 +496,22 @@ export function GroupingAnalysisCard({ categories, recordType: initialRecordType
                     {data.years.map(year => (
                       <React.Fragment key={`total-${year}`}>
                         <TableCell className="text-center font-mono text-sm border-l border-white/10 text-foreground">
-                          {formatCurrency(totals.years[year].amount)}
+                          {formatUSDWhole(totals.years[year].amount)}
                         </TableCell>
                         <TableCell className="text-center font-black text-xs text-primary">
-                          {formatPercent(totals.years[year].percentage)}
+                          {formatPct(totals.years[year].percentage)}
                         </TableCell>
                       </React.Fragment>
                     ))}
 
                     <TableCell className="text-center font-mono text-xs bg-primary/10 border-l border-white/10 text-primary/80">
-                      {formatCurrency(totals.avgAmount)}
+                      {formatUSDWhole(totals.avgAmount)}
                     </TableCell>
                     <TableCell className="text-center font-mono text-base bg-primary/20 border-l border-white/10 font-black text-foreground underline decoration-primary/40 underline-offset-4">
-                      {formatCurrency(totals.totalAmount)}
+                      {formatUSDWhole(totals.totalAmount)}
                     </TableCell>
                     <TableCell className="text-center font-black text-xs bg-primary/10 text-primary">
-                      {formatPercent(totals.avgPercentage)}
+                      {formatPct(totals.avgPercentage)}
                     </TableCell>
                   </TableRow>
                 )}
@@ -568,7 +531,7 @@ export function GroupingAnalysisCard({ categories, recordType: initialRecordType
             <div className="h-[700px] w-full max-w-5xl relative">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <RechartsTooltip content={<CustomPieTooltip />} />
+                  <RechartsTooltip content={<PieTooltip />} />
                   <Pie
                     data={pieData}
                     cx="50%"

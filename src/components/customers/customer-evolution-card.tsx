@@ -4,17 +4,15 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getCustomerSales } from "@/actions/customer-sales-actions";
 import { customerYearSeries } from "@/lib/customer-detail";
-import { formatUSD, formatCompactUSD } from "@/lib/constants";
+import { HISTORY_FIRST_YEAR, formatUSD, formatCompactUSD } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import type { ChartTooltipProps } from "@/lib/chart-types";
 import type { CustomerYearPoint } from "@/lib/customer-detail";
 
-// Primer año del histórico previo al hub: la gráfica lo incluye, igual que la
-// fila de KPIs y /clientes. Con Órdenes de Venta no hay histórico y el hub
-// aporta 2020 parcial.
-const HISTORY_FIRST_YEAR = 2015;
+// Incluye el histórico previo al hub (HISTORY_FIRST_YEAR), igual que la fila de KPIs y
+// /clientes. Con Órdenes de Venta no hay histórico y el hub aporta 2020 parcial.
 
 function EvoTooltip({ active, payload, label }: ChartTooltipProps<CustomerYearPoint>) {
   if (!active || !payload || !payload.length) return null;

@@ -19,6 +19,7 @@ import { useDashboardData } from "@/components/dashboard/dashboard-data-provider
 import { usePeriod } from "@/components/providers/period-provider";
 import { WidgetFrame } from "@/components/dashboard/widget-frame";
 import { WidgetPicker } from "@/components/dashboard/widget-picker";
+import { unwrapAction, userErrorMessage } from "@/lib/errors";
 
 // Tras mover o redimensionar, recharts necesita un evento de resize para remedirse.
 function pokeResize() {
@@ -52,17 +53,19 @@ export function DashboardGrid() {
   // Se sale del modo edición sólo si la persistencia tuvo éxito: si falla, el
   // usuario conserva sus cambios en pantalla y puede reintentar.
   const saveMut = useMutation({
-    mutationFn: (next: DashboardItem[]) => saveDashboardLayout(next),
+    // runAction devuelve { ok: false } en vez de lanzar (ARQ-077): unwrapAction lo
+    // convierte en error para que useMutation vaya a onError.
+    mutationFn: async (next: DashboardItem[]) => unwrapAction(await saveDashboardLayout(next)),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["dashboard-layout"] });
       setEditing(false);
       setBackup(null);
       toast.success("Dashboard guardado");
     },
-    onError: () => toast.error("No se pudo guardar el dashboard"),
+    onError: (e) => toast.error(userErrorMessage(e, "No se pudo guardar el dashboard")),
   });
   const resetMut = useMutation({
-    mutationFn: resetDashboardLayout,
+    mutationFn: async () => unwrapAction(await resetDashboardLayout()),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["dashboard-layout"] });
       setItems(DEFAULT_LAYOUT);
@@ -71,7 +74,7 @@ export function DashboardGrid() {
       setConfirmReset(false);
       toast.success("Dashboard restablecido");
     },
-    onError: () => toast.error("No se pudo restablecer"),
+    onError: (e) => toast.error(userErrorMessage(e, "No se pudo restablecer")),
   });
   // Restablecer borra el layout guardado: se confirma antes.
   const [confirmReset, setConfirmReset] = useState(false);
@@ -167,7 +170,7 @@ export function DashboardGrid() {
               if (!def) return <div key={it.id} />;
               return (
                 <div key={it.id}>
-                  <WidgetFrame title={def.title} editing={editing} onRemove={() => removeWidget(it.id)}>
+                  <WidgetFrame title={def.title} editing={editing} onRemove={() => removeWidget(it.id)} resetKeys={[ctx.recordType, ctx.year]}>
                     {def.render(ctx)}
                   </WidgetFrame>
                 </div>

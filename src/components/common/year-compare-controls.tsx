@@ -5,9 +5,10 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { HUB_FIRST_YEAR } from "@/lib/constants";
 
 // Primer año que ofrecen los selectores: 2020 está incompleto en el hub.
-const FIRST_YEAR = 2021;
+const FIRST_YEAR = HUB_FIRST_YEAR;
 
 /**
  * Selector de año o, en modo comparación, de año A y año B, más el interruptor

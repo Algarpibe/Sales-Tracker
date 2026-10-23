@@ -6,13 +6,13 @@ import { useQuery } from "@tanstack/react-query";
 import { getCustomerMonthSales } from "@/actions/customer-month-actions";
 import { buildMonthHeatmap } from "@/lib/analytics-comercial";
 import { customerHref } from "@/lib/customer-detail";
-import { formatUSD, formatCompactUSD } from "@/lib/constants";
+import { MONTH_LABELS, formatUSD, formatCompactUSD } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { InfoTooltip } from "@/components/common/info-tooltip";
 import { CHART_HELP } from "@/lib/chart-help";
 
-const MESES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+const MESES = MONTH_LABELS;
 
 export function MonthHeatmapCard({ recordType, year }: { recordType: "SALES_ORDER" | "INVOICE"; year: number }) {
   const { data, isLoading } = useQuery({

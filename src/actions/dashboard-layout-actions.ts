@@ -5,6 +5,8 @@ import { db } from "@/db";
 import { savedViews } from "@/db/schema";
 import { requireApproved } from "@/lib/auth/guards";
 import { parseDashboardLayout, type DashboardItem } from "@/lib/dashboard-layout";
+import { runAction, type ActionResult } from "@/lib/errors";
+import { logError } from "@/lib/logger";
 
 const VIEW_KEY = "dashboard";
 const NAME = "layout";
@@ -24,32 +26,39 @@ export async function getDashboardLayout(): Promise<DashboardItem[] | null> {
       .limit(1);
     if (rows.length === 0) return null;
     return parseDashboardLayout(rows[0].state);
-  } catch {
+  } catch (e) {
+    // Degrada al layout por defecto para no romper el dashboard, pero deja rastro del
+    // fallo real (ARQ-077: antes se tragaba en silencio).
+    logError("getDashboardLayout falló; degradando a null", e);
     return null;
   }
 }
 
-export async function saveDashboardLayout(items: DashboardItem[]): Promise<void> {
-  const { profile } = await requireApproved({ fresh: true });
-  // Los tipos de TS no existen en runtime y esto es un endpoint HTTP: se valida y
-  // normaliza lo que se persiste (descarta ids desconocidos, acota el jsonb).
-  const safe = parseDashboardLayout({ items });
-  if (!safe) return;
-  const state = { items: safe };
-  await db
-    .insert(savedViews)
-    .values({ user_id: profile.id, view_key: VIEW_KEY, name: NAME, state })
-    .onConflictDoUpdate({
-      target: [savedViews.user_id, savedViews.view_key, savedViews.name],
-      set: { state },
-    });
+export async function saveDashboardLayout(items: DashboardItem[]): Promise<ActionResult> {
+  return runAction(async () => {
+    const { profile } = await requireApproved({ fresh: true });
+    // Los tipos de TS no existen en runtime y esto es un endpoint HTTP: se valida y
+    // normaliza lo que se persiste (descarta ids desconocidos, acota el jsonb).
+    const safe = parseDashboardLayout({ items });
+    if (!safe) return;
+    const state = { items: safe };
+    await db
+      .insert(savedViews)
+      .values({ user_id: profile.id, view_key: VIEW_KEY, name: NAME, state })
+      .onConflictDoUpdate({
+        target: [savedViews.user_id, savedViews.view_key, savedViews.name],
+        set: { state },
+      });
+  });
 }
 
-export async function resetDashboardLayout(): Promise<void> {
-  const { profile } = await requireApproved({ fresh: true });
-  await db.delete(savedViews).where(and(
-    eq(savedViews.user_id, profile.id),
-    eq(savedViews.view_key, VIEW_KEY),
-    eq(savedViews.name, NAME),
-  ));
+export async function resetDashboardLayout(): Promise<ActionResult> {
+  return runAction(async () => {
+    const { profile } = await requireApproved({ fresh: true });
+    await db.delete(savedViews).where(and(
+      eq(savedViews.user_id, profile.id),
+      eq(savedViews.view_key, VIEW_KEY),
+      eq(savedViews.name, NAME),
+    ));
+  });
 }

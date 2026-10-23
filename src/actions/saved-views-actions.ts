@@ -4,7 +4,7 @@ import { and, count, eq, ne } from "drizzle-orm";
 import { db } from "@/db";
 import { savedViews } from "@/db/schema";
 import { requireApproved } from "@/lib/auth/guards";
-import { AppError } from "@/lib/errors";
+import { AppError, runAction, type ActionResult } from "@/lib/errors";
 import { logError } from "@/lib/logger";
 import { savedViewKeySchema } from "@/lib/validation";
 
@@ -40,7 +40,12 @@ export async function getSavedViews(viewKey: string): Promise<SavedViewDTO[]> {
   }
 }
 
-export async function saveView(viewKey: string, name: string, state: unknown): Promise<void> {
+// Mutaciones con runAction (ARQ-077): los errores esperados llegan como { ok: false }.
+export async function saveView(viewKey: string, name: string, state: unknown): Promise<ActionResult> {
+  return runAction(() => saveViewImpl(viewKey, name, state));
+}
+
+async function saveViewImpl(viewKey: string, name: string, state: unknown): Promise<void> {
   const { profile } = await requireApproved({ fresh: true });
   const key = savedViewKeySchema.safeParse(viewKey);
   if (!key.success) {
@@ -76,7 +81,9 @@ export async function saveView(viewKey: string, name: string, state: unknown): P
     });
 }
 
-export async function deleteSavedView(id: string): Promise<void> {
-  const { profile } = await requireApproved({ fresh: true });
-  await db.delete(savedViews).where(and(eq(savedViews.id, id), eq(savedViews.user_id, profile.id)));
+export async function deleteSavedView(id: string): Promise<ActionResult> {
+  return runAction(async () => {
+    const { profile } = await requireApproved({ fresh: true });
+    await db.delete(savedViews).where(and(eq(savedViews.id, id), eq(savedViews.user_id, profile.id)));
+  });
 }

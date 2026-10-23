@@ -7,6 +7,7 @@ import { requireApproved } from "@/lib/auth/guards";
 import { hubEnabled } from "@/db/hub";
 import { getHubSalesRows } from "@/db/hub-sales";
 import { logWarn } from "@/lib/logger";
+import { findByHubCategoryName, indexCategoriesByName } from "@/lib/hub-category";
 
 // F3-06: vigilar el tamaño del payload de getSalesData (callers como analytics piden
 // todo el histórico). No se capa (los charts multi-año lo necesitan); se registra un
@@ -43,10 +44,10 @@ export async function getSalesData(filters: SalesFilters): Promise<SalesRecord[]
         .from(categories)
         .where(eq(categories.company_id, profile.company_id)),
     ]);
-    const byName = new Map(cats.map((c) => [c.name.toLowerCase(), c]));
+    const byName = indexCategoriesByName(cats);
     const out: SalesRecord[] = [];
     for (const r of hubRows) {
-      const cat = byName.get(r.category_name.toLowerCase());
+      const cat = findByHubCategoryName(byName, r.category_name);
       if (!cat) continue; // categoría del hub que no existe en la app (igual que el transform)
       if (filters.year && r.record_year !== filters.year) continue;
       if (filters.month && r.record_month !== filters.month) continue;

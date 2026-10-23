@@ -35,7 +35,7 @@ import {
 } from "@/lib/kpi-tickets";
 import { gruposServicioTecnico, stGrowthByQuarter, TECH_SERVICE_CATEGORIES_KEY } from "@/lib/tech-service";
 import { CHART_HELP } from "@/lib/chart-help";
-import { MONTHS, RECORD_TYPES, formatPct, formatUSD } from "@/lib/constants";
+import { HISTORY_FIRST_YEAR, MONTHS, RECORD_TYPES, formatPct, formatUSD } from "@/lib/constants";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
@@ -60,7 +60,6 @@ const TOTAL_LABEL = "Total compañía";
 // El histórico de clientes arranca en 2015. Aquí solo sirve para saber en qué año
 // compró por primera vez cada cliente, de compañía y sobre facturas: así el reparto
 // nuevos/existentes no depende del comercial ni del conmutador OV/FAC.
-const HISTORY_FIRST_YEAR = 2015;
 
 const MESES = MONTHS.length;
 

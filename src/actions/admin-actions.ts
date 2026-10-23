@@ -15,6 +15,7 @@ import { requireRole } from "@/lib/auth/guards";
 import { uuidSchema, roleSchema } from "@/lib/validation";
 import { runAction, AppError, type ActionResult } from "@/lib/errors";
 import { adminChangeError } from "@/lib/admin-guard";
+import { audit } from "@/lib/audit";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Admin = Awaited<ReturnType<typeof requireRole>>;
@@ -94,6 +95,13 @@ export async function approveUser(userId: string, role?: string): Promise<Action
       await assertAdminChangeAllowed(tx, admin, uid, removesAdmin);
       await tx.update(profiles).set(updateData).where(eq(profiles.id, uid));
     });
+    audit({
+      action: "user.approve",
+      actorId: admin.user.id,
+      companyId: admin.profile.company_id,
+      targetId: uid,
+      meta: updateData.role !== undefined ? { role: updateData.role } : undefined,
+    });
 
     revalidatePath("/admin/users");
     revalidatePath("/waiting-approval");
@@ -112,6 +120,13 @@ export async function updateUserRole(userId: string, role: string): Promise<Acti
         .update(profiles)
         .set({ role: validRole })
         .where(eq(profiles.id, uid));
+    });
+    audit({
+      action: "user.role_update",
+      actorId: admin.user.id,
+      companyId: admin.profile.company_id,
+      targetId: uid,
+      meta: { role: validRole },
     });
 
     revalidatePath("/admin/users");
@@ -134,6 +149,7 @@ export async function deactivateUser(userId: string): Promise<ActionResult> {
         })
         .where(eq(profiles.id, uid));
     });
+    audit({ action: "user.deactivate", actorId: admin.user.id, companyId: admin.profile.company_id, targetId: uid });
 
     revalidatePath("/admin/users");
     revalidatePath("/waiting-approval");
@@ -175,6 +191,7 @@ export async function deleteUser(userId: string): Promise<ActionResult> {
     // 5) finally the user row itself (would cascade the above, done last).
       await tx.delete(user).where(eq(user.id, uid));
     });
+    audit({ action: "user.delete", actorId: admin.user.id, companyId: admin.profile.company_id, targetId: uid });
 
     revalidatePath("/admin/users");
     revalidatePath("/waiting-approval");

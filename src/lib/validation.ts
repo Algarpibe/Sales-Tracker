@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { userRole, recordType } from "@/db/schema";
 import { KPI_CON_PLAZO, KPI_FIRST_YEAR, KPI_KEYS } from "@/lib/commercial-kpis";
+import { HISTORY_FIRST_YEAR } from "@/lib/constants";
 
 // Esquemas reutilizables para validar input de Server Actions en runtime
 // (TypeScript no valida en runtime). Los enums se derivan del schema Drizzle
@@ -25,7 +26,9 @@ export const salesRecordSchema = z.object({
 // pedir a Postgres: años desde el primero con historia real (2015, el histórico de
 // /clientes) hasta el siguiente al actual, y rangos con el inicio antes del final.
 // Las lecturas lanzan si no validan (react-query lo maneja), como el resto.
-export const HISTORY_FIRST_YEAR = 2015;
+// HISTORY_FIRST_YEAR vive en @/lib/constants (lo usan componentes de cliente); se
+// reexporta aquí por compatibilidad.
+export { HISTORY_FIRST_YEAR };
 
 export const hubYearSchema = z
   .number()

@@ -67,29 +67,29 @@ const llenar = (viewKey: string, n: number) =>
 
 describe("saveView", () => {
   it("guarda una vista nueva", async () => {
-    await saveView("clientes", "Mi vista", { a: 1 });
+    await expect(saveView("clientes", "Mi vista", { a: 1 })).resolves.toEqual({ ok: true, data: undefined });
     expect(state.views).toEqual([{ view_key: "clientes", name: "Mi vista" }]);
   });
 
   it("rechaza una clave de vista de más de 64 caracteres sin tocar la BD", async () => {
-    await expect(saveView("k".repeat(65), "x", {})).rejects.toMatchObject({ name: "AppError", code: "VALIDATION" });
+    await expect(saveView("k".repeat(65), "x", {})).resolves.toMatchObject({ ok: false, code: "VALIDATION" });
     expect(state.calls).toBe(0);
   });
 
   it("rechaza una clave de vista vacía sin tocar la BD", async () => {
-    await expect(saveView("", "x", {})).rejects.toMatchObject({ name: "AppError", code: "VALIDATION" });
+    await expect(saveView("", "x", {})).resolves.toMatchObject({ ok: false, code: "VALIDATION" });
     expect(state.calls).toBe(0);
   });
 
   it("con 50 vistas en esa clave no deja crear otra", async () => {
     state.views = llenar("clientes", 50);
-    await expect(saveView("clientes", "otra", {})).rejects.toMatchObject({ name: "AppError", code: "LIMIT" });
+    await expect(saveView("clientes", "otra", {})).resolves.toMatchObject({ ok: false, code: "LIMIT" });
     expect(state.views).toHaveLength(50);
   });
 
   it("con 50 vistas sí deja sobrescribir una existente", async () => {
     state.views = llenar("clientes", 50);
-    await expect(saveView("clientes", "v3", { b: 2 })).resolves.toBeUndefined();
+    await expect(saveView("clientes", "v3", { b: 2 })).resolves.toEqual({ ok: true, data: undefined });
     expect(state.views).toHaveLength(50);
   });
 

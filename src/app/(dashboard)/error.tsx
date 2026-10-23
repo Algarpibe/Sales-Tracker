@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect } from "react";
+import { useQueryErrorResetBoundary } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, RotateCw } from "lucide-react";
 import { logError } from "@/lib/logger";
 
-// Error boundary del área privada: captura errores de render y de las lecturas
-// (react-query con throwOnError). Muestra una pantalla consistente con reintento.
+// Error boundary del área privada: captura errores de render y de las lecturas que
+// sostienen la página entera (react-query con throwOnError). Los de una sola tarjeta
+// los captura su CardErrorBoundary. Muestra una pantalla consistente con reintento.
 export default function DashboardError({
   error,
   reset,
@@ -14,6 +16,10 @@ export default function DashboardError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  // Sin reiniciar el boundary de react-query, las consultas fallidas no se vuelven a
+  // pedir al remontar y «Reintentar» volvería a mostrar este mismo error.
+  const { reset: resetQueries } = useQueryErrorResetBoundary();
+
   useEffect(() => {
     logError("dashboard error boundary", error, { digest: error.digest });
   }, [error]);
@@ -30,7 +36,12 @@ export default function DashboardError({
           Inténtalo de nuevo.
         </p>
       </div>
-      <Button onClick={reset}>
+      <Button
+        onClick={() => {
+          resetQueries();
+          reset();
+        }}
+      >
         <RotateCw className="mr-2 h-4 w-4" /> Reintentar
       </Button>
     </div>

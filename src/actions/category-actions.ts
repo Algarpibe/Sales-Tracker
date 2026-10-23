@@ -14,6 +14,7 @@ import {
   uuidSchema,
 } from "@/lib/validation";
 import { runAction, type ActionResult } from "@/lib/errors";
+import { audit } from "@/lib/audit";
 import { BUCKETS } from "@/lib/customer-item";
 import type { Bucket, MacroCategoria, TechServiceCategory } from "@/types/database";
 
@@ -65,12 +66,16 @@ export async function createCategory(cat: {
     const { profile } = await requireRole("admin", { fresh: true });
     const data = categoryCreateSchema.parse(cat);
 
-    await db.insert(categories).values({
-      name: data.name,
-      description: data.description,
-      color: data.color,
-      company_id: profile.company_id,
-    });
+    const [created] = await db
+      .insert(categories)
+      .values({
+        name: data.name,
+        description: data.description,
+        color: data.color,
+        company_id: profile.company_id,
+      })
+      .returning({ id: categories.id });
+    audit({ action: "category.create", actorId: profile.id, companyId: profile.company_id, targetId: created?.id });
 
     revalidatePath("/categories");
   });
@@ -94,6 +99,13 @@ export async function updateCategory(
           eq(categories.company_id, profile.company_id)
         )
       );
+    audit({
+      action: "category.update",
+      actorId: profile.id,
+      companyId: profile.company_id,
+      targetId: categoryId,
+      meta: { fields: Object.keys(data) },
+    });
 
     revalidatePath("/categories");
   });
@@ -113,6 +125,7 @@ export async function deleteCategory(id: string): Promise<ActionResult> {
           eq(categories.company_id, profile.company_id)
         )
       );
+    audit({ action: "category.delete", actorId: profile.id, companyId: profile.company_id, targetId: categoryId });
 
     revalidatePath("/categories");
   });
@@ -149,6 +162,12 @@ export async function saveTechServiceBuckets(st: string[], cr: string[]): Promis
           .set({ tech_service_bucket: "cr" })
           .where(and(eq(categories.company_id, profile.company_id), inArray(categories.id, data.cr)));
       }
+    });
+    audit({
+      action: "category.tech_service_save",
+      actorId: profile.id,
+      companyId: profile.company_id,
+      meta: { st: data.st.length, cr: data.cr.length },
     });
 
     revalidatePath("/settings");
@@ -202,6 +221,12 @@ export async function saveMacroCategorias(grupos: Record<Bucket, string[]>): Pro
           .set({ macro_categoria: bucket })
           .where(and(eq(categories.company_id, profile.company_id), inArray(categories.id, ids)));
       }
+    });
+    audit({
+      action: "category.macro_save",
+      actorId: profile.id,
+      companyId: profile.company_id,
+      meta: Object.fromEntries(BUCKETS.map((b) => [b, data[b].length])),
     });
 
     // Las pantallas leen con react-query y se refrescan al invalidar ["categories"] en

@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Bookmark, ChevronDown, Save, X } from "lucide-react";
 import { toast } from "sonner";
+import { unwrapAction, userErrorMessage } from "@/lib/errors";
 
 const VIEW_KEY = "clientes";
 
@@ -20,20 +21,20 @@ export function SavedViewsMenu({ current, onApply }: { current: ClientesViewStat
   const views = q.data ?? [];
 
   const saveMut = useMutation({
-    mutationFn: (name: string) => saveView(VIEW_KEY, name, current),
+    mutationFn: async (name: string) => unwrapAction(await saveView(VIEW_KEY, name, current)),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["saved-views", VIEW_KEY] }); toast.success("Vista guardada"); },
-    onError: () => toast.error("No se pudo guardar la vista"),
+    onError: (e) => toast.error(userErrorMessage(e, "No se pudo guardar la vista")),
   });
   // Borrar una vista es definitivo: el aspa del menú solo pide confirmación.
   const [menuOpen, setMenuOpen] = useState(false);
   const [porBorrar, setPorBorrar] = useState<{ id: string; name: string } | null>(null);
   const delMut = useMutation({
-    mutationFn: (id: string) => deleteSavedView(id),
+    mutationFn: async (id: string) => unwrapAction(await deleteSavedView(id)),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["saved-views", VIEW_KEY] });
       setPorBorrar(null);
     },
-    onError: () => toast.error("No se pudo borrar la vista"),
+    onError: (e) => toast.error(userErrorMessage(e, "No se pudo borrar la vista")),
   });
   const pedirBorrado = (v: { id: string; name: string }) => {
     setMenuOpen(false);

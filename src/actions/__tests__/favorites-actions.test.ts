@@ -95,30 +95,31 @@ beforeEach(() => {
 
 describe("toggleFavorite", () => {
   it("marca y desmarca un cliente", async () => {
-    await toggleFavorite("ACME");
+    await expect(toggleFavorite("ACME")).resolves.toEqual({ ok: true, data: undefined });
     expect(state.names).toEqual(["ACME"]);
     await toggleFavorite("ACME");
     expect(state.names).toEqual([]);
   });
 
   it("un doble clic (dos toggles simultáneos) no revienta por la restricción única", async () => {
-    await expect(Promise.all([toggleFavorite("ACME"), toggleFavorite("ACME")])).resolves.toBeDefined();
+    const results = await Promise.all([toggleFavorite("ACME"), toggleFavorite("ACME")]);
+    expect(results).toEqual([{ ok: true, data: undefined }, { ok: true, data: undefined }]);
     expect(state.names.filter((n) => n === "ACME").length).toBeLessThanOrEqual(1);
   });
 
   it("rechaza un nombre de cliente de más de 300 caracteres sin tocar la BD", async () => {
-    await expect(toggleFavorite("x".repeat(301))).rejects.toMatchObject({ name: "AppError", code: "VALIDATION" });
+    await expect(toggleFavorite("x".repeat(301))).resolves.toMatchObject({ ok: false, code: "VALIDATION" });
     expect(state.calls).toBe(0);
   });
 
   it("rechaza un nombre vacío sin tocar la BD", async () => {
-    await expect(toggleFavorite("")).rejects.toMatchObject({ name: "AppError", code: "VALIDATION" });
+    await expect(toggleFavorite("")).resolves.toMatchObject({ ok: false, code: "VALIDATION" });
     expect(state.calls).toBe(0);
   });
 
   it("con 500 favoritos no deja añadir otro", async () => {
     state.names = Array.from({ length: 500 }, (_, i) => `C${i}`);
-    await expect(toggleFavorite("NUEVO")).rejects.toMatchObject({ name: "AppError", code: "LIMIT" });
+    await expect(toggleFavorite("NUEVO")).resolves.toMatchObject({ ok: false, code: "LIMIT" });
     expect(state.names).toHaveLength(500);
     expect(state.names).not.toContain("NUEVO");
   });

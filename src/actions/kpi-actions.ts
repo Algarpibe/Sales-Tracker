@@ -20,6 +20,7 @@ import { ROLES_EDITAN_METAS } from "@/lib/commercial-kpis";
 import { hubOrderSearchSchema, hubYearSchema, kpiTargetsSchema } from "@/lib/validation";
 import { filaDeMeta } from "@/lib/kpi-metas";
 import { runAction, type ActionResult } from "@/lib/errors";
+import { audit } from "@/lib/audit";
 import type { DealMonthRow } from "@/lib/kpi-score";
 import type { CambioFase } from "@/lib/kpi-tickets";
 import type { CustomerMonthRow, RecordType } from "@/types/database";
@@ -110,6 +111,13 @@ export async function saveKpiTargets(
         )
       );
     });
+    // El ámbito de un comercial es su NOMBRE: no se registra, solo si es de compañía.
+    audit({
+      action: "kpi_targets.save",
+      actorId: profile.id,
+      companyId: profile.company_id,
+      meta: { year: data.year, scope: data.salesperson === null ? "company" : "salesperson", kpis: keys.length },
+    });
 
     revalidatePath("/settings");
   });
@@ -170,6 +178,7 @@ export async function addProjectOrder(hubOrderId: string): Promise<ActionResult>
       .insert(kpiProjectOrders)
       .values({ company_id: profile.company_id, hub_order_id: id, tagged_by: profile.id })
       .onConflictDoNothing();
+    audit({ action: "project_order.add", actorId: profile.id, companyId: profile.company_id, targetId: id });
     revalidatePath("/analytics");
   });
 }
@@ -181,6 +190,7 @@ export async function removeProjectOrder(hubOrderId: string): Promise<ActionResu
     await db
       .delete(kpiProjectOrders)
       .where(and(eq(kpiProjectOrders.company_id, profile.company_id), eq(kpiProjectOrders.hub_order_id, hubOrderId)));
+    audit({ action: "project_order.remove", actorId: profile.id, companyId: profile.company_id, targetId: hubOrderId });
     revalidatePath("/analytics");
   });
 }

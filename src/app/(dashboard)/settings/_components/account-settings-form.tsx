@@ -16,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { ROLES } from "@/lib/constants";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { logError } from "@/lib/logger";
 
 const accountSchema = z.object({
   // Profile
@@ -91,7 +92,7 @@ export function AccountSettingsForm() {
       toast.success("Información de cuenta actualizada");
       reset(values);
     } catch (error) {
-      console.error("Error updating account settings:", error);
+      logError("actualizar cuenta/empresa falló", error);
       toast.error("Error de red. Inténtalo de nuevo.");
     } finally {
       setIsLoading(false);
@@ -133,7 +134,7 @@ export function AccountSettingsForm() {
       toast.success("Foto de perfil actualizada correctamente");
       await refreshProfile();
     } catch (error) {
-      console.error("Error uploading avatar:", error);
+      logError("subida de avatar falló", error);
       toast.error(error instanceof Error ? error.message : "Error al subir la imagen.");
     } finally {
       setIsUploading(false);

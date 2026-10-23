@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Loader2, KeyRound, Eye, EyeOff, ShieldCheck, Save } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { logError } from "@/lib/logger";
 
 const passwordSchema = z.object({
   currentPassword: z.string().min(1, "Debes ingresar tu contraseña actual"),
@@ -25,6 +26,19 @@ type PasswordFormValues = z.infer<typeof passwordSchema>;
 // Estilo compartido de los inputs (igual que el componente Input de la app).
 const inputClass =
   "h-9 w-full min-w-0 rounded-lg border border-white/10 bg-white/5 pl-9 pr-10 py-1 text-base transition-colors outline-none placeholder:text-muted-foreground focus:border-primary/50 font-mono md:text-sm";
+
+// Botón "ojo" reutilizable por campo. Fuera del formulario (FE-008): no se recrea en cada render.
+const EyeToggle = ({ visible, onToggle }: { visible: boolean; onToggle: () => void }) => (
+  <button
+    type="button"
+    onClick={onToggle}
+    onMouseDown={(e) => e.preventDefault()}
+    aria-label={visible ? "Ocultar contraseña" : "Mostrar contraseña"}
+    className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-md text-muted-foreground/50 hover:text-primary hover:bg-primary/5 transition-all z-20 cursor-pointer"
+  >
+    {visible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+  </button>
+);
 
 export function SecurityForm() {
   const [isLoading, setIsLoading] = useState(false);
@@ -61,25 +75,12 @@ export function SecurityForm() {
       reset();
       setShow({ current: false, next: false, confirm: false });
     } catch (error) {
-      console.error("Error updating password:", error);
+      logError("cambio de contraseña falló", error);
       toast.error(error instanceof Error ? error.message : "Error al actualizar la contraseña");
     } finally {
       setIsLoading(false);
     }
   };
-
-  // Botón "ojo" reutilizable por campo.
-  const EyeToggle = ({ visible, onToggle }: { visible: boolean; onToggle: () => void }) => (
-    <button
-      type="button"
-      onClick={onToggle}
-      onMouseDown={(e) => e.preventDefault()}
-      aria-label={visible ? "Ocultar contraseña" : "Mostrar contraseña"}
-      className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-md text-muted-foreground/50 hover:text-primary hover:bg-primary/5 transition-all z-20 cursor-pointer"
-    >
-      {visible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-    </button>
-  );
 
   return (
     <Card className="overflow-hidden border-none bg-card/50 backdrop-blur-xl shadow-2xl ring-1 ring-white/10">
