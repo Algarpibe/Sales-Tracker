@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useMemo } from "react";
+import { keepPreviousData, useQuery, type QueryKey } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   BarChart,
@@ -39,35 +40,15 @@ import {
 import { cn } from "@/lib/utils";
 import { InfoTooltip } from "@/components/common/info-tooltip";
 import { seleccionInicialIds, type SeleccionInicial } from "@/lib/evolution-card";
+import { HUB_FIRST_YEAR, MONTH_LABELS, formatUSDCompactIntl, formatUSDWhole } from "@/lib/constants";
+import { keepYearsFrom } from "@/lib/grouping-analysis";
 import type { GroupingAnalysisResult, RecordType } from "@/types/database";
 import type { ChartTooltipEntry, ChartTooltipProps } from "@/lib/chart-types";
 
 // --- Helpers ---
 // Punto del gráfico: clave de eje (year/quarter/month) + claves dinámicas por serie.
 type GroupChartPoint = Record<string, string | number>;
-const MONTHS = [
-  "Ene", "Feb", "Mar", "Abr", "May", "Jun",
-  "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"
-];
-
 const QUARTERS = ["Q1", "Q2", "Q3", "Q4"];
-
-const formatCurrencyCompact = (value: number) => {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    notation: "compact",
-    maximumFractionDigits: 1,
-  }).format(value);
-};
-
-const formatCurrencyFull = (value: number) => {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(value);
-};
 
 /** Textos del selector de series y del estado vacío: cambian con lo que se evoluciona. */
 export interface EvolutionCardTextos {
@@ -95,20 +76,66 @@ export interface EvolutionCardProps {
   help: string;
   /** Lectura de los datos: una fila por serie, en el formato del gráfico de grupos. */
   fetcher: (recordType: RecordType) => Promise<GroupingAnalysisResult>;
+  /**
+   * Clave de react-query de la lectura para un tipo. Debe colgar del prefijo que se
+   * invalida al cambiar lo que se evoluciona (["groupings"] o ["categories"]): así la
+   * tarjeta se refresca sola al guardar en Configuración o en el gestor de grupos.
+   */
+  queryKeyFor: (recordType: RecordType) => QueryKey;
   seleccionInicial: SeleccionInicial;
   textos: EvolutionCardTextos;
-  /**
-   * Cuando cambia, la tarjeta vuelve a pedir los datos aunque el tipo sea el mismo. Lo
-   * usa la de macro-categorías para refrescarse al guardar la clasificación.
-   */
-  refreshKey?: number;
 }
 
 type ViewMode = "ANNUAL" | "QUARTERLY" | "MONTHLY";
 
-// Primer año con datos completos, igual que el resto de la app (ver getYearRange
-// en @/lib/constants). 2020 es parcial y distorsiona la comparación.
-const FIRST_YEAR = 2021;
+// Tooltip fuera del componente (FE-008). Recharts lo clona con active/payload/label y
+// conserva viewMode/year.
+function EvolutionTooltip({
+active,
+payload,
+label,
+viewMode,
+year,
+}: ChartTooltipProps<GroupChartPoint> & { viewMode: ViewMode; year: number | null }) {
+  if (active && payload && payload.length) {
+    // De mayor a menor importe.
+    const sortedPayload = [...payload].sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
+
+    return (
+      <div className="bg-background/95 backdrop-blur-xl border border-white/10 p-4 rounded-xl shadow-2xl min-w-[260px]">
+        <div className="flex items-center gap-2 mb-3 border-b border-white/5 pb-2">
+          <History className="h-4 w-4 text-primary" />
+          <span className="font-bold text-foreground text-lg">
+            {(viewMode === "MONTHLY" || viewMode === "QUARTERLY") ? `${label} ${year}` : label}
+          </span>
+        </div>
+        <div className="space-y-2">
+          {sortedPayload.map((entry: ChartTooltipEntry<GroupChartPoint>, index: number) => {
+            const color = String(entry.payload?.[`${entry.name}_color`] ?? "");
+            const percent = Number(entry.payload?.[`${entry.name}_percent`] ?? 0);
+            return (
+              <div key={index} className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                  <span className="text-xs font-medium text-muted-foreground truncate">{entry.name}</span>
+                </div>
+                <div className="flex items-center gap-3 shrink-0">
+                  <span className="text-sm font-mono font-bold text-foreground">
+                    {formatUSDWhole(entry.value ?? 0)}
+                  </span>
+                  <Badge variant="outline" className="text-[10px] py-0 px-1.5 h-4 bg-primary/5 text-primary border-primary/20">
+                    {percent.toFixed(1)}%
+                  </Badge>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+  return null;
+}
 
 /** Esqueleto de la tarjeta. Exportado para las envolturas que esperan algo antes de montarla. */
 export function EvolutionCardSkeleton() {
@@ -131,50 +158,45 @@ export function EvolutionCard({
   description,
   help,
   fetcher,
+  queryKeyFor,
   seleccionInicial,
   textos,
-  refreshKey,
 }: EvolutionCardProps) {
-  const [loading, setLoading] = useState(true);
-  const [data, setData] = useState<GroupingAnalysisResult | null>(null);
   const [recordType, setRecordType] = useState<RecordType>(initialRecordType);
+  // El tipo de fuera manda cuando cambia; dentro, el conmutador de la tarjeta es libre.
+  // Se ajusta durante el render (patrón de React) en vez de con un efecto (FE-008).
+  const [prevInitial, setPrevInitial] = useState<RecordType>(initialRecordType);
+  if (initialRecordType !== prevInitial) {
+    setPrevInitial(initialRecordType);
+    setRecordType(initialRecordType);
+  }
   const [viewMode, setViewMode] = useState<ViewMode>("ANNUAL");
+  // null = sin elegir: se usa el último año con datos.
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
-  const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
+  // null = sin elegir: la selección inicial (seleccionInicial). Una recarga no pisa la
+  // elección del usuario.
+  const [userSelection, setUserSelection] = useState<string[] | null>(null);
   const [popoverOpen, setPopoverOpen] = useState(false);
 
-  // El tipo de fuera manda cuando cambia; dentro, el conmutador de la tarjeta es libre.
-  useEffect(() => {
-    setRecordType(initialRecordType);
-  }, [initialRecordType]);
+  // FE-057: react-query en vez de useEffect + fetch. La clave incluye el tipo, así que
+  // una respuesta antigua no puede pisar la nueva; al cambiar de tipo se mantienen los
+  // datos previos mientras llega la nueva.
+  const { data: raw, isPending } = useQuery({
+    queryKey: queryKeyFor(recordType),
+    queryFn: () => fetcher(recordType),
+    placeholderData: keepPreviousData,
+  });
+  // Se filtra aquí (punto único) para que gráfico, selector de año y totales usen el
+  // mismo rango sin tener que repetir el filtro en cada consumidor.
+  const data = useMemo(() => (raw ? keepYearsFrom(raw, HUB_FIRST_YEAR) : null), [raw]);
+  const effectiveYear = selectedYear ?? data?.years[data.years.length - 1] ?? null;
 
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      const raw = await fetcher(recordType);
-      // Se filtra aquí (punto único) para que gráfico, selector de año y totales
-      // usen el mismo rango sin tener que repetir el filtro en cada consumidor.
-      const result = { ...raw, years: raw.years.filter((y) => y >= FIRST_YEAR) };
-      setData(result);
-      // Solo se elige por el usuario cuando no hay nada elegido: una recarga no debe
-      // pisar su selección.
-      if (selectedGroupIds.length === 0 && result.rows.length > 0) {
-        setSelectedGroupIds(seleccionInicialIds(result.rows, seleccionInicial));
-      }
-      // Las vistas trimestral y mensual abren en el último año.
-      if (!selectedYear && result.years.length > 0) {
-        setSelectedYear(result.years[result.years.length - 1]);
-      }
-    } catch (err) {
-      console.error("Error fetching evolution data:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-  }, [recordType, refreshKey]);
+  const selectedGroupIds = useMemo(
+    () => userSelection ?? (data ? seleccionInicialIds(data.rows, seleccionInicial) : []),
+    [userSelection, data, seleccionInicial]
+  );
+  const setSelectedGroupIds = (update: (prev: string[]) => string[]) =>
+    setUserSelection(update(selectedGroupIds));
 
   // Los datos llegan por serie; recharts los quiere por punto del eje.
   const chartData = useMemo(() => {
@@ -193,7 +215,7 @@ export function EvolutionCard({
         return entry;
       });
     } else if (viewMode === "QUARTERLY") {
-      if (!selectedYear) return [];
+      if (!effectiveYear) return [];
 
       const quarterlyEntries = QUARTERS.map((name, idx) => {
         const startMonth = idx * 3 + 1;
@@ -202,7 +224,7 @@ export function EvolutionCard({
         let grandQuarterlyTotal = 0;
         data.rows.forEach(r => {
           for (let m = startMonth; m < startMonth + 3; m++) {
-            grandQuarterlyTotal += r.months?.[selectedYear]?.[m] || 0;
+            grandQuarterlyTotal += r.months?.[effectiveYear]?.[m] || 0;
           }
         });
 
@@ -210,7 +232,7 @@ export function EvolutionCard({
           if (selectedGroupIds.includes(row.groupId)) {
             let amount = 0;
             for (let m = startMonth; m < startMonth + 3; m++) {
-              amount += row.months?.[selectedYear]?.[m] || 0;
+              amount += row.months?.[effectiveYear]?.[m] || 0;
             }
             entry[row.groupName] = amount;
             entry[`${row.groupName}_percent`] = grandQuarterlyTotal > 0 ? (amount / grandQuarterlyTotal) * 100 : 0;
@@ -222,18 +244,18 @@ export function EvolutionCard({
       return quarterlyEntries;
     } else {
       // Vista mensual del año elegido.
-      if (!selectedYear) return [];
+      if (!effectiveYear) return [];
 
-      const monthlyEntries = MONTHS.map((name, idx) => {
+      const monthlyEntries = MONTH_LABELS.map((name, idx) => {
         const monthNum = idx + 1;
         const entry: GroupChartPoint = { month: name };
 
         data.rows.forEach(row => {
           if (selectedGroupIds.includes(row.groupId)) {
-            const amount = row.months?.[selectedYear]?.[monthNum] || 0;
+            const amount = row.months?.[effectiveYear]?.[monthNum] || 0;
             entry[row.groupName] = amount;
             // El porcentaje es sobre el total del mes de todas las series, elegidas o no.
-            const grandMonthlyTotal = data.rows.reduce((sum, r) => sum + (r.months?.[selectedYear]?.[monthNum] || 0), 0);
+            const grandMonthlyTotal = data.rows.reduce((sum, r) => sum + (r.months?.[effectiveYear]?.[monthNum] || 0), 0);
             entry[`${row.groupName}_percent`] = grandMonthlyTotal > 0 ? (amount / grandMonthlyTotal) * 100 : 0;
             entry[`${row.groupName}_color`] = row.color;
           }
@@ -242,7 +264,7 @@ export function EvolutionCard({
       });
       return monthlyEntries;
     }
-  }, [data, selectedGroupIds, viewMode, selectedYear]);
+  }, [data, selectedGroupIds, viewMode, effectiveYear]);
 
   const selectedGroupDetails = useMemo(() => {
     return data?.rows.filter(r => selectedGroupIds.includes(r.groupId)) || [];
@@ -250,49 +272,7 @@ export function EvolutionCard({
 
   const periodo = viewMode === "MONTHLY" ? "mensual" : viewMode === "QUARTERLY" ? "trimestral" : "anual";
 
-  // --- Custom Tooltip ---
-  const CustomTooltip = ({ active, payload, label }: ChartTooltipProps<GroupChartPoint>) => {
-    if (active && payload && payload.length) {
-      // De mayor a menor importe.
-      const sortedPayload = [...payload].sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
-
-      return (
-        <div className="bg-background/95 backdrop-blur-xl border border-white/10 p-4 rounded-xl shadow-2xl min-w-[260px]">
-          <div className="flex items-center gap-2 mb-3 border-b border-white/5 pb-2">
-            <History className="h-4 w-4 text-primary" />
-            <span className="font-bold text-foreground text-lg">
-              {(viewMode === "MONTHLY" || viewMode === "QUARTERLY") ? `${label} ${selectedYear}` : label}
-            </span>
-          </div>
-          <div className="space-y-2">
-            {sortedPayload.map((entry: ChartTooltipEntry<GroupChartPoint>, index: number) => {
-              const color = String(entry.payload?.[`${entry.name}_color`] ?? "");
-              const percent = Number(entry.payload?.[`${entry.name}_percent`] ?? 0);
-              return (
-                <div key={index} className="flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
-                    <span className="text-xs font-medium text-muted-foreground truncate">{entry.name}</span>
-                  </div>
-                  <div className="flex items-center gap-3 shrink-0">
-                    <span className="text-sm font-mono font-bold text-foreground">
-                      {formatCurrencyFull(entry.value ?? 0)}
-                    </span>
-                    <Badge variant="outline" className="text-[10px] py-0 px-1.5 h-4 bg-primary/5 text-primary border-primary/20">
-                      {percent.toFixed(1)}%
-                    </Badge>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      );
-    }
-    return null;
-  };
-
-  if (loading && !data) {
+  if (isPending || !data) {
     return <EvolutionCardSkeleton />;
   }
 
@@ -398,7 +378,7 @@ export function EvolutionCard({
                   onClick={() => setSelectedYear(year)}
                   className={cn(
                     "px-5 py-2 text-xs font-bold rounded-xl transition-all",
-                    selectedYear === year
+                    effectiveYear === year
                       ? "bg-primary text-primary-foreground shadow-lg"
                       : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
                   )}
@@ -433,7 +413,11 @@ export function EvolutionCard({
 
           {/* Gráfico */}
           <div className="h-[450px] w-full relative">
-            {selectedGroupIds.length === 0 ? (
+            {data.rows.length === 0 || data.years.length === 0 ? (
+              <div className="absolute inset-0 flex items-center justify-center text-center text-sm text-muted-foreground">
+                Sin datos para el periodo
+              </div>
+            ) : selectedGroupIds.length === 0 ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center text-center space-y-6">
                 <h4 className="text-xl font-bold">Visualiza tu Crecimiento</h4>
                 <p className="text-muted-foreground text-sm max-w-sm">
@@ -455,9 +439,9 @@ export function EvolutionCard({
                     axisLine={false}
                     tickLine={false}
                     tick={{ fill: "var(--muted-foreground)", fontSize: 11, fontWeight: 500 }}
-                    tickFormatter={formatCurrencyCompact}
+                    tickFormatter={formatUSDCompactIntl}
                   />
-                  <RechartsTooltip content={<CustomTooltip />} cursor={{ fill: "rgba(147, 197, 253, 0.15)" }} />
+                  <RechartsTooltip content={<EvolutionTooltip viewMode={viewMode} year={effectiveYear} />} cursor={{ fill: "rgba(147, 197, 253, 0.15)" }} />
                   <Legend
                     verticalAlign="top"
                     align="right"
@@ -479,7 +463,7 @@ export function EvolutionCard({
                           dataKey={(entry) => selectedGroupDetails.reduce((sum, g) => sum + (entry[g.groupName] || 0), 0)}
                           position="top"
                           offset={10}
-                          formatter={formatCurrencyCompact}
+                          formatter={formatUSDCompactIntl}
                           style={{ fill: "var(--muted-foreground)", fontSize: 10, fontWeight: 600 }}
                         />
                       )}

@@ -24,6 +24,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { ExportMenu } from "@/components/common/export-menu";
 import { downloadXlsx, copySheetToClipboard } from "@/lib/excel-client";
+import { downloadText } from "@/lib/download";
 import { runExport, XLSX_EXPORT_MESSAGES } from "@/lib/run-export";
 import type { ExcelSheet } from "@/lib/excel-types";
 import { getSalesData } from "@/actions/sales-actions";
@@ -47,8 +48,9 @@ export default function TablasPage() {
     queryKey: ["categories"],
     queryFn: getCategories,
   });
-  const records: SalesRecord[] = salesData ?? [];
-  const categories = (catsData as Category[]) ?? [];
+  // useMemo: un `?? []` nuevo en cada render invalidaba los useMemo de abajo (FE-008).
+  const records = useMemo<SalesRecord[]>(() => salesData ?? [], [salesData]);
+  const categories = useMemo<Category[]>(() => (catsData as Category[]) ?? [], [catsData]);
   const loading = salesLoading || catsLoading;
 
   const pivotRows = useMemo(() => {
@@ -113,12 +115,7 @@ export default function TablasPage() {
       row.total.toString(),
     ]);
     const csv = [headers, ...rows].map((r) => r.join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `tabla_${typeFilter}_${year}.csv`;
-    a.click();
+    downloadText(csv, `tabla_${typeFilter}_${year}.csv`, "text/csv");
     toast.success("CSV descargado");
   };
 

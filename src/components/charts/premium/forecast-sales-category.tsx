@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ComposedChart,
@@ -20,13 +21,13 @@ import { Badge } from "@/components/ui/badge";
 import { RecordTypeToggle } from "@/components/common/record-type-toggle";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { 
-  Command, 
-  CommandEmpty, 
-  CommandGroup, 
-  CommandInput, 
-  CommandItem, 
-  CommandList 
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList
 } from "@/components/ui/command";
 import {
   Plus,
@@ -41,6 +42,8 @@ import { getSalesData } from "@/actions/sales-actions";
 import { getCategories } from "@/actions/category-actions";
 import { calculateSeasonalityFactors, getSeasonalForecast, calculateRunRate } from "@/lib/math-utils";
 import { historyYears } from "@/lib/forecast";
+import { MONTH_LABELS, formatUSDCompactIntl, formatUSDWhole } from "@/lib/constants";
+import { sumByCategoryYearMonth } from "@/lib/category-series";
 import type { ChartTooltipProps } from "@/lib/chart-types";
 import { InfoTooltip } from "@/components/common/info-tooltip";
 import { CHART_HELP } from "@/lib/chart-help";
@@ -55,88 +58,115 @@ interface CategoryInfo {
   color: string;
 }
 
-const MONTHS = [
-  "Ene", "Feb", "Mar", "Abr", "May", "Jun", 
-  "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"
-];
-
 const DEFAULT_COLOR = "#6366f1";
-
-const formatCurrencyCompact = (value: number) => {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    notation: "compact",
-    maximumFractionDigits: 1,
-  }).format(value);
-};
-
-const formatCurrencyFull = (value: number) => {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(value);
-};
 
 interface ForecastSalesCategoryProps {
   baseYear?: number;
 }
 
+// Tooltip fuera del componente (FE-008). Recharts lo clona con active/payload/label y
+// conserva estas props extra.
+function CategoryForecastTooltip({
+  active,
+  payload,
+  label,
+  baseYear,
+  selectedCategoryIds,
+  catMap,
+}: ChartTooltipProps<ForecastChartPoint> & {
+  baseYear: number;
+  selectedCategoryIds: string[];
+  catMap: Map<string, CategoryInfo>;
+}) {
+  if (active && payload && payload.length) {
+    const point = payload[0].payload;
+    return (
+      <div className="bg-background/95 backdrop-blur-xl border border-white/10 p-4 rounded-xl shadow-2xl min-w-[260px]">
+        <div className="flex items-center gap-2 mb-3 border-b border-white/5 pb-2">
+          <TrendingUp className="h-4 w-4 text-emerald-500" />
+          <span className="font-bold text-foreground text-lg">
+            {label} {baseYear}
+          </span>
+        </div>
+        <div className="mb-3 flex justify-between items-center text-xs">
+          <span className="text-muted-foreground font-bold">Total Forecast:</span>
+          <span className="text-emerald-500 font-mono font-bold text-sm">{formatUSDWhole(Number(point?.total_forecast ?? 0))}</span>
+        </div>
+        <div className="space-y-4">
+          {selectedCategoryIds.map((catId, index) => {
+              const cat = catMap.get(catId);
+              if (!cat) return null;
+              const percent = Number(point?.[`${cat.id}_percent`] ?? 0);
+              const forecastVal = Number(point?.[`${cat.id}_forecast`] || 0);
+              const realSalesVal = Number(point?.[cat.id] || 0);
+
+              return (
+                <div key={index} className="space-y-1.5 border-l-2 pl-3 py-1" style={{ borderLeftColor: cat.color }}>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-sm font-bold text-foreground">{cat.name}</span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-2">
+                      <div className="size-1.5 rounded-full bg-slate-400 opacity-50" />
+                      <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Ventas Reales:</span>
+                    </div>
+                    <span className="text-xs font-mono font-bold text-slate-400">
+                      {formatUSDWhole(realSalesVal)}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-2">
+                      <div className="size-1.5 rounded-full bg-emerald-500" />
+                      <span className="text-[10px] uppercase tracking-wider text-emerald-400 font-bold">Proyección:</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-mono font-bold text-foreground">
+                        {formatUSDWhole(forecastVal)}
+                      </span>
+                      <Badge variant="outline" className="text-[9px] py-0 px-1 h-3.5 bg-emerald-500/5 text-emerald-400 border-emerald-500/20">
+                        {(percent || 0).toFixed(1)}%
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+        </div>
+      </div>
+    );
+  }
+  return null;
+}
+
 export function ForecastSalesCategory({ baseYear = new Date().getFullYear() }: ForecastSalesCategoryProps) {
-  const [isLoading, setIsLoading] = useState(true);
   const [recordType, setRecordType] = useState<RecordType>("SALES_ORDER");
-  const [allCategories, setAllCategories] = useState<CategoryInfo[]>([]);
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
   const [popoverOpen, setPopoverOpen] = useState(false);
-  const [categoryMonthSums, setCategoryMonthSums] = useState<Record<string, Record<number, Record<number, number>>>>({});
 
-  useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const data = await getCategories();
-        setAllCategories((data || []).map((cat) => ({
-          id: String(cat.id),
-          name: String(cat.name),
-          color: cat.color || DEFAULT_COLOR,
-        })));
-      } catch (err) {
-        console.error("Error fetching categories:", err);
-      }
-    };
-    fetchCategories();
-  }, []);
+  // FE-057: react-query en vez de useEffect + server action. Misma caché de ventas que
+  // la página de Análisis (["sales", {}]), filtrada por tipo en cliente. Sin categorías
+  // ya no se queda el esqueleto para siempre: se muestra el estado vacío.
+  const salesQ = useQuery({ queryKey: ["sales", {}], queryFn: () => getSalesData({}) });
+  const catsQ = useQuery({ queryKey: ["categories"], queryFn: getCategories });
+  const isLoading = salesQ.isPending || catsQ.isPending;
 
-  useEffect(() => {
-    const fetchSalesData = async () => {
-      setIsLoading(true);
-      try {
-        const records = await getSalesData({ record_type: recordType });
-        const newSums: Record<string, Record<number, Record<number, number>>> = {};
+  const allCategories = useMemo<CategoryInfo[]>(
+    () =>
+      (catsQ.data ?? []).map((cat) => ({
+        id: String(cat.id),
+        name: String(cat.name),
+        color: cat.color || DEFAULT_COLOR,
+      })),
+    [catsQ.data]
+  );
 
-        records.forEach((r) => {
-          const year = Number(r.record_year);
-          const month = Number(r.record_month);
-          const catId = String(r.category_id);
-          const amount = Number(r.amount_usd) || 0;
-
-          if (!newSums[catId]) newSums[catId] = {};
-          if (!newSums[catId][year]) newSums[catId][year] = {};
-          newSums[catId][year][month] = (newSums[catId][year][month] || 0) + amount;
-        });
-
-        setCategoryMonthSums(newSums);
-      } catch (err) {
-        console.error("Error fetching sales data:", err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    if (allCategories.length > 0) {
-      fetchSalesData();
-    }
-  }, [recordType, allCategories]);
+  const categoryMonthSums = useMemo(
+    () => sumByCategoryYearMonth((salesQ.data ?? []).filter((r) => r.record_type === recordType)),
+    [salesQ.data, recordType]
+  );
+  const sinDatos = allCategories.length === 0 || Object.keys(categoryMonthSums).length === 0;
 
   const catMap = useMemo(() => {
     const map = new Map<string, CategoryInfo>();
@@ -146,15 +176,15 @@ export function ForecastSalesCategory({ baseYear = new Date().getFullYear() }: F
 
   const chartData = useMemo(() => {
     if (Object.keys(categoryMonthSums).length === 0) return [];
-    
+
     const now = new Date();
-    const currentYear = baseYear; 
+    const currentYear = baseYear;
     const historicalYears = historyYears(currentYear);
     const isCurrentActualYear = currentYear === now.getFullYear();
     const currentMonthIdx = now.getMonth();
     const lastElapsedMonth = isCurrentActualYear ? currentMonthIdx + 1 : 12;
 
-    const monthlyEntries = MONTHS.map((name, idx) => {
+    const monthlyEntries = MONTH_LABELS.map((name, idx) => {
       const entry: ForecastChartPoint = { month: name };
       const monthNum = idx + 1;
       let totalForecastVal = 0;
@@ -165,11 +195,11 @@ export function ForecastSalesCategory({ baseYear = new Date().getFullYear() }: F
         if (!cat) return;
 
         const historicalMatrix = historicalYears.map(y => {
-            return MONTHS.map((_, mIdx) => catMonths[y]?.[mIdx + 1] || 0);
+            return MONTH_LABELS.map((_, mIdx) => catMonths[y]?.[mIdx + 1] || 0);
         });
         const seasonalityFactors = calculateSeasonalityFactors(historicalMatrix, [3, 2, 1]);
 
-        const currentYearRawData = MONTHS.map((_, mIdx) => catMonths[currentYear]?.[mIdx + 1] || 0);
+        const currentYearRawData = MONTH_LABELS.map((_, mIdx) => catMonths[currentYear]?.[mIdx + 1] || 0);
         const currentYearElapsedData = currentYearRawData.slice(0, lastElapsedMonth);
 
         if (isCurrentActualYear && currentYearElapsedData.length > currentMonthIdx) {
@@ -181,7 +211,7 @@ export function ForecastSalesCategory({ baseYear = new Date().getFullYear() }: F
 
         const projectedForecast = getSeasonalForecast(currentYearElapsedData, seasonalityFactors);
         const val = Math.round(projectedForecast[idx] * 100) / 100 || 0;
-        
+
         // Total forecast line data
         totalForecastVal += val;
 
@@ -192,7 +222,7 @@ export function ForecastSalesCategory({ baseYear = new Date().getFullYear() }: F
         } else {
           entry[catId] = 0;
         }
-        
+
         entry[`${catId}_color`] = cat.color;
         entry[`${catId}_forecast`] = val;
       });
@@ -203,7 +233,7 @@ export function ForecastSalesCategory({ baseYear = new Date().getFullYear() }: F
           const val = Number(entry[`${catId}_forecast`] || 0);
           entry[`${catId}_percent`] = totalForecastVal > 0 ? (val / totalForecastVal) * 100 : 0;
       });
-      
+
       return entry;
     });
 
@@ -214,69 +244,6 @@ export function ForecastSalesCategory({ baseYear = new Date().getFullYear() }: F
     return selectedCategoryIds.map(id => catMap.get(id)).filter(Boolean) as CategoryInfo[];
   }, [selectedCategoryIds, catMap]);
 
-  const CustomTooltip = ({ active, payload, label }: ChartTooltipProps<ForecastChartPoint>) => {
-    if (active && payload && payload.length) {
-      const point = payload[0].payload;
-      return (
-        <div className="bg-background/95 backdrop-blur-xl border border-white/10 p-4 rounded-xl shadow-2xl min-w-[260px]">
-          <div className="flex items-center gap-2 mb-3 border-b border-white/5 pb-2">
-            <TrendingUp className="h-4 w-4 text-emerald-500" />
-            <span className="font-bold text-foreground text-lg">
-              {label} {baseYear}
-            </span>
-          </div>
-          <div className="mb-3 flex justify-between items-center text-xs">
-            <span className="text-muted-foreground font-bold">Total Forecast:</span>
-            <span className="text-emerald-500 font-mono font-bold text-sm">{formatCurrencyFull(Number(point?.total_forecast ?? 0))}</span>
-          </div>
-          <div className="space-y-4">
-            {selectedCategoryIds.map((catId, index) => {
-                const cat = catMap.get(catId);
-                if (!cat) return null;
-                const percent = Number(point?.[`${cat.id}_percent`] ?? 0);
-                const forecastVal = Number(point?.[`${cat.id}_forecast`] || 0);
-                const realSalesVal = Number(point?.[cat.id] || 0);
-
-                return (
-                  <div key={index} className="space-y-1.5 border-l-2 pl-3 py-1" style={{ borderLeftColor: cat.color }}>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-sm font-bold text-foreground">{cat.name}</span>
-                    </div>
-                    
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="flex items-center gap-2">
-                        <div className="size-1.5 rounded-full bg-slate-400 opacity-50" />
-                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Ventas Reales:</span>
-                      </div>
-                      <span className="text-xs font-mono font-bold text-slate-400">
-                        {formatCurrencyFull(realSalesVal)}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="flex items-center gap-2">
-                        <div className="size-1.5 rounded-full bg-emerald-500" />
-                        <span className="text-[10px] uppercase tracking-wider text-emerald-400 font-bold">Proyección:</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-mono font-bold text-foreground">
-                          {formatCurrencyFull(forecastVal)}
-                        </span>
-                        <Badge variant="outline" className="text-[9px] py-0 px-1 h-3.5 bg-emerald-500/5 text-emerald-400 border-emerald-500/20">
-                          {(percent || 0).toFixed(1)}%
-                        </Badge>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-          </div>
-        </div>
-      );
-    }
-    return null;
-  };
-
   const handleToggleCategory = (catId: string) => {
     setSelectedCategoryIds(prev =>
       prev.includes(catId)
@@ -285,7 +252,7 @@ export function ForecastSalesCategory({ baseYear = new Date().getFullYear() }: F
     );
   };
 
-  if (isLoading && selectedCategoryIds.length === 0) {
+  if (isLoading) {
     return (
       <Card className="border-t border-t-emerald-500/20 bg-background/60 backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden min-h-[500px]">
         <CardContent className="p-8 space-y-6">
@@ -387,7 +354,11 @@ export function ForecastSalesCategory({ baseYear = new Date().getFullYear() }: F
           </AnimatePresence>
 
           <div className="h-[450px] w-full relative">
-            {selectedCategoryIds.length === 0 ? (
+            {sinDatos ? (
+              <div className="absolute inset-0 flex items-center justify-center text-center text-sm text-muted-foreground">
+                Sin datos para el periodo
+              </div>
+            ) : selectedCategoryIds.length === 0 ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center text-center space-y-6">
                 <h4 className="text-xl font-bold">Visualiza el Forecast Detallado</h4>
                 <p className="text-muted-foreground text-sm max-w-sm">
@@ -415,9 +386,12 @@ export function ForecastSalesCategory({ baseYear = new Date().getFullYear() }: F
                     axisLine={false}
                     tickLine={false}
                     tick={{ fill: "var(--muted-foreground)", fontSize: 11, fontWeight: 500 }}
-                    tickFormatter={formatCurrencyCompact}
+                    tickFormatter={formatUSDCompactIntl}
                   />
-                  <RechartsTooltip content={<CustomTooltip />} cursor={{ fill: "rgba(16, 185, 129, 0.1)" }} />
+                  <RechartsTooltip
+                    content={<CategoryForecastTooltip baseYear={baseYear} selectedCategoryIds={selectedCategoryIds} catMap={catMap} />}
+                    cursor={{ fill: "rgba(16, 185, 129, 0.1)" }}
+                  />
                   <Legend 
                     verticalAlign="top" 
                     align="right" 
@@ -452,7 +426,7 @@ export function ForecastSalesCategory({ baseYear = new Date().getFullYear() }: F
                           dataKey={(entry) => selectedCategories.reduce((sum, c) => sum + (entry[c.id] || 0), 0)}
                           position="top" 
                           offset={10}
-                          formatter={formatCurrencyCompact}
+                          formatter={formatUSDCompactIntl}
                           style={{ fill: "var(--muted-foreground)", fontSize: 10, fontWeight: 600 }}
                         />
                       )}

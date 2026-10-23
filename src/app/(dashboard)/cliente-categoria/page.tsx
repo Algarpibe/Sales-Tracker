@@ -33,6 +33,8 @@ import { ExportMenu } from "@/components/common/export-menu";
 import { EmptyState } from "@/components/common/empty-state";
 import { YearCompareControls } from "@/components/common/year-compare-controls";
 import { downloadXlsx, copySheetToClipboard } from "@/lib/excel-client";
+import { downloadText } from "@/lib/download";
+import { CardErrorBoundary } from "@/components/common/card-error-boundary";
 import { runExport, XLSX_EXPORT_MESSAGES } from "@/lib/run-export";
 import { CustomerCategoryCompareTable } from "@/components/cliente-categoria/customer-category-compare-table";
 
@@ -69,13 +71,7 @@ export default function ClienteCategoriaPage() {
   const grand = useMemo(() => computeGrandTotals(groups), [groups]);
 
   const exportCsv = () => {
-    const blob = new Blob([customerCategoryToCsv(groups, grand)], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `ventas_cliente_categoria_${tipo}_${anio}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadText(customerCategoryToCsv(groups, grand), `ventas_cliente_categoria_${tipo}_${anio}.csv`);
     toast.success("CSV descargado");
   };
 
@@ -115,7 +111,9 @@ export default function ClienteCategoriaPage() {
       </div>
 
       {compareMode ? (
-        <CustomerCategoryCompareTable tipo={tipo as "SALES_ORDER" | "INVOICE"} yearA={yearA} yearB={yearB} />
+        <CardErrorBoundary title="Comparativa cliente × categoría" resetKeys={[tipo, yearA, yearB]}>
+          <CustomerCategoryCompareTable tipo={tipo as "SALES_ORDER" | "INVOICE"} yearA={yearA} yearB={yearB} />
+        </CardErrorBoundary>
       ) : (
         <>
           {/* Controles cliente */}

@@ -1,13 +1,16 @@
 "use client";
 
 import { GripVertical, X } from "lucide-react";
+import { CardErrorBoundary } from "@/components/common/card-error-boundary";
 
 export function WidgetFrame({
-  title, editing, onRemove, children,
+  title, editing, onRemove, resetKeys, children,
 }: {
   title: string;
   editing: boolean;
   onRemove: () => void;
+  /** Al cambiar (año, tipo) un widget en error se reintenta solo. */
+  resetKeys?: readonly unknown[];
   children: React.ReactNode;
 }) {
   return (
@@ -33,7 +36,11 @@ export function WidgetFrame({
           gráficos declaran un minHeight (que SÍ hace falta en las páginas de
           Análisis, donde el padre no tiene altura); aquí la celda manda. */}
       <div className="min-h-0 flex-1 overflow-hidden [&_.recharts-responsive-container]:!min-h-0">
-        {children}
+        {/* FE-056: un widget que falla muestra su propio error; el resto del grid sigue.
+            Va dentro del marco para que en edición se pueda seguir moviendo o quitando. */}
+        <CardErrorBoundary title={title} resetKeys={resetKeys}>
+          {children}
+        </CardErrorBoundary>
       </div>
     </div>
   );

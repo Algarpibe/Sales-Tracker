@@ -7,6 +7,7 @@ import { companies, profiles, user } from "@/db/schema";
 import { requireApproved, requireRole } from "@/lib/auth/guards";
 import { accountUpdateSchema, companyUpdateSchema } from "@/lib/validation";
 import { runAction, AppError, type ActionResult } from "@/lib/errors";
+import { audit } from "@/lib/audit";
 
 // ── Empresa ──
 export async function getCompany() {
@@ -29,6 +30,14 @@ export async function updateCompany(updates: {
       .update(companies)
       .set({ ...parsed, updated_at: new Date().toISOString() })
       .where(eq(companies.id, profile.company_id));
+    // Solo qué campos cambian, no sus valores.
+    audit({
+      action: "company.update",
+      actorId: profile.id,
+      companyId: profile.company_id,
+      targetId: profile.company_id,
+      meta: { fields: Object.keys(parsed) },
+    });
     revalidatePath("/settings");
   });
 }

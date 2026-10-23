@@ -2,12 +2,15 @@ import "server-only";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
+import { createAuthMiddleware } from "better-auth/api";
 import bcrypt from "bcryptjs";
 import { db } from "@/db";
 import { enforceRuntimeEnv } from "@/lib/env";
 import { user, session, account, verification } from "@/db/schema";
 import { createProfileForNewUser } from "./new-user-profile";
 import { MIN_PASSWORD_LENGTH } from "./auth-error-message";
+import { signInFailureAudit } from "./auth-audit";
+import { audit } from "@/lib/audit";
 
 // Fail-fast: en runtime exige el secreto (nunca arrancar con el secreto por defecto).
 // Durante el build estático (sin envs) no se lanza, para no romper la generación de páginas.
@@ -77,6 +80,13 @@ export const auth = betterAuth({
       // a 429 y el cliente perdería la sesión. Es de solo lectura y exige cookie.
       "/get-session": false,
     },
+  },
+  // Auditoría de logins fallidos (ARQ-078): status y código de better-auth, sin email.
+  hooks: {
+    after: createAuthMiddleware(async (ctx) => {
+      const entry = signInFailureAudit(ctx.path, ctx.context.returned);
+      if (entry) audit(entry);
+    }),
   },
   plugins: [nextCookies()], // nextCookies SIEMPRE el último
 });

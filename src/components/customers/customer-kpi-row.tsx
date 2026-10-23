@@ -5,14 +5,12 @@ import { useQuery } from "@tanstack/react-query";
 import { getCustomerSales } from "@/actions/customer-sales-actions";
 import { getMarginByCustomer } from "@/actions/margin-actions";
 import { customerYearSeries, customerSinceYear, customerTotalVentas, customerMarginKpi } from "@/lib/customer-detail";
-import { formatUSD } from "@/lib/constants";
+import { HISTORY_FIRST_YEAR, formatUSD } from "@/lib/constants";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
-// Primer año del histórico previo al hub (tabla historical_customer_sales). La
-// ficha lo incluye, igual que /clientes: pidiendo desde 2021, "Cliente desde"
-// nunca podría mostrar un año anterior.
-const HISTORY_FIRST_YEAR = 2015;
+// La ficha incluye el histórico previo al hub (HISTORY_FIRST_YEAR), igual que /clientes:
+// pidiendo desde 2021, "Cliente desde" nunca podría mostrar un año anterior.
 
 function Tile({ label, value }: { label: string; value: string }) {
   return (

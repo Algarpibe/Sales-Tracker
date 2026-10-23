@@ -6,7 +6,7 @@ import { getCategoryMonthSales } from "@/actions/category-month-actions";
 import { getMacroCategorias } from "@/actions/category-actions";
 import { buildBucketSeason } from "@/lib/analytics-comercial";
 import { BUCKET_COLORS, BUCKET_LABELS, MACRO_CATEGORIAS_KEY, mapaMacroCategorias } from "@/lib/customer-item";
-import { formatUSD, formatCompactUSD } from "@/lib/constants";
+import { MONTH_LABELS, formatUSD, formatCompactUSD } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { InfoTooltip } from "@/components/common/info-tooltip";
@@ -14,7 +14,7 @@ import { CHART_HELP } from "@/lib/chart-help";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import type { ChartTooltipProps } from "@/lib/chart-types";
 
-const MESES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+const MESES = MONTH_LABELS;
 
 const SERIES = [
   { key: "mano_obra", label: BUCKET_LABELS.mano_obra, color: BUCKET_COLORS.mano_obra },

@@ -80,17 +80,17 @@ export function BarChartMonthly({ data, title = "Ventas Mensuales" }: BarChartMo
   const [showCumulative, setShowCumulative] = useState(false);
 
   const chartData = useMemo(() => {
-    let cumSales = 0;
-    let cumInvoices = 0;
-    return data.map(item => {
-      cumSales += item.sales_orders || 0;
-      cumInvoices += item.invoices || 0;
-      return {
+    // Bucle en vez de map con acumuladores capturados (FE-008, react-hooks/immutability).
+    const out: (BarChartMonthlyProps["data"][number] & { cum_sales_orders: number; cum_invoices: number })[] = [];
+    for (const item of data) {
+      const prev = out[out.length - 1];
+      out.push({
         ...item,
-        cum_sales_orders: cumSales,
-        cum_invoices: cumInvoices
-      };
-    });
+        cum_sales_orders: (prev?.cum_sales_orders ?? 0) + (item.sales_orders || 0),
+        cum_invoices: (prev?.cum_invoices ?? 0) + (item.invoices || 0),
+      });
+    }
+    return out;
   }, [data]);
 
   return (

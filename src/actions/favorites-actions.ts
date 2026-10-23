@@ -4,7 +4,8 @@ import { and, count, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { favorites } from "@/db/schema";
 import { requireApproved } from "@/lib/auth/guards";
-import { AppError } from "@/lib/errors";
+import { AppError, runAction, type ActionResult } from "@/lib/errors";
+import { logError } from "@/lib/logger";
 import { favoriteCustomerSchema } from "@/lib/validation";
 
 // Tope de favoritos por usuario (SEC-036): acota lo que un usuario puede guardar.
@@ -20,7 +21,9 @@ export async function getFavorites(): Promise<string[]> {
       .from(favorites)
       .where(eq(favorites.user_id, profile.id));
     return rows.map((r) => r.name);
-  } catch {
+  } catch (e) {
+    // ARQ-077: degrada, pero deja rastro del fallo real.
+    logError("getFavorites falló; degradando a []", e);
     return [];
   }
 }
@@ -28,8 +31,13 @@ export async function getFavorites(): Promise<string[]> {
 // Alta/baja sin carreras (DATA-050): en vez de leer y luego insertar o borrar, se
 // intenta el INSERT con ON CONFLICT DO NOTHING (restricción única
 // favorites_user_customer_unique) y, si no insertó nada, es que ya existía y se
-// borra. Un doble clic ya no puede chocar con la restricción única.
-export async function toggleFavorite(customer: string): Promise<void> {
+// borra. Un doble clic ya no puede chocar con la restricción única. Mutación con
+// runAction (ARQ-077): los errores esperados llegan como { ok: false }.
+export async function toggleFavorite(customer: string): Promise<ActionResult> {
+  return runAction(() => toggleFavoriteImpl(customer));
+}
+
+async function toggleFavoriteImpl(customer: string): Promise<void> {
   const { profile } = await requireApproved({ fresh: true });
   const parsed = favoriteCustomerSchema.safeParse(customer);
   if (!parsed.success) {

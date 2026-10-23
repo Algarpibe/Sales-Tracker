@@ -13,7 +13,9 @@ import { hubEnabled } from "@/db/hub";
 import { getHubSalesRows } from "@/db/hub-sales";
 import { requireRole, requireApproved } from "@/lib/auth/guards";
 import { runAction, AppError, type ActionResult } from "@/lib/errors";
+import { audit } from "@/lib/audit";
 import { bucketsPorCategoriaId, buildMacroEvolution } from "@/lib/macro-evolution";
+import { findByHubCategoryName, indexCategoriesByName } from "@/lib/hub-category";
 import { z } from "zod";
 import type {
   CategoryGroup,
@@ -111,6 +113,13 @@ export async function saveCategoryGrouping(
     }
 
     return group.id;
+  });
+  audit({
+    action: "grouping.create",
+    actorId: profile.id,
+    companyId,
+    targetId: groupId,
+    meta: { categories: catIds.length },
   });
 
   revalidatePath("/analytics");
@@ -228,6 +237,13 @@ export async function updateCategoryGrouping(
       );
     }
   });
+  audit({
+    action: "grouping.update",
+    actorId: profile.id,
+    companyId,
+    targetId: gid,
+    meta: { categories: catIds.length },
+  });
 
   revalidatePath("/analytics");
   });
@@ -251,6 +267,7 @@ export async function deleteCategoryGrouping(
         eq(categoryGroups.company_id, companyId)
       )
     );
+  audit({ action: "grouping.delete", actorId: profile.id, companyId, targetId: gid });
 
   revalidatePath("/analytics");
   });
@@ -281,6 +298,7 @@ export async function reorderCategoryGroupings(
     FROM unnest(${ids}::uuid[], ${ord}::int[]) AS v(id, ord)
     WHERE g.id = v.id AND g.company_id = ${companyId}
   `);
+  audit({ action: "grouping.reorder", actorId: profile.id, companyId, meta: { groups: ids.length } });
 
   revalidatePath("/analytics");
   });
@@ -318,11 +336,11 @@ async function loadSalesRecordsByType(
         .from(categories)
         .where(eq(categories.company_id, companyId)),
     ]);
-    const byName = new Map(cats.map((c) => [c.name.toLowerCase(), c.id]));
+    const byName = indexCategoriesByName(cats);
     return hubRows
       .filter((r) => r.record_type === recordType)
       .map((r) => ({
-        category_id: byName.get(r.category_name.toLowerCase()) ?? "",
+        category_id: findByHubCategoryName(byName, r.category_name)?.id ?? "",
         record_year: r.record_year,
         record_month: r.record_month,
         amount_usd: r.amount_usd,

@@ -13,6 +13,18 @@ export const MONTHS = [
   { value: 12, label: "Dic", full: "Diciembre" },
 ] as const;
 
+/** Etiquetas cortas de los meses ("Ene"…"Dic"), en orden. Antes copiadas en cada gráfico. */
+export const MONTH_LABELS: readonly string[] = MONTHS.map((m) => m.label);
+
+// Años de arranque de los datos (AI-082). NO son intercambiables:
+// - HUB_FIRST_YEAR: primer año completo del zoho-hub. Es el inicio de los selectores de
+//   año y de los gráficos (2020 es parcial y distorsiona la comparación).
+// - HISTORY_FIRST_YEAR: primer año del histórico de clientes previo al hub (2015-2020).
+//   Solo lo usan las vistas que incorporan ese histórico (/clientes, ficha de cliente,
+//   KPI comerciales) y la validación de los filtros del hub.
+export const HUB_FIRST_YEAR = 2021;
+export const HISTORY_FIRST_YEAR = 2015;
+
 export const RECORD_TYPES = [
   { value: "SALES_ORDER" as const, label: "Órdenes de Venta", short: "OV" },
   { value: "INVOICE" as const, label: "Facturas", short: "FAC" },
@@ -41,6 +53,25 @@ export function formatUSD(value: number): string {
   }).format(value);
 }
 
+// Formateadores Intl reutilizados (crear un Intl.NumberFormat por llamada es caro).
+const USD_WHOLE = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+const USD_COMPACT_INTL = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  notation: "compact",
+  maximumFractionDigits: 1,
+});
+
+/** Dólares enteros: $1,235. Tooltips y tablas de las tarjetas premium. */
+export function formatUSDWhole(value: number): string {
+  return USD_WHOLE.format(value);
+}
+
+/** Notación compacta de Intl: $1.2K, $1.5M. Distinta de formatCompactUSD ($1.0K). */
+export function formatUSDCompactIntl(value: number): string {
+  return USD_COMPACT_INTL.format(value);
+}
+
 export function formatCompactUSD(value: number): string {
   if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
   if (value >= 1_000) return `$${(value / 1_000).toFixed(1)}K`;
@@ -55,7 +86,7 @@ export function formatPct(value: number, decimals = 1): string {
 export function getYearRange(): number[] {
   const currentYear = new Date().getFullYear();
   const years: number[] = [];
-  for (let y = currentYear; y >= 2021; y--) {
+  for (let y = currentYear; y >= HUB_FIRST_YEAR; y--) {
     years.push(y);
   }
   return years;

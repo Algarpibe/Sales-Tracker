@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { authClient } from "@/lib/auth/client";
 import { getMyProfile } from "@/actions/profile-actions";
+import { logError } from "@/lib/logger";
 import type { Profile, UserRole } from "@/types/database";
 
 type SessionUser = {
@@ -34,7 +35,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const userId = sessionUser?.id ?? null;
 
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [profileLoading, setProfileLoading] = useState(false);
+  // Usuario cuyo perfil ya terminó de cargarse: mientras no coincida con el de la
+  // sesión, se está cargando (derivado, sin setState síncrono en el efecto: FE-008).
+  const [loadedFor, setLoadedFor] = useState<string | null>(null);
 
   const loadProfile = useCallback(async () => {
     try {
@@ -68,7 +71,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       setProfile(mapped);
     } catch (err) {
-      console.error("Critical error in loadProfile:", err);
+      logError("loadProfile falló", err);
       setProfile(null);
     }
   }, []);
@@ -76,14 +79,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let mounted = true;
 
-    if (!userId) {
-      setProfile(null);
-      return;
-    }
+    // Sin sesión no se carga nada: el perfil expuesto se anula abajo (FE-008: sin
+    // setState síncrono dentro del efecto).
+    if (!userId) return;
 
-    setProfileLoading(true);
+    // loadProfile solo hace setState después de await getMyProfile() (asíncrono): la regla
+    // no lo distingue de un setState síncrono. Falso positivo.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- setState tras await, no síncrono
     loadProfile().finally(() => {
-      if (mounted) setProfileLoading(false);
+      if (mounted) setLoadedFor(userId);
     });
 
     return () => {
@@ -103,17 +107,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- recarga completa intencionada
       window.location.href = "/login";
     } catch (err) {
-      console.error("Error during sign out:", err);
+      logError("signOut falló", err);
     }
   };
 
-  const loading = isPending || (!!userId && profileLoading);
+  const loading = isPending || (!!userId && loadedFor !== userId);
 
   return (
     <AuthContext.Provider
       value={{
         user: sessionUser,
-        profile,
+        // Solo el perfil del usuario en sesión: tras cerrar sesión (o cambiar de
+        // usuario) nunca se expone el del anterior mientras llega el nuevo.
+        profile: profile && profile.id === userId ? profile : null,
         loading,
         signOut,
         refreshProfile: loadProfile,

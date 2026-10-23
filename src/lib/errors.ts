@@ -53,3 +53,18 @@ export async function runAction<T>(fn: () => Promise<T>): Promise<ActionResult<T
     return { ok: false, error: "Ocurrió un error interno. Inténtalo de nuevo.", code: "INTERNAL" };
   }
 }
+
+// --- Lado cliente (ARQ-077) ---
+// Una mutación con runAction no lanza: devuelve { ok: false }. Para useMutation (que
+// distingue éxito/error por si la promesa se rechaza) se convierte en un AppError con
+// el mensaje ya saneado por runAction.
+export function unwrapAction<T>(res: ActionResult<T>): T {
+  if (res.ok) return res.data;
+  throw new AppError(res.error, res.code);
+}
+
+// Mensaje seguro para un toast: el de un AppError (esperado y saneado) o el genérico.
+// Nunca el mensaje crudo de otro error (red, Next, Postgres...).
+export function userErrorMessage(e: unknown, fallback: string): string {
+  return e instanceof AppError ? e.message : fallback;
+}

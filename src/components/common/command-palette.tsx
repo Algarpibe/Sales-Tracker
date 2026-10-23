@@ -7,13 +7,14 @@ import { getCustomerSales } from "@/actions/customer-sales-actions";
 import { getItemSales } from "@/actions/item-sales-actions";
 import { dedupeCustomers, articleHref } from "@/lib/global-search";
 import { customerHref } from "@/lib/customer-detail";
+import { HUB_FIRST_YEAR } from "@/lib/constants";
 import { useAuth } from "@/components/providers/auth-provider";
 import {
   Command, CommandDialog, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem,
 } from "@/components/ui/command";
 import { Home, BarChart3, Package, Users, ClipboardList, ListTree, TrendingUp, FolderOpen, Settings } from "lucide-react";
 
-const FIRST_YEAR = 2021;
+const FIRST_YEAR = HUB_FIRST_YEAR;
 
 const PAGES = [
   { href: "/home", label: "Inicio", icon: Home },

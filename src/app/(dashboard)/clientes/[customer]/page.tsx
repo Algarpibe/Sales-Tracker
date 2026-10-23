@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { RecordTypeToggle } from "@/components/common/record-type-toggle";
 import { usePeriod } from "@/components/providers/period-provider";
+import { HUB_FIRST_YEAR } from "@/lib/constants";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CustomerKpiRow } from "@/components/customers/customer-kpi-row";
 import { CustomerEvolutionCard } from "@/components/customers/customer-evolution-card";
@@ -13,8 +14,9 @@ import { CustomerBucketMixCard } from "@/components/customers/customer-bucket-mi
 import { CustomerTopItemsCard } from "@/components/customers/customer-top-items-card";
 import { CustomerMarginCard } from "@/components/customers/customer-margin-card";
 import { CustomerSeasonCard } from "@/components/customers/customer-season-card";
+import { CardErrorBoundary } from "@/components/common/card-error-boundary";
 
-const FIRST_YEAR = 2021;
+const FIRST_YEAR = HUB_FIRST_YEAR;
 
 export default function ClienteDetallePage() {
   const params = useParams<{ customer: string }>();
@@ -51,15 +53,27 @@ export default function ClienteDetallePage() {
         </div>
       </div>
 
-      <CustomerKpiRow customer={customer} recordType={tipo} year={anio} />
-      <CustomerEvolutionCard customer={customer} recordType={tipo} year={anio} />
+      <CardErrorBoundary title="Indicadores del cliente" resetKeys={[customer, tipo, anio]}>
+        <CustomerKpiRow customer={customer} recordType={tipo} year={anio} />
+      </CardErrorBoundary>
+      <CardErrorBoundary title="Evolución del cliente" resetKeys={[customer, tipo, anio]}>
+        <CustomerEvolutionCard customer={customer} recordType={tipo} year={anio} />
+      </CardErrorBoundary>
       <div className="grid gap-6 lg:grid-cols-2">
-        <CustomerBucketMixCard customer={customer} recordType={tipo} year={anio} />
-        <CustomerTopItemsCard customer={customer} recordType={tipo} year={anio} />
+        <CardErrorBoundary title="Mix por macro-categoría" resetKeys={[customer, tipo, anio]}>
+          <CustomerBucketMixCard customer={customer} recordType={tipo} year={anio} />
+        </CardErrorBoundary>
+        <CardErrorBoundary title="Artículos más comprados" resetKeys={[customer, tipo, anio]}>
+          <CustomerTopItemsCard customer={customer} recordType={tipo} year={anio} />
+        </CardErrorBoundary>
       </div>
       <div className="grid gap-6 lg:grid-cols-2">
-        <CustomerMarginCard customer={customer} recordType={tipo} year={anio} />
-        <CustomerSeasonCard customer={customer} recordType={tipo} year={anio} />
+        <CardErrorBoundary title="Margen del cliente" resetKeys={[customer, tipo, anio]}>
+          <CustomerMarginCard customer={customer} recordType={tipo} year={anio} />
+        </CardErrorBoundary>
+        <CardErrorBoundary title="Estacionalidad del cliente" resetKeys={[customer, tipo, anio]}>
+          <CustomerSeasonCard customer={customer} recordType={tipo} year={anio} />
+        </CardErrorBoundary>
       </div>
     </div>
   );

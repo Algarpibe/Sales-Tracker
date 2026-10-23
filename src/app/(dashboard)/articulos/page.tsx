@@ -6,7 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getItemSales } from "@/actions/item-sales-actions";
 import type { ItemSalesRow } from "@/types/database";
 import { usePeriod } from "@/components/providers/period-provider";
-import { formatUSD } from "@/lib/constants";
+import { HUB_FIRST_YEAR, formatUSD } from "@/lib/constants";
 import {
   filterAndSortItems,
   computeItemTotals,
@@ -32,9 +32,14 @@ import { SearchInput } from "@/components/common/search-input";
 import { ExportMenu } from "@/components/common/export-menu";
 import { EmptyState } from "@/components/common/empty-state";
 import { downloadXlsx, copySheetToClipboard } from "@/lib/excel-client";
+import { downloadText } from "@/lib/download";
 import { runExport, XLSX_EXPORT_MESSAGES } from "@/lib/run-export";
 import { Switch } from "@/components/ui/switch";
 import { ItemCompareTable } from "@/components/articulos/item-compare-table";
+import { CardErrorBoundary } from "@/components/common/card-error-boundary";
+
+// Primer día con datos del hub: límite inferior de los selectores de fecha.
+const HUB_FIRST_DAY = `${HUB_FIRST_YEAR}-01-01`;
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 const yearStartISO = () => `${new Date().getFullYear()}-01-01`;
@@ -90,7 +95,7 @@ function ArticulosContent() {
   const [yearB, setYearB] = useState(year - 1);
   const allYears = useMemo(() => {
     const a: number[] = [];
-    for (let y = 2021; y <= new Date().getFullYear(); y++) a.push(y);
+    for (let y = HUB_FIRST_YEAR; y <= new Date().getFullYear(); y++) a.push(y);
     return a;
   }, []);
 
@@ -117,13 +122,7 @@ function ArticulosContent() {
   };
 
   const exportCsv = () => {
-    const blob = new Blob([itemsToCsv(view)], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `ventas_articulo_${tipo}_${desde}_${hasta}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadText(itemsToCsv(view), `ventas_articulo_${tipo}_${desde}_${hasta}.csv`);
     toast.success("CSV descargado");
   };
 
@@ -151,11 +150,11 @@ function ArticulosContent() {
           <>
             <div className="flex flex-col gap-1">
               <label className="text-xs text-muted-foreground">Desde</label>
-              <Input type="date" aria-label="Desde" value={desde} min="2021-01-01" max={hasta} onChange={(e) => setDesde(e.target.value)} className="w-[160px]" />
+              <Input type="date" aria-label="Desde" value={desde} min={HUB_FIRST_DAY} max={hasta} onChange={(e) => setDesde(e.target.value)} className="w-[160px]" />
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-xs text-muted-foreground">Hasta</label>
-              <Input type="date" aria-label="Hasta" value={hasta} min={desde < "2021-01-01" ? "2021-01-01" : desde} onChange={(e) => setHasta(e.target.value)} className="w-[160px]" />
+              <Input type="date" aria-label="Hasta" value={hasta} min={desde < HUB_FIRST_DAY ? HUB_FIRST_DAY : desde} onChange={(e) => setHasta(e.target.value)} className="w-[160px]" />
             </div>
           </>
         ) : (
@@ -183,7 +182,9 @@ function ArticulosContent() {
       </div>
 
       {compareMode ? (
-        <ItemCompareTable tipo={tipo as "SALES_ORDER" | "INVOICE"} yearA={yearA} yearB={yearB} />
+        <CardErrorBoundary title="Comparativa de artículos" resetKeys={[tipo, yearA, yearB]}>
+          <ItemCompareTable tipo={tipo as "SALES_ORDER" | "INVOICE"} yearA={yearA} yearB={yearB} />
+        </CardErrorBoundary>
       ) : (
         <>
           {/* Controles cliente: búsqueda + categoría + CSV */}
