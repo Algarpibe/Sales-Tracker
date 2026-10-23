@@ -39,9 +39,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { fetchCategories, fetchSalesData } from "@/lib/data-client";
-import { calculateSeasonalityFactors, getSeasonalForecast, calculateRunRate } from "@/lib/math-utils";
-import { historyYears } from "@/lib/forecast";
-import { MONTH_LABELS, formatUSDCompactIntl, formatUSDWhole } from "@/lib/constants";
+import { forecastBreakdown, forecastChartPoints, forecastClock, type ForecastChartPoint } from "@/lib/forecast-breakdown";
+import { formatUSDCompactIntl, formatUSDWhole } from "@/lib/constants";
 import { sumByCategoryYearMonth } from "@/lib/category-series";
 import type { ChartTooltipProps } from "@/lib/chart-types";
 import { InfoTooltip } from "@/components/common/info-tooltip";
@@ -49,8 +48,6 @@ import { ChartFigure } from "@/components/charts/chart-a11y";
 import { CHART_HELP } from "@/lib/chart-help";
 
 type RecordType = "SALES_ORDER" | "INVOICE";
-// Punto del gráfico: clave de eje (month) + claves dinámicas por categoría y forecast.
-type ForecastChartPoint = Record<string, string | number>;
 
 interface CategoryInfo {
   id: string;
@@ -62,6 +59,8 @@ const DEFAULT_COLOR = "#6366f1";
 
 interface ForecastSalesCategoryProps {
   baseYear?: number;
+  /** Reloj del forecast; si no llega (widget del dashboard) se fija al montar. */
+  now?: Date;
 }
 
 // Tooltip fuera del componente (FE-008). Recharts lo clona con active/payload/label y
@@ -140,7 +139,9 @@ function CategoryForecastTooltip({
   return null;
 }
 
-export function ForecastSalesCategory({ baseYear = new Date().getFullYear() }: ForecastSalesCategoryProps) {
+export function ForecastSalesCategory({ baseYear = new Date().getFullYear(), now: nowProp }: ForecastSalesCategoryProps) {
+  const [mountedAt] = useState(() => new Date());
+  const now = nowProp ?? mountedAt;
   const [recordType, setRecordType] = useState<RecordType>("SALES_ORDER");
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
   const [popoverOpen, setPopoverOpen] = useState(false);
@@ -174,71 +175,22 @@ export function ForecastSalesCategory({ baseYear = new Date().getFullYear() }: F
     return map;
   }, [allCategories]);
 
+  // Modelo único (ARQ-079): cada categoría con el modelo A y reconciliada para que todas
+  // juntas sumen la proyección de la empresa del mismo año y tipo de registro (el de esta
+  // tarjeta). Se calcula sobre TODAS las categorías con ventas, no solo las elegidas.
+  const breakdown = useMemo(
+    () => forecastBreakdown(categoryMonthSums, baseYear, forecastClock(now)),
+    [categoryMonthSums, baseYear, now]
+  );
+
   const chartData = useMemo(() => {
     if (Object.keys(categoryMonthSums).length === 0) return [];
-
-    const now = new Date();
-    const currentYear = baseYear;
-    const historicalYears = historyYears(currentYear);
-    const isCurrentActualYear = currentYear === now.getFullYear();
-    const currentMonthIdx = now.getMonth();
-    const lastElapsedMonth = isCurrentActualYear ? currentMonthIdx + 1 : 12;
-
-    const monthlyEntries = MONTH_LABELS.map((name, idx) => {
-      const entry: ForecastChartPoint = { month: name };
-      const monthNum = idx + 1;
-      let totalForecastVal = 0;
-
-      selectedCategoryIds.forEach(catId => {
-        const catMonths = categoryMonthSums[catId] || {};
-        const cat = catMap.get(catId);
-        if (!cat) return;
-
-        const historicalMatrix = historicalYears.map(y => {
-            return MONTH_LABELS.map((_, mIdx) => catMonths[y]?.[mIdx + 1] || 0);
-        });
-        const seasonalityFactors = calculateSeasonalityFactors(historicalMatrix, [3, 2, 1]);
-
-        const currentYearRawData = MONTH_LABELS.map((_, mIdx) => catMonths[currentYear]?.[mIdx + 1] || 0);
-        const currentYearElapsedData = currentYearRawData.slice(0, lastElapsedMonth);
-
-        if (isCurrentActualYear && currentYearElapsedData.length > currentMonthIdx) {
-          const currentMonthReal = currentYearElapsedData[currentMonthIdx] || 0;
-          const currentDay = now.getDate();
-          const totalDays = new Date(now.getFullYear(), currentMonthIdx + 1, 0).getDate();
-          currentYearElapsedData[currentMonthIdx] = calculateRunRate(currentMonthReal, currentDay, totalDays);
-        }
-
-        const projectedForecast = getSeasonalForecast(currentYearElapsedData, seasonalityFactors);
-        const val = Math.round(projectedForecast[idx] * 100) / 100 || 0;
-
-        // Total forecast line data
-        totalForecastVal += val;
-
-        // Bars data: Only real data for elapsed months
-        if (monthNum <= lastElapsedMonth) {
-          const realVal = catMonths[currentYear]?.[monthNum] || 0;
-          entry[catId] = realVal;
-        } else {
-          entry[catId] = 0;
-        }
-
-        entry[`${catId}_color`] = cat.color;
-        entry[`${catId}_forecast`] = val;
-      });
-
-      entry.total_forecast = totalForecastVal;
-
-      selectedCategoryIds.forEach(catId => {
-          const val = Number(entry[`${catId}_forecast`] || 0);
-          entry[`${catId}_percent`] = totalForecastVal > 0 ? (val / totalForecastVal) * 100 : 0;
-      });
-
-      return entry;
+    const items = selectedCategoryIds.flatMap((id) => {
+      const cat = catMap.get(id);
+      return cat ? [{ id, key: id, color: cat.color }] : [];
     });
-
-    return monthlyEntries;
-  }, [categoryMonthSums, selectedCategoryIds, baseYear, catMap]);
+    return forecastChartPoints(items, breakdown.forecast, breakdown.actual, breakdown.firstProjectedMonth);
+  }, [categoryMonthSums, selectedCategoryIds, catMap, breakdown]);
 
   const selectedCategories = useMemo(() => {
     return selectedCategoryIds.map(id => catMap.get(id)).filter(Boolean) as CategoryInfo[];

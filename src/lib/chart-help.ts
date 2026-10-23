@@ -43,7 +43,7 @@ export const CHART_HELP = {
   // --- Análisis: Forecast (integra el pie eliminado) ---
   forecastMes: "Proyección de cierre del mes en curso. Mezcla el run-rate diario con lo esperado según el año anterior y el ritmo del año: al principio del mes pesa lo esperado, al final lo real. El rango refleja la incertidumbre. El semáforo compara tu acumulado con el mismo punto del año pasado (En Trayectoria / En Riesgo).",
   forecastAnio: "Proyección de cierre del año. Combina la extrapolación estacional (peso de cada mes ponderado dando más importancia a los años recientes) con el ritmo interanual (YTD vs año anterior), evitando amplificar el error a principios de año. El rango refleja la dispersión de las formas históricas.",
-  forecastEstacional: "Datos reales del año más la proyección de los meses restantes, usando estacionalidad ponderada por recencia y el ritmo interanual del negocio.",
-  forecastCategoria: "Proyección de cierre por categoría, con la misma lógica de estacionalidad ponderada.",
-  grupoForecast: "Proyección de cierre por agrupación, con la misma lógica de estacionalidad ponderada.",
+  forecastEstacional: "Datos reales del año más la proyección de los meses restantes con el mismo modelo que las proyecciones de cierre: estacionalidad ponderada por recencia (años anteriores 3/2/1) y ritmo interanual frente al año anterior.",
+  forecastCategoria: "Proyección por categoría con el mismo modelo que la proyección de la empresa (estacionalidad ponderada por recencia y ritmo interanual), calculada para cada categoría y después ajustada en proporción para que, mes a mes, todas las categorías sumen la proyección total de la empresa del mismo año y tipo (Órdenes/Facturas). Los meses cerrados son ventas reales.",
+  grupoForecast: "Proyección por agrupación: suma de las proyecciones de sus categorías, que usan el mismo modelo que la empresa y están ajustadas para sumar su total. Las categorías sin agrupación no cuentan en ningún grupo, así que la suma de los grupos puede quedar por debajo del total de la empresa.",
 } as const;
