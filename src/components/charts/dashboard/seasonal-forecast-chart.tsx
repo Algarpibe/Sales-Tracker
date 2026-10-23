@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
@@ -11,8 +11,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ChartFigure } from "@/components/charts/chart-a11y";
 import { fetchSalesData } from "@/lib/data-client";
 import { MONTHS, formatUSD, formatCompactUSD } from "@/lib/constants";
-import { computeForecast, historyYears } from "@/lib/forecast";
-import { monthlyTotals, historicalMatrix } from "@/lib/forecast-widget-data";
+import { forecastClock, forecastRecords } from "@/lib/forecast-breakdown";
+import { monthlyTotals } from "@/lib/forecast-widget-data";
 import { InfoTooltip } from "@/components/common/info-tooltip";
 import { CHART_HELP } from "@/lib/chart-help";
 import type { SalesRecord } from "@/types/database";
@@ -21,34 +21,25 @@ import type { SalesRecord } from "@/types/database";
  * "Histórico con Proyección Estacional": barras con los importes reales del año
  * y línea con la proyección (estacionalidad ponderada por recencia + ritmo
  * interanual). Autónomo: carga el histórico completo de ventas por su cuenta.
+ * `now`: reloj del forecast; si no llega (widget del dashboard) se fija al montar.
  */
 export function SeasonalForecastChart({
-  recordType, year,
-}: { recordType: "SALES_ORDER" | "INVOICE"; year: number }) {
+  recordType, year, now: nowProp,
+}: { recordType: "SALES_ORDER" | "INVOICE"; year: number; now?: Date }) {
   const { data, isLoading } = useQuery({ queryKey: ["sales", {}], queryFn: () => fetchSalesData({}) });
+  const [mountedAt] = useState(() => new Date());
+  const now = nowProp ?? mountedAt;
 
   const forecastMonthlyData = useMemo(() => {
     const records = (data ?? []) as SalesRecord[];
     const real = monthlyTotals(records, year, recordType);
-    const now = new Date();
-    const forecast = computeForecast({
-      currentYearMonthly: real,
-      lastYearMonthly: monthlyTotals(records, year - 1, recordType),
-      historicalMatrix: historicalMatrix(records, historyYears(year), recordType),
-      weights: [3, 2, 1], // año-1 / año-2 / año-3
-      now: {
-        monthIdx: now.getMonth(),
-        day: now.getDate(),
-        daysInMonth: new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate(),
-      },
-      isCurrentActualYear: year === now.getFullYear(),
-    });
+    const forecast = forecastRecords(records, year, recordType, forecastClock(now));
     return MONTHS.map((m, i) => ({
       month: m.label,
       [`Año ${year}`]: real[i],
       tendencia: Math.round(forecast.monthlyForecast[i] * 100) / 100,
     }));
-  }, [data, year, recordType]);
+  }, [data, year, recordType, now]);
 
   return (
     <Card className="flex h-full flex-col shadow-2xl border-white/10 bg-white/5 backdrop-blur-xl overflow-hidden relative group">

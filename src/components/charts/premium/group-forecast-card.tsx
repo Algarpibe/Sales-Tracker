@@ -38,22 +38,28 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getGroupingAnalysisData } from "@/actions/grouping-actions";
-import { calculateSeasonalityFactors, getSeasonalForecast, calculateRunRate } from "@/lib/math-utils";
-import { historyYears } from "@/lib/forecast";
+import { fetchSalesData } from "@/lib/data-client";
+import { sumByCategoryYearMonth } from "@/lib/category-series";
+import {
+  forecastBreakdown,
+  forecastChartPoints,
+  forecastClock,
+  sumSeriesByGroup,
+  type ForecastChartPoint,
+} from "@/lib/forecast-breakdown";
 import type { RecordType } from "@/types/database";
 import type { ChartTooltipEntry, ChartTooltipProps } from "@/lib/chart-types";
 import { InfoTooltip } from "@/components/common/info-tooltip";
 import { ChartFigure } from "@/components/charts/chart-a11y";
 import { CHART_HELP } from "@/lib/chart-help";
-import { MONTH_LABELS, formatUSDCompactIntl, formatUSDWhole } from "@/lib/constants";
+import { formatUSDCompactIntl, formatUSDWhole } from "@/lib/constants";
 import { groupingAnalysisKey } from "@/lib/grouping-analysis";
-
-// Punto del gráfico: clave de eje (month) + claves dinámicas por grupo y forecast.
-type ForecastChartPoint = Record<string, string | number>;
 
 interface GroupForecastCardProps {
   recordType: RecordType;
   baseYear?: number;
+  /** Reloj del forecast; si no llega (widget del dashboard) se fija al montar. */
+  now?: Date;
 }
 
 // Tooltip fuera del componente (FE-008). Recharts lo clona con active/payload/label y
@@ -124,7 +130,13 @@ function GroupForecastTooltip({ active, payload, label, baseYear }: ChartTooltip
   return null;
 }
 
-export function GroupForecastCard({ recordType: initialRecordType, baseYear = new Date().getFullYear() }: GroupForecastCardProps) {
+export function GroupForecastCard({
+  recordType: initialRecordType,
+  baseYear = new Date().getFullYear(),
+  now: nowProp,
+}: GroupForecastCardProps) {
+  const [mountedAt] = useState(() => new Date());
+  const now = nowProp ?? mountedAt;
   const [recordType, setRecordType] = useState<RecordType>(initialRecordType);
   // El tipo de fuera manda cuando cambia; dentro, el conmutador de la tarjeta es libre.
   // Se ajusta durante el render (patrón de React) en vez de con un efecto (FE-008).
@@ -140,11 +152,14 @@ export function GroupForecastCard({ recordType: initialRecordType, baseYear = ne
   // FE-057: react-query con la misma clave que el análisis y la evolución por grupo
   // (comparten caché). Al cambiar de tipo se mantienen los datos previos mientras carga
   // y una respuesta antigua ya no puede pisar a la nueva.
-  const { data, isPending } = useQuery({
+  const { data, isPending: groupsPending } = useQuery({
     queryKey: groupingAnalysisKey(recordType),
     queryFn: () => getGroupingAnalysisData(recordType),
     placeholderData: keepPreviousData,
   });
+  // Ventas por categoría: misma caché que la página de Análisis y el forecast por categoría.
+  const salesQ = useQuery({ queryKey: ["sales", {}], queryFn: () => fetchSalesData({}) });
+  const isPending = groupsPending || salesQ.isPending;
 
   const selectedGroupIds = useMemo(
     () => userSelection ?? (data?.rows ?? []).slice(0, 3).map((r) => r.groupId),
@@ -153,73 +168,29 @@ export function GroupForecastCard({ recordType: initialRecordType, baseYear = ne
   const setSelectedGroupIds = (update: (prev: string[]) => string[]) =>
     setUserSelection(update(selectedGroupIds));
 
+  // Modelo único (ARQ-079): el forecast de cada grupo es la suma de sus categorías ya
+  // proyectadas con el modelo A y reconciliadas con el total de la empresa (mismo año y
+  // tipo de registro que esta tarjeta). Las categorías sin grupo no suman en ninguno.
+  const categoryMonthSums = useMemo(
+    () => sumByCategoryYearMonth((salesQ.data ?? []).filter((r) => r.record_type === recordType)),
+    [salesQ.data, recordType]
+  );
+  const breakdown = useMemo(
+    () => forecastBreakdown(categoryMonthSums, baseYear, forecastClock(now)),
+    [categoryMonthSums, baseYear, now]
+  );
+
   const chartData = useMemo(() => {
     if (!data) return [];
-    
-    const now = new Date();
-    const currentYear = baseYear; 
-    const historicalYears = historyYears(currentYear);
-    const isCurrentActualYear = currentYear === now.getFullYear();
-    const currentMonthIdx = now.getMonth();
-    const lastElapsedMonth = isCurrentActualYear ? currentMonthIdx + 1 : 12;
-
-    const monthlyEntries = MONTH_LABELS.map((name, idx) => {
-      const entry: ForecastChartPoint = { month: name };
-      const monthNum = idx + 1;
-      let totalForecastVal = 0;
-
-      data.rows.forEach(row => {
-        if (selectedGroupIds.includes(row.groupId)) {
-          const historicalMatrix = historicalYears.map(y => {
-              return MONTH_LABELS.map((_, mIdx) => row.months?.[y]?.[mIdx + 1] || 0);
-          });
-          const seasonalityFactors = calculateSeasonalityFactors(historicalMatrix, [3, 2, 1]);
-
-          const currentYearRawData = MONTH_LABELS.map((_, mIdx) => row.months?.[currentYear]?.[mIdx + 1] || 0);
-          const currentYearElapsedData = currentYearRawData.slice(0, lastElapsedMonth);
-
-          if (isCurrentActualYear && currentYearElapsedData.length > currentMonthIdx) {
-            const currentMonthReal = currentYearElapsedData[currentMonthIdx] || 0;
-            const currentDay = now.getDate();
-            const totalDays = new Date(now.getFullYear(), currentMonthIdx + 1, 0).getDate();
-            currentYearElapsedData[currentMonthIdx] = calculateRunRate(currentMonthReal, currentDay, totalDays);
-          }
-
-          const projectedForecast = getSeasonalForecast(currentYearElapsedData, seasonalityFactors);
-          const val = Math.round(projectedForecast[idx] * 100) / 100 || 0;
-          
-          // Total forecast line data
-          totalForecastVal += val;
-
-          // Bars data: Only real data for elapsed months
-          if (monthNum <= lastElapsedMonth) {
-            const realVal = row.months?.[currentYear]?.[monthNum] || 0;
-            entry[row.groupName] = realVal;
-          } else {
-            entry[row.groupName] = 0;
-          }
-          
-          entry[`${row.groupName}_color`] = row.color;
-          // Percentage of the forecast for the tooltip
-          entry[`${row.groupName}_forecast`] = val;
-        }
-      });
-
-      entry.total_forecast = totalForecastVal;
-      
-      // Calculate percentages based on the forecast for tooltip comparison
-      data.rows.forEach(row => {
-          if (selectedGroupIds.includes(row.groupId)) {
-              const val = Number(entry[`${row.groupName}_forecast`] || 0);
-              entry[`${row.groupName}_percent`] = totalForecastVal > 0 ? (val / totalForecastVal) * 100 : 0;
-          }
-      });
-      
-      return entry;
-    });
-
-    return monthlyEntries;
-  }, [data, selectedGroupIds, baseYear]);
+    const rows = data.rows.filter((r) => selectedGroupIds.includes(r.groupId));
+    const members = Object.fromEntries(rows.map((r) => [r.groupId, r.categoryIds ?? []]));
+    return forecastChartPoints(
+      rows.map((r) => ({ id: r.groupId, key: r.groupName, color: r.color })),
+      sumSeriesByGroup(breakdown.forecast, members),
+      sumSeriesByGroup(breakdown.actual, members),
+      breakdown.firstProjectedMonth
+    );
+  }, [data, selectedGroupIds, breakdown]);
 
   const selectedGroupDetails = useMemo(() => {
     return data?.rows.filter(r => selectedGroupIds.includes(r.groupId)) || [];
@@ -254,6 +225,9 @@ export function GroupForecastCard({ recordType: initialRecordType, baseYear = ne
           <CardDescription className="text-base text-muted-foreground">
             Proyección mensual de las agrupaciones estratégicas (Año {baseYear}).
           </CardDescription>
+          <p className="text-xs text-muted-foreground">
+            Cada grupo suma sus categorías. Las categorías sin agrupación no cuentan en ningún grupo.
+          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">

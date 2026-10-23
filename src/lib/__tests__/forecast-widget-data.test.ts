@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { monthlyTotals, historicalMatrix } from "@/lib/forecast-widget-data";
+import { monthlyTotals } from "@/lib/forecast-widget-data";
 
 const rec = (record_year: number, record_month: number, amount_usd: number, record_type = "INVOICE") =>
   ({ record_year, record_month, amount_usd, record_type, category_id: "c1" }) as never;
@@ -13,11 +13,3 @@ describe("monthlyTotals", () => {
   });
 });
 
-describe("historicalMatrix", () => {
-  it("una fila por año, en el orden pedido", () => {
-    const m = historicalMatrix([rec(2025, 1, 10), rec(2024, 2, 20)], [2025, 2024], "INVOICE");
-    expect(m).toHaveLength(2);
-    expect(m[0][0]).toBe(10);
-    expect(m[1][1]).toBe(20);
-  });
-});

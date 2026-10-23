@@ -36,31 +36,3 @@ export function calculateSeasonalityFactors(historicalData: number[][], weights?
   const factorsSum = factors.reduce((a, b) => a + b, 0);
   return factors.map((f) => f / (factorsSum || 1));
 }
-
-/**
- * Projects the rest of the year using seasonal factors.
- * @param currentYearData Data points available for the current year (only elapsed months).
- * @param seasonalityFactors 12 factors summing to 1.
- * @returns Array of 12 numbers representing the forecast for the whole year.
- */
-export function getSeasonalForecast(currentYearData: number[], seasonalityFactors: number[]): number[] {
-  const elapsedMonths = currentYearData.length;
-  if (elapsedMonths === 0) return Array(12).fill(0);
-
-  const cumulativeSales = currentYearData.reduce((a, b) => a + b, 0);
-  const cumulativeSeasonality = seasonalityFactors.slice(0, elapsedMonths).reduce((a, b) => a + b, 0);
-
-  // If we have no sales yet or no seasonality data for elapsed period, return current data or 0
-  if (cumulativeSeasonality === 0 || cumulativeSales === 0) {
-    const result = new Array(12).fill(0);
-    currentYearData.forEach((v, i) => result[i] = v);
-    return result;
-  }
-
-  const estimatedYearTotal = cumulativeSales / cumulativeSeasonality;
-
-  return seasonalityFactors.map((factor, i) => {
-    if (i < elapsedMonths) return currentYearData[i];
-    return estimatedYearTotal * factor;
-  });
-}

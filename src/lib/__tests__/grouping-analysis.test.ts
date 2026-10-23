@@ -4,6 +4,7 @@ import {
   groupingAnalysisKey,
   keepYearsFrom,
   trimGroupingFromYear,
+  aggregateGroupingAnalysis,
 } from "@/lib/grouping-analysis";
 import type { GroupingAnalysisResult } from "@/types/database";
 
@@ -53,5 +54,35 @@ describe("trimGroupingFromYear", () => {
     const out = trimGroupingFromYear(raw, 2030);
     expect(out.years).toEqual([]);
     expect(out.rows[0].average).toEqual({ amount: 0, percentage: 0 });
+  });
+});
+
+describe("aggregateGroupingAnalysis (ARQ-079: lógica pura sacada de la acción)", () => {
+  const groups = [
+    { id: "g1", name: "Grupo 1", color: "#111111" },
+    { id: "g2", name: "Grupo 2", color: null },
+  ];
+  const mappings = [
+    { group_id: "g1", category_id: "a" },
+    { group_id: "g1", category_id: "b" },
+  ];
+  const records = [
+    { category_id: "a", record_year: 2025, record_month: 1, amount_usd: 30 },
+    { category_id: "libre", record_year: 2025, record_month: 1, amount_usd: 70 },
+  ];
+
+  it("expone las categorías de cada grupo (para derivar el forecast por grupo)", () => {
+    const r = aggregateGroupingAnalysis(groups, mappings, records);
+    expect(r.rows.map((row) => row.categoryIds)).toEqual([["a", "b"], []]);
+  });
+
+  it("% sobre el total del año, que incluye las categorías sin grupo", () => {
+    const r = aggregateGroupingAnalysis(groups, mappings, records);
+    expect(r.rows[0].years[2025]).toEqual({ amount: 30, percentage: 30 });
+    expect(r.rows[1].color).toBe("#6366f1");
+  });
+
+  it("sin grupos → vacío", () => {
+    expect(aggregateGroupingAnalysis([], mappings, records)).toEqual({ rows: [], years: [], yearTotals: {} });
   });
 });

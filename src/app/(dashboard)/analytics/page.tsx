@@ -11,8 +11,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import dynamic from "next/dynamic";
 import { MeshBackground } from "@/components/ui/mesh-background";
-import { computeForecast, historyYears } from "@/lib/forecast";
-import { monthlyTotals, historicalMatrix } from "@/lib/forecast-widget-data";
+import { forecastClock, forecastRecords } from "@/lib/forecast-breakdown";
 import { buildTechServiceData, gruposServicioTecnico, TECH_SERVICE_CATEGORIES_KEY } from "@/lib/tech-service";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { RecordTypeToggle } from "@/components/common/record-type-toggle";
@@ -174,23 +173,17 @@ function AnalyticsContent() {
   const allRecords: SalesRecord[] = useMemo(() => recordsData ?? [], [recordsData]);
   const categories = useMemo<Category[]>(() => (catsData as Category[]) ?? [], [catsData]);
 
-  // 1. Forecast del año A: alimenta las dos tarjetas de proyección de cierre.
-  // Las series salen de los helpers compartidos con los widgets del dashboard.
-  const forecast = useMemo(() => {
-    const now = new Date();
-    return computeForecast({
-      currentYearMonthly: monthlyTotals(allRecords, yearA, recordType),
-      lastYearMonthly: monthlyTotals(allRecords, yearB, recordType),
-      historicalMatrix: historicalMatrix(allRecords, historyYears(yearA), recordType),
-      weights: [3, 2, 1], // A-1 / A-2 / A-3
-      now: {
-        monthIdx: now.getMonth(),
-        day: now.getDate(),
-        daysInMonth: new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate(),
-      },
-      isCurrentActualYear: yearA === now.getFullYear(),
-    });
-  }, [allRecords, yearA, yearB, recordType]);
+  // Reloj del forecast: se fija una vez al montar y se pasa a todas las tarjetas de la
+  // pestaña, para que proyecciones, gráfico y desgloses usen el mismo "hoy" (ARQ-079).
+  // La pestaña solo pinta el forecast en cliente (esqueleto hasta que llegan las ventas).
+  const [now] = useState(() => new Date());
+
+  // 1. Forecast del año A: alimenta las dos tarjetas de proyección de cierre. El año de
+  // referencia es SIEMPRE A-1 (como el gráfico estacional), no el año B del comparador.
+  const forecast = useMemo(
+    () => forecastRecords(allRecords, yearA, recordType, forecastClock(now)),
+    [allRecords, yearA, recordType, now]
+  );
 
   // 2. Análisis de Servicio Técnico ST vs C&R: mismo lib puro y misma clasificación
   // guardada que el widget del dashboard y el KPI de la tabla comercial.
@@ -364,7 +357,7 @@ function AnalyticsContent() {
                   <PredictiveRunRateCard
                     title={`Proyección de Cierre Año ${yearA}`}
                     currentLabel="Ventas Acum. (YTD)"
-                    targetLabel={`Total Año ${yearB}`}
+                    targetLabel={`Total Año ${yearA - 1}`}
                     currentTotal={forecast.year.actual}
                     lastYearMonthTotal={forecast.year.reference}
                     projectedTotal={forecast.year.value}
@@ -379,17 +372,17 @@ function AnalyticsContent() {
                 {/* Task 2: Trend Chart in its own row */}
                 <div className="h-[560px]">
                   <CardErrorBoundary title="Histórico con proyección estacional" resetKeys={[recordType, yearA]}>
-                    <SeasonalForecastChart recordType={recordType} year={yearA} />
+                    <SeasonalForecastChart recordType={recordType} year={yearA} now={now} />
                   </CardErrorBoundary>
                 </div>
               </div>
 
               {/* Task 3: Group Forecast Card */}
               <CardErrorBoundary title="Forecast por grupo" resetKeys={[recordType, yearA]}>
-                <GroupForecastCard recordType={recordType} baseYear={yearA} />
+                <GroupForecastCard recordType={recordType} baseYear={yearA} now={now} />
               </CardErrorBoundary>
               <CardErrorBoundary title="Forecast por categoría" resetKeys={[yearA]}>
-                <ForecastSalesCategory baseYear={yearA} />
+                <ForecastSalesCategory baseYear={yearA} now={now} />
               </CardErrorBoundary>
             </motion.div>
             )}

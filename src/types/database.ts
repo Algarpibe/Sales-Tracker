@@ -168,6 +168,8 @@ export interface GroupingAnalysisRow {
   years: Record<number, GroupYearData>; // year → {amount, percentage}
   months?: Record<number, Record<number, number>>; // year → month → amount
   average: GroupYearData;               // Promedio
+  /** Categorías asignadas al grupo (solo agrupaciones): el forecast por grupo las suma. */
+  categoryIds?: string[];
 }
 
 export interface GroupingAnalysisResult {

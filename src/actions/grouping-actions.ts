@@ -16,12 +16,12 @@ import { runAction, AppError, type ActionResult } from "@/lib/errors";
 import { audit } from "@/lib/audit";
 import { bucketsPorCategoriaId, buildMacroEvolution } from "@/lib/macro-evolution";
 import { findByHubCategoryName, indexCategoriesByName } from "@/lib/hub-category";
+import { aggregateGroupingAnalysis } from "@/lib/grouping-analysis";
 import { z } from "zod";
 import type {
   CategoryGroup,
   RecordType,
   GroupingAnalysisResult,
-  GroupingAnalysisRow,
 } from "@/types/database";
 
 // ─── Validación de entrada (F2-03) ───
@@ -405,87 +405,8 @@ export async function getGroupingAnalysisData(
     loadSalesRecordsByType(companyId, recordType),
   ]);
 
-  // Build mapping: categoryId → groupId
-  const catToGroup = new Map<string, string>();
-  for (const m of mappings) {
-    catToGroup.set(String(m.category_id), m.group_id);
-  }
-
-  // Assign the saved color to each group
-  const groupColors = new Map<string, string>();
-  for (const g of groups) {
-    groupColors.set(g.id, g.color || "#6366f1");
-  }
-
-  // 4. Aggregate: group → year → sum
-  const yearsSet = new Set<number>();
-  const groupYearSums: Record<string, Record<number, number>> = {};
-  const groupMonthSums: Record<string, Record<number, Record<number, number>>> = {}; // group -> year -> month -> amount
-  const yearTotals: Record<number, number> = {};
-
-  // Initialize group accumulators
-  for (const g of groups) {
-    groupYearSums[g.id] = {};
-    groupMonthSums[g.id] = {};
-  }
-
-  for (const r of records) {
-    const catId = String(r.category_id);
-    const year = Number(r.record_year);
-    const month = Number(r.record_month);
-    const amount = Number(r.amount_usd) || 0; // NUMERIC → Number
-    const groupId = catToGroup.get(catId);
-
-    yearsSet.add(year);
-    yearTotals[year] = (yearTotals[year] || 0) + amount;
-
-    if (groupId && groupYearSums[groupId]) {
-      groupYearSums[groupId][year] = (groupYearSums[groupId][year] || 0) + amount;
-
-      // Monthly aggregation
-      if (!groupMonthSums[groupId][year]) groupMonthSums[groupId][year] = {};
-      groupMonthSums[groupId][year][month] =
-        (groupMonthSums[groupId][year][month] || 0) + amount;
-    }
-  }
-
-  const years = Array.from(yearsSet).sort((a, b) => a - b);
-
-  // 5. Build result rows with percentages and averages
-  const rows: GroupingAnalysisRow[] = groups.map((g) => {
-    const sums = groupYearSums[g.id] || {};
-    const yearData: Record<number, { amount: number; percentage: number }> = {};
-    let totalAmount = 0;
-    let yearCount = 0;
-
-    years.forEach((y) => {
-      const amount = sums[y] || 0;
-      const grandTotal = yearTotals[y] || 1;
-      const percentage = grandTotal > 0 ? (amount / grandTotal) * 100 : 0;
-      yearData[y] = { amount, percentage };
-      totalAmount += amount;
-      yearCount++;
-    });
-
-    const totalOfAllYearTotals = years.reduce(
-      (acc, y) => acc + (yearTotals[y] || 0),
-      0
-    );
-    const avgAmount = yearCount > 0 ? totalAmount / yearCount : 0;
-    const avgPercentage =
-      totalOfAllYearTotals > 0 ? (totalAmount / totalOfAllYearTotals) * 100 : 0;
-
-    return {
-      groupId: g.id,
-      groupName: g.name,
-      color: groupColors.get(g.id) || "#6366f1",
-      years: yearData,
-      months: groupMonthSums[g.id] || {},
-      average: { amount: avgAmount, percentage: avgPercentage },
-    };
-  });
-
-  return { rows, years, yearTotals };
+  // Agregado puro (categoría → grupo, sumas, % y promedios) en @/lib/grouping-analysis.
+  return aggregateGroupingAnalysis(groups, mappings, records);
 }
 
 /**

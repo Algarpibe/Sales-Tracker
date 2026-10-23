@@ -1,10 +1,9 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchSalesData } from "@/lib/data-client";
-import { computeForecast, historyYears } from "@/lib/forecast";
-import { monthlyTotals, historicalMatrix } from "@/lib/forecast-widget-data";
+import { forecastClock, forecastRecords } from "@/lib/forecast-breakdown";
 import { PredictiveRunRateCard } from "@/components/charts/premium/predictive-run-rate";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CHART_HELP } from "@/lib/chart-help";
@@ -22,23 +21,13 @@ export function ForecastSummaryWidget({
   scope: "month" | "year";
 }) {
   const { data, isLoading } = useQuery({ queryKey: ["sales", {}], queryFn: () => fetchSalesData({}) });
+  // Reloj del forecast, fijado al montar (el dashboard solo pinta widgets en cliente).
+  const [now] = useState(() => new Date());
 
   const forecast = useMemo(() => {
     const records = (data ?? []) as SalesRecord[];
-    const now = new Date();
-    return computeForecast({
-      currentYearMonthly: monthlyTotals(records, year, recordType),
-      lastYearMonthly: monthlyTotals(records, year - 1, recordType),
-      historicalMatrix: historicalMatrix(records, historyYears(year), recordType),
-      weights: [3, 2, 1],
-      now: {
-        monthIdx: now.getMonth(),
-        day: now.getDate(),
-        daysInMonth: new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate(),
-      },
-      isCurrentActualYear: year === now.getFullYear(),
-    });
-  }, [data, year, recordType]);
+    return forecastRecords(records, year, recordType, forecastClock(now));
+  }, [data, year, recordType, now]);
 
   if (isLoading) return <Skeleton className="h-full min-h-[200px] w-full" />;
 

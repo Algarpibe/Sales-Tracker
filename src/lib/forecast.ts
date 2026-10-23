@@ -8,7 +8,7 @@ export interface ForecastNow {
 
 export interface ForecastInput {
   currentYearMonthly: number[]; // 12, actuals del año A
-  lastYearMonthly: number[];    // 12, actuals del año B (anterior)
+  lastYearMonthly: number[];    // 12, actuals del año A-1 (nunca el año B del comparador)
   historicalMatrix: number[][]; // años recientes primero
   weights: number[];            // alineado a historicalMatrix (p.ej. [3,2,1])
   now: ForecastNow;
