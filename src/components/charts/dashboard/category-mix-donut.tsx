@@ -6,6 +6,7 @@ import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from "recha
 import { fetchMacroCategorias } from "@/lib/data-client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ChartFigure } from "@/components/charts/chart-a11y";
 import { bucketMix, nombresPorId, type InsightRecord } from "@/lib/dashboard-insights";
 import { BUCKET_COLORS, MACRO_CATEGORIAS_KEY, mapaMacroCategorias } from "@/lib/customer-item";
 import { formatUSD } from "@/lib/constants";
@@ -72,15 +73,28 @@ export function CategoryMixDonut({
         ) : mix.length === 0 ? (
           <p className="text-sm text-muted-foreground py-10 text-center">Sin datos en el año.</p>
         ) : (
-          <ResponsiveContainer width="100%" height="100%" minHeight={340}>
-            <PieChart>
-              <Pie data={mix} dataKey="amount" nameKey="label" cx="50%" cy="50%" innerRadius={70} outerRadius={110} paddingAngle={2}>
-                {mix.map((m) => <Cell key={m.bucket} fill={COLORS[m.bucket]} />)}
-              </Pie>
-              <Tooltip content={<MixTooltip />} />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
+          <ChartFigure
+            label="Mix por macro-categoría"
+            summary={{
+              data: mix,
+              categoryLabel: "Macro-categoría",
+              category: (m) => m.label,
+              series: [
+                { label: "Importe", value: (m) => m.amount, format: formatUSD },
+                { label: "% del total", value: (m) => m.pct, format: (v) => `${Math.round(v)}%` },
+              ],
+            }}
+          >
+            <ResponsiveContainer width="100%" height="100%" minHeight={340}>
+              <PieChart accessibilityLayer>
+                <Pie data={mix} dataKey="amount" nameKey="label" cx="50%" cy="50%" innerRadius={70} outerRadius={110} paddingAngle={2}>
+                  {mix.map((m) => <Cell key={m.bucket} fill={COLORS[m.bucket]} />)}
+                </Pie>
+                <Tooltip content={<MixTooltip />} />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </ChartFigure>
         )}
       </CardContent>
     </Card>

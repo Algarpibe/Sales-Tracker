@@ -43,6 +43,7 @@ import { historyYears } from "@/lib/forecast";
 import type { RecordType } from "@/types/database";
 import type { ChartTooltipEntry, ChartTooltipProps } from "@/lib/chart-types";
 import { InfoTooltip } from "@/components/common/info-tooltip";
+import { ChartFigure } from "@/components/charts/chart-a11y";
 import { CHART_HELP } from "@/lib/chart-help";
 import { MONTH_LABELS, formatUSDCompactIntl, formatUSDWhole } from "@/lib/constants";
 import { groupingAnalysisKey } from "@/lib/grouping-analysis";
@@ -340,70 +341,88 @@ export function GroupForecastCard({ recordType: initialRecordType, baseYear = ne
                 </p>
               </div>
             ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                  <defs>
-                    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-                      <feGaussianBlur stdDeviation="4" result="blur" />
-                      <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                    </filter>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                  <XAxis 
-                    dataKey="month" 
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: "var(--muted-foreground)", fontSize: 12, fontWeight: 700 }}
-                    dy={10}
-                  />
-                  <YAxis 
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: "var(--muted-foreground)", fontSize: 11, fontWeight: 500 }}
-                    tickFormatter={formatUSDCompactIntl}
-                  />
-                  <RechartsTooltip content={<GroupForecastTooltip baseYear={baseYear} />} cursor={{ fill: "rgba(147, 197, 253, 0.15)" }} />
-                  <Legend 
-                    verticalAlign="top" 
-                    align="right" 
-                    iconType="circle"
-                    wrapperStyle={{ fontSize: 12, paddingBottom: 30, fontWeight: 600, textTransform: 'uppercase' }}
-                  />
-                  <Line 
-                    name="Forecast Total"
-                    type="monotone" 
-                    dataKey="total_forecast" 
-                    stroke="#22d3ee" 
-                    strokeWidth={3}
-                    strokeDasharray="8 5"
-                    dot={false}
-                    activeDot={{ r: 6, fill: "#22d3ee", strokeWidth: 0 }}
-                    filter="url(#glow)"
-                    animationDuration={2000}
-                  />
-                  {selectedGroupDetails.map((group, idx) => (
-                    <Bar 
-                      key={group.groupId}
-                      dataKey={group.groupName}
-                      stackId="a"
-                      fill={group.color || "#8884d8"}
-                      radius={idx === selectedGroupDetails.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
-                      maxBarSize={60}
-                      animationDuration={1500}
-                    >
-                      {idx === selectedGroupDetails.length - 1 && (
-                        <LabelList 
-                          dataKey={(entry) => selectedGroupDetails.reduce((sum, g) => sum + (entry[g.groupName] || 0), 0)}
-                          position="top" 
-                          offset={10}
-                          formatter={formatUSDCompactIntl}
-                          style={{ fill: "var(--muted-foreground)", fontSize: 10, fontWeight: 600 }}
-                        />
-                      )}
-                    </Bar>
-                  ))}
-                </ComposedChart>
-              </ResponsiveContainer>
+              <ChartFigure
+                label="Forecast Estacional por Grupo"
+                summary={{
+                  data: chartData,
+                  categoryLabel: "Mes",
+                  category: (p) => `${p.month} ${baseYear}`,
+                  // La línea de forecast total y una barra (ventas reales) por grupo elegido.
+                  series: [
+                    { label: "Forecast Total", value: (p) => Number(p.total_forecast ?? 0), format: formatUSDWhole },
+                    ...selectedGroupDetails.map((g) => ({
+                      label: g.groupName,
+                      value: (p: ForecastChartPoint) => Number(p[g.groupName] ?? 0),
+                      format: formatUSDWhole,
+                    })),
+                  ],
+                }}
+              >
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart accessibilityLayer data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                    <defs>
+                      <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                        <feGaussianBlur stdDeviation="4" result="blur" />
+                        <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                      </filter>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                    <XAxis 
+                      dataKey="month" 
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fill: "var(--muted-foreground)", fontSize: 12, fontWeight: 700 }}
+                      dy={10}
+                    />
+                    <YAxis 
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fill: "var(--muted-foreground)", fontSize: 11, fontWeight: 500 }}
+                      tickFormatter={formatUSDCompactIntl}
+                    />
+                    <RechartsTooltip content={<GroupForecastTooltip baseYear={baseYear} />} cursor={{ fill: "rgba(147, 197, 253, 0.15)" }} />
+                    <Legend 
+                      verticalAlign="top" 
+                      align="right" 
+                      iconType="circle"
+                      wrapperStyle={{ fontSize: 12, paddingBottom: 30, fontWeight: 600, textTransform: 'uppercase' }}
+                    />
+                    <Line 
+                      name="Forecast Total"
+                      type="monotone" 
+                      dataKey="total_forecast" 
+                      stroke="#22d3ee" 
+                      strokeWidth={3}
+                      strokeDasharray="8 5"
+                      dot={false}
+                      activeDot={{ r: 6, fill: "#22d3ee", strokeWidth: 0 }}
+                      filter="url(#glow)"
+                      animationDuration={2000}
+                    />
+                    {selectedGroupDetails.map((group, idx) => (
+                      <Bar 
+                        key={group.groupId}
+                        dataKey={group.groupName}
+                        stackId="a"
+                        fill={group.color || "#8884d8"}
+                        radius={idx === selectedGroupDetails.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
+                        maxBarSize={60}
+                        animationDuration={1500}
+                      >
+                        {idx === selectedGroupDetails.length - 1 && (
+                          <LabelList 
+                            dataKey={(entry) => selectedGroupDetails.reduce((sum, g) => sum + (entry[g.groupName] || 0), 0)}
+                            position="top" 
+                            offset={10}
+                            formatter={formatUSDCompactIntl}
+                            style={{ fill: "var(--muted-foreground)", fontSize: 10, fontWeight: 600 }}
+                          />
+                        )}
+                      </Bar>
+                    ))}
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </ChartFigure>
             )}
           </div>
         </div>

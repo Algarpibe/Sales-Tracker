@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchMarginByYear } from "@/lib/data-client";
-import { buildMarginByYear } from "@/lib/analytics-margin";
+import { buildMarginByYear, marginSummarySeries } from "@/lib/analytics-margin";
+import { ChartFigure } from "@/components/charts/chart-a11y";
 import { formatUSD, formatCompactUSD } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -68,22 +69,27 @@ export function MarginKpiCard({ recordType }: { recordType: "SALES_ORDER" | "INV
               <Tile label="Margen %" value={`${totals.margenPct.toFixed(1)}%`} />
             </div>
             <div className="min-h-0 flex-1">
-              <ResponsiveContainer width="100%" height="100%" minHeight={240}>
-                <BarChart data={series} margin={{ top: 10, right: 10, left: 10, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-white/5" vertical={false} />
-                  <XAxis dataKey="year" className="text-xs fill-muted-foreground" tickLine={false} />
-                  <YAxis
-                    domain={mode === "pct" ? [0, 100] : ["auto", "auto"]}
-                    ticks={mode === "pct" ? [0, 25, 50, 75, 100] : undefined}
-                    className="text-xs fill-muted-foreground"
-                    tickFormatter={mode === "pct" ? (v) => `${Math.round(v)}%` : formatCompactUSD}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <Tooltip content={<PctTooltip />} cursor={{ fill: "rgba(16,185,129,0.08)" }} />
-                  <Bar dataKey={mode === "pct" ? "margenPct" : "margen"} name={mode === "pct" ? "Margen %" : "Margen"} fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={64} />
-                </BarChart>
-              </ResponsiveContainer>
+              <ChartFigure
+                label="Margen bruto estimado (solo bienes)"
+                summary={{ data: series, categoryLabel: "Año", category: (p) => String(p.year), series: marginSummarySeries() }}
+              >
+                <ResponsiveContainer width="100%" height="100%" minHeight={240}>
+                  <BarChart accessibilityLayer data={series} margin={{ top: 10, right: 10, left: 10, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-white/5" vertical={false} />
+                    <XAxis dataKey="year" className="text-xs fill-muted-foreground" tickLine={false} />
+                    <YAxis
+                      domain={mode === "pct" ? [0, 100] : ["auto", "auto"]}
+                      ticks={mode === "pct" ? [0, 25, 50, 75, 100] : undefined}
+                      className="text-xs fill-muted-foreground"
+                      tickFormatter={mode === "pct" ? (v) => `${Math.round(v)}%` : formatCompactUSD}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <Tooltip content={<PctTooltip />} cursor={{ fill: "rgba(16,185,129,0.08)" }} />
+                    <Bar dataKey={mode === "pct" ? "margenPct" : "margen"} name={mode === "pct" ? "Margen %" : "Margen"} fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={64} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </ChartFigure>
             </div>
           </div>
         )}

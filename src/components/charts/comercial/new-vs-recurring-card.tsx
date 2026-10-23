@@ -8,6 +8,8 @@ import type { NewVsRecurringRow } from "@/lib/analytics-comercial";
 import { HUB_FIRST_YEAR, formatUSD, formatCompactUSD } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ChartFigure } from "@/components/charts/chart-a11y";
+import { formatCount } from "@/lib/chart-summary";
 import { InfoTooltip } from "@/components/common/info-tooltip";
 import { CHART_HELP } from "@/lib/chart-help";
 import {
@@ -53,19 +55,33 @@ export function NewVsRecurringCard({ recordType }: { recordType: "SALES_ORDER" |
         ) : chart.length === 0 ? (
           <p className="text-sm text-muted-foreground py-10 text-center">Sin datos.</p>
         ) : (
-          <ResponsiveContainer width="100%" height="100%" minHeight={380}>
-            <ComposedChart data={chart} margin={{ top: 10, right: 10, left: 10, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-white/5" vertical={false} />
-              <XAxis dataKey="year" className="text-xs fill-muted-foreground" tickLine={false} />
-              <YAxis yAxisId="left" className="text-xs fill-muted-foreground" tickFormatter={formatCompactUSD} tickLine={false} axisLine={false} />
-              <YAxis yAxisId="right" orientation="right" allowDecimals={false} className="text-xs fill-muted-foreground" tickLine={false} axisLine={false} />
-              <Tooltip content={<NvrTooltip />} />
-              <Legend />
-              <Bar yAxisId="left" dataKey="nuevos" name="Nuevos" stackId="1" fill="#10b981" />
-              <Bar yAxisId="left" dataKey="recurrentes" name="Recurrentes" stackId="1" fill="#6366f1" />
-              <Line yAxisId="right" type="monotone" dataKey="countNuevos" name="Altas nuevas" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} />
-            </ComposedChart>
-          </ResponsiveContainer>
+          <ChartFigure
+            label="Nuevos vs recurrentes"
+            summary={{
+              data: chart,
+              categoryLabel: "Año",
+              category: (r) => String(r.year),
+              series: [
+                { label: "Nuevos", value: (r) => r.nuevos, format: formatUSD },
+                { label: "Recurrentes", value: (r) => r.recurrentes, format: formatUSD },
+                { label: "Altas nuevas", value: (r) => r.countNuevos, format: formatCount },
+              ],
+            }}
+          >
+            <ResponsiveContainer width="100%" height="100%" minHeight={380}>
+              <ComposedChart accessibilityLayer data={chart} margin={{ top: 10, right: 10, left: 10, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-white/5" vertical={false} />
+                <XAxis dataKey="year" className="text-xs fill-muted-foreground" tickLine={false} />
+                <YAxis yAxisId="left" className="text-xs fill-muted-foreground" tickFormatter={formatCompactUSD} tickLine={false} axisLine={false} />
+                <YAxis yAxisId="right" orientation="right" allowDecimals={false} className="text-xs fill-muted-foreground" tickLine={false} axisLine={false} />
+                <Tooltip content={<NvrTooltip />} />
+                <Legend />
+                <Bar yAxisId="left" dataKey="nuevos" name="Nuevos" stackId="1" fill="#10b981" />
+                <Bar yAxisId="left" dataKey="recurrentes" name="Recurrentes" stackId="1" fill="#6366f1" />
+                <Line yAxisId="right" type="monotone" dataKey="countNuevos" name="Altas nuevas" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </ChartFigure>
         )}
       </CardContent>
     </Card>

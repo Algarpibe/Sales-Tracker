@@ -39,6 +39,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { InfoTooltip } from "@/components/common/info-tooltip";
+import { ChartFigure } from "@/components/charts/chart-a11y";
 import { CHART_HELP } from "@/lib/chart-help";
 import { GroupingManager } from "./grouping-manager";
 import { getGroupingAnalysisData } from "@/actions/grouping-actions";
@@ -529,32 +530,47 @@ export function GroupingAnalysisCard({ categories, recordType: initialRecordType
             </div>
 
             <div className="h-[700px] w-full max-w-5xl relative">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <RechartsTooltip content={<PieTooltip />} />
-                  <Pie
-                    data={pieData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={160}
-                    outerRadius={280}
-                    paddingAngle={5}
-                    dataKey="value"
-                    stroke="none"
-                  >
-                    {pieData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Legend
-                    verticalAlign="bottom"
-                    align="center"
-                    layout="horizontal"
-                    iconType="circle"
-                    wrapperStyle={{ fontSize: '15px', paddingTop: '60px' }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
+              {/* La tabla de arriba ya trae estas cifras: el resumen se queda en lo que
+                  pinta la tarta (participación y promedio anual por agrupación). */}
+              <ChartFigure
+                label="Distribución Promedio de Agrupaciones"
+                summary={{
+                  data: pieData,
+                  categoryLabel: "Agrupación",
+                  category: (p) => p.name,
+                  series: [
+                    { label: "Participación", value: (p) => p.value, format: (v) => formatPct(v) },
+                    { label: "Promedio anual", value: (p) => p.amount, format: formatUSDWhole },
+                  ],
+                }}
+              >
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart accessibilityLayer>
+                    <RechartsTooltip content={<PieTooltip />} />
+                    <Pie
+                      data={pieData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={160}
+                      outerRadius={280}
+                      paddingAngle={5}
+                      dataKey="value"
+                      stroke="none"
+                    >
+                      {pieData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Legend
+                      verticalAlign="bottom"
+                      align="center"
+                      layout="horizontal"
+                      iconType="circle"
+                      wrapperStyle={{ fontSize: '15px', paddingTop: '60px' }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </ChartFigure>
 
               {/* Center Info */}
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pb-20">

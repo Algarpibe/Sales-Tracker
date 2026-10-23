@@ -8,6 +8,7 @@ import { BUCKET_COLORS, BUCKET_LABELS, MACRO_CATEGORIAS_KEY, mapaMacroCategorias
 import { MONTH_LABELS, formatUSD, formatCompactUSD } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ChartFigure } from "@/components/charts/chart-a11y";
 import { InfoTooltip } from "@/components/common/info-tooltip";
 import { CHART_HELP } from "@/lib/chart-help";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
@@ -79,18 +80,32 @@ export function SeasonByBucketCard({ recordType, year }: { recordType: "SALES_OR
         ) : !hasData ? (
           <p className="text-sm text-muted-foreground py-10 text-center">Sin datos.</p>
         ) : (
-          <ResponsiveContainer width="100%" height="100%" minHeight={380}>
-            <BarChart data={rows} margin={{ top: 10, right: 10, left: 10, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-white/5" vertical={false} />
-              <XAxis dataKey="mesLabel" className="text-[10px] fill-muted-foreground" tickLine={false} />
-              <YAxis className="text-xs fill-muted-foreground" tickFormatter={formatCompactUSD} tickLine={false} axisLine={false} />
-              <Tooltip content={<SeasonTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
-              <Legend />
-              {SERIES.map((s) => (
-                <Bar key={s.key} dataKey={s.key} name={s.label} stackId="1" fill={s.color} />
-              ))}
-            </BarChart>
-          </ResponsiveContainer>
+          <ChartFigure
+            label={`Estacionalidad por categoría ${year}`}
+            summary={{
+              data: rows,
+              categoryLabel: "Mes",
+              category: (r) => r.mesLabel,
+              series: [
+                ...SERIES.map((s) => ({ label: s.label, value: (r: SeasonPoint) => r[s.key], format: formatUSD })),
+                // El tooltip cierra con el total del mes.
+                { label: "Total", value: (r: SeasonPoint) => SERIES.reduce((sum, s) => sum + r[s.key], 0), format: formatUSD },
+              ],
+            }}
+          >
+            <ResponsiveContainer width="100%" height="100%" minHeight={380}>
+              <BarChart accessibilityLayer data={rows} margin={{ top: 10, right: 10, left: 10, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-white/5" vertical={false} />
+                <XAxis dataKey="mesLabel" className="text-[10px] fill-muted-foreground" tickLine={false} />
+                <YAxis className="text-xs fill-muted-foreground" tickFormatter={formatCompactUSD} tickLine={false} axisLine={false} />
+                <Tooltip content={<SeasonTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
+                <Legend />
+                {SERIES.map((s) => (
+                  <Bar key={s.key} dataKey={s.key} name={s.label} stackId="1" fill={s.color} />
+                ))}
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartFigure>
         )}
       </CardContent>
     </Card>

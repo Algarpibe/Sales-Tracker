@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchMarginByItem } from "@/lib/data-client";
-import { buildMarginItems } from "@/lib/analytics-margin";
+import { buildMarginItems, marginSummarySeries } from "@/lib/analytics-margin";
+import { ChartFigure } from "@/components/charts/chart-a11y";
 import { formatUSD, formatCompactUSD } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -58,15 +59,20 @@ export function MarginByItemCard({ recordType, year }: { recordType: "SALES_ORDE
         ) : top.length === 0 ? (
           <p className="text-sm text-muted-foreground py-10 text-center">Sin datos.</p>
         ) : (
-          <ResponsiveContainer width="100%" height="100%" minHeight={440}>
-            <BarChart data={top} layout="vertical" margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-white/5" horizontal={false} />
-              <XAxis type="number" className="text-xs fill-muted-foreground" tickFormatter={mode === "pct" ? (v) => `${Math.round(v)}%` : formatCompactUSD} tickLine={false} axisLine={false} />
-              <YAxis type="category" dataKey="label" width={160} className="text-[10px] fill-muted-foreground" tickLine={false} axisLine={false} />
-              <Tooltip content={<ItemTooltip />} />
-              <Bar dataKey={mode === "pct" ? "margenPct" : "margen"} name="Margen" fill="#10b981" radius={[0, 4, 4, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          <ChartFigure
+            label={`Margen por artículo ${year} (top 15)`}
+            summary={{ data: top, categoryLabel: "Artículo", category: (p) => p.label, series: marginSummarySeries() }}
+          >
+            <ResponsiveContainer width="100%" height="100%" minHeight={440}>
+              <BarChart accessibilityLayer data={top} layout="vertical" margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-white/5" horizontal={false} />
+                <XAxis type="number" className="text-xs fill-muted-foreground" tickFormatter={mode === "pct" ? (v) => `${Math.round(v)}%` : formatCompactUSD} tickLine={false} axisLine={false} />
+                <YAxis type="category" dataKey="label" width={160} className="text-[10px] fill-muted-foreground" tickLine={false} axisLine={false} />
+                <Tooltip content={<ItemTooltip />} />
+                <Bar dataKey={mode === "pct" ? "margenPct" : "margen"} name="Margen" fill="#10b981" radius={[0, 4, 4, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartFigure>
         )}
       </CardContent>
     </Card>

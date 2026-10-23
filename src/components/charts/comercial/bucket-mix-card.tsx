@@ -9,6 +9,7 @@ import { BUCKET_COLORS, BUCKET_LABELS, MACRO_CATEGORIAS_KEY, mapaMacroCategorias
 import { formatUSD, formatCompactUSD } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ChartFigure } from "@/components/charts/chart-a11y";
 import { InfoTooltip } from "@/components/common/info-tooltip";
 import { CHART_HELP } from "@/lib/chart-help";
 import {
@@ -70,20 +71,30 @@ export function BucketMixCard({ recordType }: { recordType: "SALES_ORDER" | "INV
         ) : rows.length === 0 ? (
           <p className="text-sm text-muted-foreground py-10 text-center">Sin datos.</p>
         ) : (
-          <ResponsiveContainer width="100%" height="100%" minHeight={340}>
-            <BarChart data={rows} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-white/5" vertical={false} />
-              <XAxis dataKey="year" className="text-xs fill-muted-foreground" tickLine={false} axisLine={false} />
-              <YAxis className="text-xs fill-muted-foreground" tickLine={false} axisLine={false} tickFormatter={formatCompactUSD} />
-              <Tooltip content={<MixTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
-              <Legend />
-              {/* fillOpacity 0.5: tono suave de la paleta.
-                  maxBarSize: con pocos años a ancho completo, sin límite cada barra sería un bloque enorme. */}
-              {SERIES.map((s) => (
-                <Bar key={s.key} dataKey={s.key} name={s.label} stackId="1" fill={s.color} fillOpacity={0.5} maxBarSize={64} />
-              ))}
-            </BarChart>
-          </ResponsiveContainer>
+          <ChartFigure
+            label="Mix por macro-categoría (evolución anual)"
+            summary={{
+              data: rows,
+              categoryLabel: "Año",
+              category: (r) => String(r.year),
+              series: SERIES.map((s) => ({ label: s.label, value: (r: MixPoint) => r[s.key], format: formatUSD })),
+            }}
+          >
+            <ResponsiveContainer width="100%" height="100%" minHeight={340}>
+              <BarChart accessibilityLayer data={rows} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-white/5" vertical={false} />
+                <XAxis dataKey="year" className="text-xs fill-muted-foreground" tickLine={false} axisLine={false} />
+                <YAxis className="text-xs fill-muted-foreground" tickLine={false} axisLine={false} tickFormatter={formatCompactUSD} />
+                <Tooltip content={<MixTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
+                <Legend />
+                {/* fillOpacity 0.5: tono suave de la paleta.
+                    maxBarSize: con pocos años a ancho completo, sin límite cada barra sería un bloque enorme. */}
+                {SERIES.map((s) => (
+                  <Bar key={s.key} dataKey={s.key} name={s.label} stackId="1" fill={s.color} fillOpacity={0.5} maxBarSize={64} />
+                ))}
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartFigure>
         )}
       </CardContent>
     </Card>

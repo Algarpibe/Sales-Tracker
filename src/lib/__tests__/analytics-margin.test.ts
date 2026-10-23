@@ -1,8 +1,9 @@
 import { describe, it, expect } from "vitest";
 import {
-  deriveMargin, buildMarginByYear, buildMarginItems, buildMarginCustomers,
+  deriveMargin, buildMarginByYear, buildMarginItems, buildMarginCustomers, marginSummarySeries,
 } from "@/lib/analytics-margin";
 import type { MarginYearRow, MarginItemRow, MarginCustomerRow } from "@/types/database";
+import { buildChartSummary } from "@/lib/chart-summary";
 
 describe("deriveMargin", () => {
   it("calcula margen y %", () => {
@@ -45,5 +46,21 @@ describe("buildMarginCustomers", () => {
       { customer: "Y", ventas: 300, costo: 100 },
     ];
     expect(buildMarginCustomers(rows).map((x) => x.customer)).toEqual(["Y", "X"]);
+  });
+});
+
+describe("marginSummarySeries (resumen accesible, FE-061)", () => {
+  const punto = { year: 2025, ventas: 1000, costo: 600.5, margen: 399.5, margenPct: 39.95 };
+
+  it("las columnas y formatos del tooltip: ventas, costo y margen en USD, margen % con un decimal", () => {
+    const resumen = buildChartSummary({
+      data: [punto], categoryLabel: "Año", category: (p) => String(p.year), series: marginSummarySeries(),
+    });
+    expect(resumen.headers).toEqual(["Año", "Ventas", "Costo", "Margen", "Margen %"]);
+    expect(resumen.rows).toEqual([["2025", "$1,000", "$600.5", "$399.5", "40.0%"]]);
+  });
+
+  it("sin costo para el scatter, cuyo tooltip no lo enseña", () => {
+    expect(marginSummarySeries({ costo: false }).map((s) => s.label)).toEqual(["Ventas", "Margen", "Margen %"]);
   });
 });

@@ -5,6 +5,7 @@ import {
   ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ChartFigure } from "@/components/charts/chart-a11y";
 import { MONTHS, formatUSD, formatCompactUSD } from "@/lib/constants";
 import { InfoTooltip } from "@/components/common/info-tooltip";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -111,58 +112,78 @@ export function MonthlyComparisonChart({
         </label>
       </CardHeader>
       <CardContent className="min-h-0 flex-1">
-        <ResponsiveContainer width="100%" height="100%" minHeight={350}>
-          <ComposedChart data={monthlyData}>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="oklch(0.91 0.01 250 / 0.1)" />
-            <XAxis dataKey="month" axisLine={false} tickLine={false} dy={10} />
-            <YAxis yAxisId="left" tickFormatter={formatCompactUSD} axisLine={false} tickLine={false} />
-            {/* Eje propio: el acumulado es de otra magnitud que el importe mensual. */}
-            {showCumulative && (
-              <YAxis yAxisId="right" orientation="right" tickFormatter={formatCompactUSD} axisLine={false} tickLine={false} />
-            )}
-            <RechartsTooltip
-              content={<CustomMonthlyTooltip yearA={yearA} yearB={yearB} />}
-              cursor={{ fill: "rgba(147, 197, 253, 0.15)" }}
-            />
-            <Legend wrapperStyle={{ paddingTop: '20px' }} />
-            <Bar
-              yAxisId="left"
-              dataKey={`Año ${yearA}`}
-              fill="oklch(0.65 0.2 255)"
-              radius={[4, 4, 0, 0]}
-            />
-            <Bar
-              yAxisId="left"
-              dataKey={`Año ${yearB}`}
-              fill="oklch(0.65 0.25 20)"
-              radius={[4, 4, 0, 0]}
-            />
-            {/* Acumulado: continua el año A, discontinua el de comparación. */}
-            {showCumulative && (
-              <Line
-                yAxisId="right"
-                type="monotone"
-                dataKey="acumA"
-                name={`Acum. ${yearA}`}
-                stroke="oklch(0.65 0.2 255)"
-                strokeWidth={3}
-                dot={{ r: 3 }}
+        <ChartFigure
+          label={`${recordType === "SALES_ORDER" ? "Órdenes de Venta (Reserva)" : "Facturación (Ventas)"} · Global Mensual`}
+          summary={{
+            data: monthlyData,
+            categoryLabel: "Mes",
+            category: (p) => p.month,
+            series: [
+              { label: `Año ${yearA}`, value: (p) => Number(p[`Año ${yearA}`] ?? 0), format: formatUSD },
+              { label: `Año ${yearB}`, value: (p) => Number(p[`Año ${yearB}`] ?? 0), format: formatUSD },
+              // Las columnas de acumulado solo si sus líneas están a la vista.
+              ...(showCumulative
+                ? [
+                    { label: `Acum. ${yearA}`, value: (p: MonthlyPoint) => p.acumA, format: formatUSD },
+                    { label: `Acum. ${yearB}`, value: (p: MonthlyPoint) => p.acumB, format: formatUSD },
+                  ]
+                : []),
+            ],
+          }}
+        >
+          <ResponsiveContainer width="100%" height="100%" minHeight={350}>
+            <ComposedChart accessibilityLayer data={monthlyData}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="oklch(0.91 0.01 250 / 0.1)" />
+              <XAxis dataKey="month" axisLine={false} tickLine={false} dy={10} />
+              <YAxis yAxisId="left" tickFormatter={formatCompactUSD} axisLine={false} tickLine={false} />
+              {/* Eje propio: el acumulado es de otra magnitud que el importe mensual. */}
+              {showCumulative && (
+                <YAxis yAxisId="right" orientation="right" tickFormatter={formatCompactUSD} axisLine={false} tickLine={false} />
+              )}
+              <RechartsTooltip
+                content={<CustomMonthlyTooltip yearA={yearA} yearB={yearB} />}
+                cursor={{ fill: "rgba(147, 197, 253, 0.15)" }}
               />
-            )}
-            {showCumulative && (
-              <Line
-                yAxisId="right"
-                type="monotone"
-                dataKey="acumB"
-                name={`Acum. ${yearB}`}
-                stroke="oklch(0.65 0.25 20)"
-                strokeWidth={2}
-                strokeDasharray="6 4"
-                dot={{ r: 3 }}
+              <Legend wrapperStyle={{ paddingTop: '20px' }} />
+              <Bar
+                yAxisId="left"
+                dataKey={`Año ${yearA}`}
+                fill="oklch(0.65 0.2 255)"
+                radius={[4, 4, 0, 0]}
               />
-            )}
-          </ComposedChart>
-        </ResponsiveContainer>
+              <Bar
+                yAxisId="left"
+                dataKey={`Año ${yearB}`}
+                fill="oklch(0.65 0.25 20)"
+                radius={[4, 4, 0, 0]}
+              />
+              {/* Acumulado: continua el año A, discontinua el de comparación. */}
+              {showCumulative && (
+                <Line
+                  yAxisId="right"
+                  type="monotone"
+                  dataKey="acumA"
+                  name={`Acum. ${yearA}`}
+                  stroke="oklch(0.65 0.2 255)"
+                  strokeWidth={3}
+                  dot={{ r: 3 }}
+                />
+              )}
+              {showCumulative && (
+                <Line
+                  yAxisId="right"
+                  type="monotone"
+                  dataKey="acumB"
+                  name={`Acum. ${yearB}`}
+                  stroke="oklch(0.65 0.25 20)"
+                  strokeWidth={2}
+                  strokeDasharray="6 4"
+                  dot={{ r: 3 }}
+                />
+              )}
+            </ComposedChart>
+          </ResponsiveContainer>
+        </ChartFigure>
       </CardContent>
     </Card>
   );

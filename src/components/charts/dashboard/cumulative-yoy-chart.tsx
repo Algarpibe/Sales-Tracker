@@ -5,6 +5,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ChartFigure } from "@/components/charts/chart-a11y";
 import { MONTHS, formatCompactUSD, formatUSD } from "@/lib/constants";
 import { RecordTypeToggle } from "@/components/common/record-type-toggle";
 import { InfoTooltip } from "@/components/common/info-tooltip";
@@ -58,17 +59,30 @@ export function CumulativeYoYChart({
         <RecordTypeToggle value={tipo} onValueChange={setTipo} />
       </CardHeader>
       <CardContent className="min-h-0 flex-1">
-        <ResponsiveContainer width="100%" height="100%" minHeight={320}>
-          <LineChart data={data} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" className="stroke-white/5" vertical={false} />
-            <XAxis dataKey="month" className="text-xs fill-muted-foreground" tickLine={false} axisLine={false} />
-            <YAxis className="text-xs fill-muted-foreground" tickLine={false} axisLine={false} tickFormatter={formatCompactUSD} />
-            <Tooltip content={<CumTooltip />} />
-            <Legend />
-            <Line type="monotone" dataKey="actual" name={String(yearActual)} stroke="#6366f1" strokeWidth={2} dot={false} />
-            <Line type="monotone" dataKey="anterior" name={String(yearPrev)} stroke="#94a3b8" strokeWidth={2} strokeDasharray="5 5" dot={false} />
-          </LineChart>
-        </ResponsiveContainer>
+        <ChartFigure
+          label={`Acumulado ${yearActual} vs ${yearPrev}`}
+          summary={{
+            data,
+            categoryLabel: "Mes",
+            category: (p) => p.month,
+            series: [
+              { label: String(yearActual), value: (p) => p.actual, format: formatUSD },
+              { label: String(yearPrev), value: (p) => p.anterior, format: formatUSD },
+            ],
+          }}
+        >
+          <ResponsiveContainer width="100%" height="100%" minHeight={320}>
+            <LineChart accessibilityLayer data={data} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-white/5" vertical={false} />
+              <XAxis dataKey="month" className="text-xs fill-muted-foreground" tickLine={false} axisLine={false} />
+              <YAxis className="text-xs fill-muted-foreground" tickLine={false} axisLine={false} tickFormatter={formatCompactUSD} />
+              <Tooltip content={<CumTooltip />} />
+              <Legend />
+              <Line type="monotone" dataKey="actual" name={String(yearActual)} stroke="#6366f1" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="anterior" name={String(yearPrev)} stroke="#94a3b8" strokeWidth={2} strokeDasharray="5 5" dot={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </ChartFigure>
       </CardContent>
     </Card>
   );

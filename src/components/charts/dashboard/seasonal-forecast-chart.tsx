@@ -8,6 +8,7 @@ import {
 import { TrendingUp } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ChartFigure } from "@/components/charts/chart-a11y";
 import { fetchSalesData } from "@/lib/data-client";
 import { MONTHS, formatUSD, formatCompactUSD } from "@/lib/constants";
 import { computeForecast, historyYears } from "@/lib/forecast";
@@ -78,72 +79,85 @@ export function SeasonalForecastChart({
         {isLoading ? (
           <Skeleton className="h-full min-h-[400px] w-full" />
         ) : (
-          <ResponsiveContainer width="100%" height="100%" minHeight={400}>
-            <ComposedChart data={forecastMonthlyData}>
-              <defs>
-                <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-                  <feGaussianBlur stdDeviation="4" result="blur" />
-                  <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                </filter>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
-              <XAxis
-                dataKey="month"
-                axisLine={false}
-                tickLine={false}
-                tick={{ fill: "var(--muted-foreground)", fontSize: 12, fontWeight: 500 }}
-                dy={10}
-              />
-              <YAxis
-                tickFormatter={formatCompactUSD}
-                axisLine={false}
-                tickLine={false}
-                tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
-              />
-              <RechartsTooltip
-                content={({ active, payload, label }) => {
-                  if (active && payload && payload.length) {
-                    return (
-                      <div className="bg-black/80 backdrop-blur-xl border border-white/10 p-4 rounded-xl shadow-2xl space-y-2">
-                        <p className="font-bold text-white mb-2">{label}</p>
-                        {payload.map((entry, index: number) => (
-                          <div key={index} className="flex items-center justify-between gap-6 text-sm">
-                            <div className="flex items-center gap-2">
-                              <div className="size-2 rounded-full" style={{ backgroundColor: entry.color }} />
-                              <span className="text-white/60">{entry.name}</span>
+          <ChartFigure
+            label={`Histórico con Proyección Estacional (${recordType === "SALES_ORDER" ? "Órdenes" : "Facturas"})`}
+            summary={{
+              data: forecastMonthlyData,
+              categoryLabel: "Mes",
+              category: (p) => String(p.month),
+              series: [
+                { label: "Ventas Reales", value: (p) => Number(p[`Año ${year}`] ?? 0), format: formatUSD },
+                { label: "Proyección Estacional", value: (p) => Number(p.tendencia), format: formatUSD },
+              ],
+            }}
+          >
+            <ResponsiveContainer width="100%" height="100%" minHeight={400}>
+              <ComposedChart accessibilityLayer data={forecastMonthlyData}>
+                <defs>
+                  <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feGaussianBlur stdDeviation="4" result="blur" />
+                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                  </filter>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
+                <XAxis
+                  dataKey="month"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: "var(--muted-foreground)", fontSize: 12, fontWeight: 500 }}
+                  dy={10}
+                />
+                <YAxis
+                  tickFormatter={formatCompactUSD}
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
+                />
+                <RechartsTooltip
+                  content={({ active, payload, label }) => {
+                    if (active && payload && payload.length) {
+                      return (
+                        <div className="bg-black/80 backdrop-blur-xl border border-white/10 p-4 rounded-xl shadow-2xl space-y-2">
+                          <p className="font-bold text-white mb-2">{label}</p>
+                          {payload.map((entry, index: number) => (
+                            <div key={index} className="flex items-center justify-between gap-6 text-sm">
+                              <div className="flex items-center gap-2">
+                                <div className="size-2 rounded-full" style={{ backgroundColor: entry.color }} />
+                                <span className="text-white/60">{entry.name}</span>
+                              </div>
+                              <span className="font-mono font-bold text-white">
+                                {formatUSD(Number(entry.value ?? 0))}
+                              </span>
                             </div>
-                            <span className="font-mono font-bold text-white">
-                              {formatUSD(Number(entry.value ?? 0))}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    );
-                  }
-                  return null;
-                }}
-              />
-              <Bar
-                name="Ventas Reales"
-                dataKey={`Año ${year}`}
-                fill="oklch(0.65 0.2 255)"
-                radius={[6, 6, 0, 0]}
-                barSize={35}
-              />
-              <Line
-                name="Proyección Estacional"
-                type="monotone"
-                dataKey="tendencia"
-                stroke="#22d3ee"
-                strokeWidth={3}
-                strokeDasharray="8 5"
-                dot={false}
-                activeDot={{ r: 6, fill: "#22d3ee", strokeWidth: 0 }}
-                filter="url(#glow)"
-                animationDuration={2000}
-              />
-            </ComposedChart>
-          </ResponsiveContainer>
+                          ))}
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+                <Bar
+                  name="Ventas Reales"
+                  dataKey={`Año ${year}`}
+                  fill="oklch(0.65 0.2 255)"
+                  radius={[6, 6, 0, 0]}
+                  barSize={35}
+                />
+                <Line
+                  name="Proyección Estacional"
+                  type="monotone"
+                  dataKey="tendencia"
+                  stroke="#22d3ee"
+                  strokeWidth={3}
+                  strokeDasharray="8 5"
+                  dot={false}
+                  activeDot={{ r: 6, fill: "#22d3ee", strokeWidth: 0 }}
+                  filter="url(#glow)"
+                  animationDuration={2000}
+                />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </ChartFigure>
         )}
       </CardContent>
     </Card>

@@ -4,9 +4,10 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchCustomerItemSales } from "@/lib/data-client";
 import { buildBrandMix, type BrandMixRow } from "@/lib/analytics-comercial";
-import { formatUSD } from "@/lib/constants";
+import { formatPct, formatUSD } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ChartFigure } from "@/components/charts/chart-a11y";
 import { InfoTooltip } from "@/components/common/info-tooltip";
 import { CHART_HELP } from "@/lib/chart-help";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from "recharts";
@@ -57,17 +58,30 @@ export function BrandMixCard({ recordType, year }: { recordType: "SALES_ORDER" |
         ) : slices.length === 0 ? (
           <p className="text-sm text-muted-foreground py-10 text-center">Sin datos.</p>
         ) : (
-          <ResponsiveContainer width="100%" height="100%" minHeight={440}>
-            <PieChart>
-              <Pie data={slices} dataKey="importe" nameKey="marca" cx="50%" cy="50%" innerRadius={70} outerRadius={120} paddingAngle={2}>
-                {slices.map((s, i) => (
-                  <Cell key={s.marca} fill={s.marca === "Otros" ? OTROS_COLOR : PALETTE[i % PALETTE.length]} />
-                ))}
-              </Pie>
-              <Tooltip content={<BrandTooltip total={total} />} />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
+          <ChartFigure
+            label={`Mix por marca ${year}`}
+            summary={{
+              data: slices,
+              categoryLabel: "Marca",
+              category: (s) => s.marca,
+              series: [
+                { label: "Importe", value: (s) => s.importe, format: formatUSD },
+                { label: "% del total", value: (s) => (total > 0 ? (s.importe / total) * 100 : 0), format: (v) => formatPct(v) },
+              ],
+            }}
+          >
+            <ResponsiveContainer width="100%" height="100%" minHeight={440}>
+              <PieChart accessibilityLayer>
+                <Pie data={slices} dataKey="importe" nameKey="marca" cx="50%" cy="50%" innerRadius={70} outerRadius={120} paddingAngle={2}>
+                  {slices.map((s, i) => (
+                    <Cell key={s.marca} fill={s.marca === "Otros" ? OTROS_COLOR : PALETTE[i % PALETTE.length]} />
+                  ))}
+                </Pie>
+                <Tooltip content={<BrandTooltip total={total} />} />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </ChartFigure>
         )}
       </CardContent>
     </Card>

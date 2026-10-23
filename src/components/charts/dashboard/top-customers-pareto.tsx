@@ -7,6 +7,7 @@ import {
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ChartFigure } from "@/components/charts/chart-a11y";
 import { fetchCustomerSales } from "@/lib/data-client";
 import { topCustomers } from "@/lib/dashboard-insights";
 import { formatCompactUSD, formatUSD } from "@/lib/constants";
@@ -59,17 +60,30 @@ export function TopCustomersPareto({ year }: { year: number }) {
         ) : rows.length === 0 ? (
           <p className="text-sm text-muted-foreground py-10 text-center">Sin datos en el año.</p>
         ) : (
-          <ResponsiveContainer width="100%" height="100%" minHeight={340}>
-            <ComposedChart data={rows} margin={{ top: 10, right: 10, left: 10, bottom: 40 }}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-white/5" vertical={false} />
-              <XAxis dataKey="customer" className="text-[10px] fill-muted-foreground" tickLine={false} axisLine={false} interval={0} angle={-35} textAnchor="end" height={60} />
-              <YAxis yAxisId="left" className="text-xs fill-muted-foreground" tickLine={false} axisLine={false} tickFormatter={formatCompactUSD} />
-              <YAxis yAxisId="right" orientation="right" domain={[0, 100]} tickFormatter={(v) => `${Math.round(v)}%`} className="text-xs fill-muted-foreground" tickLine={false} axisLine={false} />
-              <Tooltip content={<ParetoTooltip />} />
-              <Bar yAxisId="left" dataKey="amount" name="Importe" fill="#6366f1" radius={[4, 4, 0, 0]} />
-              <Line yAxisId="right" type="monotone" dataKey="cumPct" name="% acumulado" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} />
-            </ComposedChart>
-          </ResponsiveContainer>
+          <ChartFigure
+            label="Top 10 clientes · Pareto"
+            summary={{
+              data: rows,
+              categoryLabel: "Cliente",
+              category: (p) => p.customer,
+              series: [
+                { label: "Importe", value: (p) => p.amount, format: formatUSD },
+                { label: "% acumulado", value: (p) => p.cumPct, format: (v) => `${Math.round(v)}%` },
+              ],
+            }}
+          >
+            <ResponsiveContainer width="100%" height="100%" minHeight={340}>
+              <ComposedChart accessibilityLayer data={rows} margin={{ top: 10, right: 10, left: 10, bottom: 40 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-white/5" vertical={false} />
+                <XAxis dataKey="customer" className="text-[10px] fill-muted-foreground" tickLine={false} axisLine={false} interval={0} angle={-35} textAnchor="end" height={60} />
+                <YAxis yAxisId="left" className="text-xs fill-muted-foreground" tickLine={false} axisLine={false} tickFormatter={formatCompactUSD} />
+                <YAxis yAxisId="right" orientation="right" domain={[0, 100]} tickFormatter={(v) => `${Math.round(v)}%`} className="text-xs fill-muted-foreground" tickLine={false} axisLine={false} />
+                <Tooltip content={<ParetoTooltip />} />
+                <Bar yAxisId="left" dataKey="amount" name="Importe" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                <Line yAxisId="right" type="monotone" dataKey="cumPct" name="% acumulado" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </ChartFigure>
         )}
       </CardContent>
     </Card>

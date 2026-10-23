@@ -16,6 +16,7 @@ import {
 } from "recharts";
 import type { ChartTooltipProps } from "@/lib/chart-types";
 import { InfoTooltip } from "@/components/common/info-tooltip";
+import { ChartFigure } from "@/components/charts/chart-a11y";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RecordTypeToggle } from "@/components/common/record-type-toggle";
 import { CHART_HELP } from "@/lib/chart-help";
@@ -221,109 +222,133 @@ export function TechServiceAnalysis({ data, yearA, yearB, viewMode, onViewModeCh
       <div className="p-8 space-y-12">
         {/* PARTE 1: Visual Analytics (Gráfico) */}
         <div className="h-[380px] w-full relative">
-          <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={data} margin={{ top: 20, right: 10, left: 10, bottom: 25 }}>
-              <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="rgba(0,0,0,0.05)" className="dark:stroke-white/5" />
-              <XAxis 
-                dataKey="label" 
-                axisLine={false} 
-                tickLine={false} 
-                tick={{ fill: "var(--muted-foreground)", fontSize: 12, fontWeight: 700 }}
-                dy={10}
-                interval={viewMode === 'MONTHLY' ? 0 : "preserveStart"}
-              />
-              <YAxis 
-                yAxisId="left"
-                axisLine={false} 
-                tickLine={false} 
-                tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
-                tickFormatter={(val) => `$${(val / 1000).toFixed(0)}k`}
-              />
-              {showCumulative && (
-                <YAxis
-                  yAxisId="right"
-                  orientation="right"
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
-                  tickFormatter={(val) => `${(val / 1000).toFixed(0)}k`}
+          {/* La tabla de abajo ya desglosa estas cifras: el resumen se limita a las
+              series que pinta el gráfico. */}
+          <ChartFigure
+            label="Análisis de Servicio Técnico"
+            summary={{
+              data,
+              categoryLabel: "Periodo",
+              category: (p) => p.label,
+              series: [
+                { label: `ST (${yearA})`, value: (p) => p.st, format: formatUSD },
+                { label: `C&R (${yearA})`, value: (p) => p.cr, format: formatUSD },
+                { label: `ST (${yearB})`, value: (p) => p.st_prev, format: formatUSD },
+                { label: `C&R (${yearB})`, value: (p) => p.cr_prev, format: formatUSD },
+                // Las columnas de acumulado solo si sus líneas están a la vista.
+                ...(showCumulative
+                  ? [
+                      { label: `Acum. (${yearA})`, value: (p: TechServiceDataPoint) => p.acum, format: formatUSD },
+                      { label: `Acum. (${yearB})`, value: (p: TechServiceDataPoint) => p.acum_prev, format: formatUSD },
+                    ]
+                  : []),
+              ],
+            }}
+          >
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart accessibilityLayer data={data} margin={{ top: 20, right: 10, left: 10, bottom: 25 }}>
+                <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="rgba(0,0,0,0.05)" className="dark:stroke-white/5" />
+                <XAxis 
+                  dataKey="label" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fill: "var(--muted-foreground)", fontSize: 12, fontWeight: 700 }}
+                  dy={10}
+                  interval={viewMode === 'MONTHLY' ? 0 : "preserveStart"}
                 />
-              )}
-              <Tooltip 
-                content={<TechServiceTooltip data={data} yearA={yearA} yearB={yearB} />}
-                cursor={{ fill: "rgba(147, 197, 253, 0.15)", radius: 10 }} 
-              />
-              <Legend verticalAlign="top" height={60} iconType="circle" wrapperStyle={{ paddingBottom: '30px', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase' }} />
-              
-              {/* Año A */}
-              <Bar 
-                yAxisId="left" 
-                dataKey="st" 
-                name={`ST (${yearA})`} 
-                stackId="yearA" 
-                fill="oklch(0.55 0.18 255)" 
-                radius={[0, 0, 0, 0]} 
-                barSize={viewMode === 'MONTHLY' ? 14 : 32}
-              />
-              <Bar 
-                yAxisId="left" 
-                dataKey="cr" 
-                name={`C&R (${yearA})`} 
-                stackId="yearA" 
-                fill="oklch(0.6 0.2 300)" 
-                radius={[4, 4, 0, 0]} 
-                barSize={viewMode === 'MONTHLY' ? 14 : 32}
-              />
+                <YAxis 
+                  yAxisId="left"
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
+                  tickFormatter={(val) => `$${(val / 1000).toFixed(0)}k`}
+                />
+                {showCumulative && (
+                  <YAxis
+                    yAxisId="right"
+                    orientation="right"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
+                    tickFormatter={(val) => `${(val / 1000).toFixed(0)}k`}
+                  />
+                )}
+                <Tooltip 
+                  content={<TechServiceTooltip data={data} yearA={yearA} yearB={yearB} />}
+                  cursor={{ fill: "rgba(147, 197, 253, 0.15)", radius: 10 }} 
+                />
+                <Legend verticalAlign="top" height={60} iconType="circle" wrapperStyle={{ paddingBottom: '30px', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase' }} />
+                
+                {/* Año A */}
+                <Bar 
+                  yAxisId="left" 
+                  dataKey="st" 
+                  name={`ST (${yearA})`} 
+                  stackId="yearA" 
+                  fill="oklch(0.55 0.18 255)" 
+                  radius={[0, 0, 0, 0]} 
+                  barSize={viewMode === 'MONTHLY' ? 14 : 32}
+                />
+                <Bar 
+                  yAxisId="left" 
+                  dataKey="cr" 
+                  name={`C&R (${yearA})`} 
+                  stackId="yearA" 
+                  fill="oklch(0.6 0.2 300)" 
+                  radius={[4, 4, 0, 0]} 
+                  barSize={viewMode === 'MONTHLY' ? 14 : 32}
+                />
 
-              {/* Año B (Previo) - NARANJA / DORADO */}
-              <Bar 
-                yAxisId="left" 
-                dataKey="st_prev" 
-                name={`ST (${yearB})`} 
-                stackId="yearB" 
-                fill="oklch(0.7 0.15 60)" 
-                radius={[0, 0, 0, 0]} 
-                barSize={viewMode === 'MONTHLY' ? 14 : 32}
-              />
-              <Bar 
-                yAxisId="left" 
-                dataKey="cr_prev" 
-                name={`C&R (${yearB})`} 
-                stackId="yearB" 
-                fill="oklch(0.75 0.15 85)" 
-                radius={[4, 4, 0, 0]} 
-                barSize={viewMode === 'MONTHLY' ? 14 : 32}
-              />
-              
-              {showCumulative && (
-              <Line
-                yAxisId="right"
-                type="monotone"
-                dataKey="acum"
-                name={`Acum. (${yearA})`}
-                stroke="oklch(0.65 0.19 155)"
-                strokeWidth={4}
-                dot={{ r: 5, fill: "oklch(0.65 0.19 155)", strokeWidth: 2, stroke: "white" }}
-                activeDot={{ r: 7, fill: "white", stroke: "oklch(0.65 0.19 155)", strokeWidth: 3 }}
-              />
-              )}
+                {/* Año B (Previo) - NARANJA / DORADO */}
+                <Bar 
+                  yAxisId="left" 
+                  dataKey="st_prev" 
+                  name={`ST (${yearB})`} 
+                  stackId="yearB" 
+                  fill="oklch(0.7 0.15 60)" 
+                  radius={[0, 0, 0, 0]} 
+                  barSize={viewMode === 'MONTHLY' ? 14 : 32}
+                />
+                <Bar 
+                  yAxisId="left" 
+                  dataKey="cr_prev" 
+                  name={`C&R (${yearB})`} 
+                  stackId="yearB" 
+                  fill="oklch(0.75 0.15 85)" 
+                  radius={[4, 4, 0, 0]} 
+                  barSize={viewMode === 'MONTHLY' ? 14 : 32}
+                />
+                
+                {showCumulative && (
+                <Line
+                  yAxisId="right"
+                  type="monotone"
+                  dataKey="acum"
+                  name={`Acum. (${yearA})`}
+                  stroke="oklch(0.65 0.19 155)"
+                  strokeWidth={4}
+                  dot={{ r: 5, fill: "oklch(0.65 0.19 155)", strokeWidth: 2, stroke: "white" }}
+                  activeDot={{ r: 7, fill: "white", stroke: "oklch(0.65 0.19 155)", strokeWidth: 3 }}
+                />
+                )}
 
-              {/* Acumulado del año de comparación: discontinua y en naranja, a juego con sus barras. */}
-              {showCumulative && (
-              <Line
-                yAxisId="right"
-                type="monotone"
-                dataKey="acum_prev"
-                name={`Acum. (${yearB})`}
-                stroke="oklch(0.68 0.17 55)"
-                strokeWidth={3}
-                strokeDasharray="6 4"
-                dot={{ r: 4, fill: "oklch(0.68 0.17 55)", strokeWidth: 2, stroke: "white" }}
-                activeDot={{ r: 6, fill: "white", stroke: "oklch(0.68 0.17 55)", strokeWidth: 3 }}
-              />
-              )}
-            </ComposedChart>
-          </ResponsiveContainer>
+                {/* Acumulado del año de comparación: discontinua y en naranja, a juego con sus barras. */}
+                {showCumulative && (
+                <Line
+                  yAxisId="right"
+                  type="monotone"
+                  dataKey="acum_prev"
+                  name={`Acum. (${yearB})`}
+                  stroke="oklch(0.68 0.17 55)"
+                  strokeWidth={3}
+                  strokeDasharray="6 4"
+                  dot={{ r: 4, fill: "oklch(0.68 0.17 55)", strokeWidth: 2, stroke: "white" }}
+                  activeDot={{ r: 6, fill: "white", stroke: "oklch(0.68 0.17 55)", strokeWidth: 3 }}
+                />
+                )}
+              </ComposedChart>
+            </ResponsiveContainer>
+          </ChartFigure>
         </div>
 
         {/* PARTE 2: Financial Matrix (Tabla) */}

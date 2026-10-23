@@ -10,6 +10,7 @@ import { customerHref } from "@/lib/customer-detail";
 import { formatUSD, formatCompactUSD } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ChartFigure } from "@/components/charts/chart-a11y";
 import { InfoTooltip } from "@/components/common/info-tooltip";
 import { CHART_HELP } from "@/lib/chart-help";
 import {
@@ -74,18 +75,28 @@ export function BucketByClientCard({ recordType, year }: { recordType: "SALES_OR
         ) : top.length === 0 ? (
           <p className="text-sm text-muted-foreground py-10 text-center">Sin datos.</p>
         ) : (
-          <ResponsiveContainer width="100%" height="100%" minHeight={440} className="cursor-pointer">
-            <BarChart data={top} layout="vertical" margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-white/5" horizontal={false} />
-              <XAxis type="number" className="text-xs fill-muted-foreground" tickFormatter={formatCompactUSD} tickLine={false} axisLine={false} />
-              <YAxis type="category" dataKey="customer" width={160} className="text-[10px] fill-muted-foreground" tickLine={false} axisLine={false} />
-              <Tooltip content={<BClientTooltip />} />
-              <Legend />
-              {SERIES.map((s) => (
-                <Bar key={s.key} dataKey={s.key} name={s.label} stackId="1" fill={s.color} onClick={(d) => goCustomer(d as { customer?: string; payload?: { customer?: string } })} />
-              ))}
-            </BarChart>
-          </ResponsiveContainer>
+          <ChartFigure
+            label={`Macro-categoría × cliente ${year} (top 15)`}
+            summary={{
+              data: top,
+              categoryLabel: "Cliente",
+              category: (r) => r.customer,
+              series: SERIES.map((s) => ({ label: s.label, value: (r: BucketClientRow) => r[s.key], format: formatUSD })),
+            }}
+          >
+            <ResponsiveContainer width="100%" height="100%" minHeight={440} className="cursor-pointer">
+              <BarChart accessibilityLayer data={top} layout="vertical" margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-white/5" horizontal={false} />
+                <XAxis type="number" className="text-xs fill-muted-foreground" tickFormatter={formatCompactUSD} tickLine={false} axisLine={false} />
+                <YAxis type="category" dataKey="customer" width={160} className="text-[10px] fill-muted-foreground" tickLine={false} axisLine={false} />
+                <Tooltip content={<BClientTooltip />} />
+                <Legend />
+                {SERIES.map((s) => (
+                  <Bar key={s.key} dataKey={s.key} name={s.label} stackId="1" fill={s.color} onClick={(d) => goCustomer(d as { customer?: string; payload?: { customer?: string } })} />
+                ))}
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartFigure>
         )}
       </CardContent>
     </Card>

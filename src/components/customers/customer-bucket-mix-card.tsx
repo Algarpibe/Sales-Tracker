@@ -5,9 +5,10 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchCustomerItemSales, fetchMacroCategorias } from "@/lib/data-client";
 import { customerBuckets } from "@/lib/customer-detail";
 import { BUCKET_COLORS, BUCKET_LABELS, MACRO_CATEGORIAS_KEY, mapaMacroCategorias } from "@/lib/customer-item";
-import { formatUSD } from "@/lib/constants";
+import { formatPct, formatUSD } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ChartFigure } from "@/components/charts/chart-a11y";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import type { ChartTooltipProps } from "@/lib/chart-types";
 
@@ -63,15 +64,28 @@ export function CustomerBucketMixCard({ customer, recordType, year }: { customer
         ) : slices.length === 0 ? (
           <p className="text-sm text-muted-foreground py-10 text-center">Sin datos.</p>
         ) : (
-          <ResponsiveContainer width="100%" height={360}>
-            <PieChart>
-              <Pie data={slices} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={70} outerRadius={110} paddingAngle={2}>
-                {slices.map((s) => <Cell key={s.name} fill={s.color} />)}
-              </Pie>
-              <Tooltip content={<BucketTooltip total={total} />} />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
+          <ChartFigure
+            label={`Mezcla por macro-categoría ${year}`}
+            summary={{
+              data: slices,
+              categoryLabel: "Macro-categoría",
+              category: (s) => s.name,
+              series: [
+                { label: "Importe", value: (s) => s.value, format: formatUSD },
+                { label: "% del total", value: (s) => (total > 0 ? (s.value / total) * 100 : 0), format: (v) => formatPct(v) },
+              ],
+            }}
+          >
+            <ResponsiveContainer width="100%" height={360}>
+              <PieChart accessibilityLayer>
+                <Pie data={slices} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={70} outerRadius={110} paddingAngle={2}>
+                  {slices.map((s) => <Cell key={s.name} fill={s.color} />)}
+                </Pie>
+                <Tooltip content={<BucketTooltip total={total} />} />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </ChartFigure>
         )}
       </CardContent>
     </Card>

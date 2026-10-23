@@ -7,6 +7,8 @@ import { topItems } from "@/lib/analytics-comercial";
 import { formatUSD, formatCompactUSD } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ChartFigure } from "@/components/charts/chart-a11y";
+import { formatCount } from "@/lib/chart-summary";
 import { InfoTooltip } from "@/components/common/info-tooltip";
 import { CHART_HELP } from "@/lib/chart-help";
 import { Button } from "@/components/ui/button";
@@ -57,15 +59,29 @@ export function TopItemsCard({ recordType, year }: { recordType: "SALES_ORDER" |
         ) : top.length === 0 ? (
           <p className="text-sm text-muted-foreground py-10 text-center">Sin datos.</p>
         ) : (
-          <ResponsiveContainer width="100%" height="100%" minHeight={420}>
-            <BarChart data={top} layout="vertical" margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-white/5" horizontal={false} />
-              <XAxis type="number" className="text-xs fill-muted-foreground" tickFormatter={(v) => (metric === "importe" ? formatCompactUSD(v) : String(v))} tickLine={false} axisLine={false} />
-              <YAxis type="category" dataKey="nombre" width={180} className="text-[10px] fill-muted-foreground" tickLine={false} axisLine={false} />
-              <Tooltip content={<ItemsTooltip metric={metric} />} />
-              <Bar dataKey={metric} fill="oklch(0.7 0.18 190)" radius={[0, 4, 4, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          <ChartFigure
+            label={`Top 15 artículos ${year}`}
+            summary={{
+              data: top,
+              categoryLabel: "Artículo",
+              category: (r) => r.nombre,
+              series: [
+                metric === "importe"
+                  ? { label: "Importe", value: (r) => r.importe, format: formatUSD }
+                  : { label: "Cantidad", value: (r) => r.cantidad, format: formatCount },
+              ],
+            }}
+          >
+            <ResponsiveContainer width="100%" height="100%" minHeight={420}>
+              <BarChart accessibilityLayer data={top} layout="vertical" margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-white/5" horizontal={false} />
+                <XAxis type="number" className="text-xs fill-muted-foreground" tickFormatter={(v) => (metric === "importe" ? formatCompactUSD(v) : String(v))} tickLine={false} axisLine={false} />
+                <YAxis type="category" dataKey="nombre" width={180} className="text-[10px] fill-muted-foreground" tickLine={false} axisLine={false} />
+                <Tooltip content={<ItemsTooltip metric={metric} />} />
+                <Bar dataKey={metric} fill="oklch(0.7 0.18 190)" radius={[0, 4, 4, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartFigure>
         )}
       </CardContent>
     </Card>
