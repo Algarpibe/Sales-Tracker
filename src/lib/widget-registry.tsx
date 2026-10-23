@@ -1,5 +1,7 @@
+import dynamic from "next/dynamic";
 import { ShoppingCart, FileText, Receipt, Activity } from "lucide-react";
 import { KPICard } from "@/components/cards/kpi-card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { formatUSD } from "@/lib/constants";
 import { CHART_HELP } from "@/lib/chart-help";
 import { yoyChange, type InsightRecord } from "@/lib/dashboard-insights";
@@ -7,36 +9,124 @@ import type { WidgetId } from "@/lib/dashboard-layout";
 import type { DashboardMetrics } from "@/lib/dashboard-metrics";
 import type { Category, SalesRecord } from "@/types/database";
 
-import { MonthlySalesWidget } from "@/components/dashboard/monthly-sales-widget";
-import { CumulativeYoYChart } from "@/components/charts/dashboard/cumulative-yoy-chart";
-import { ExecutionMonthlyChart } from "@/components/charts/dashboard/execution-monthly-chart";
-import { TopCustomersPareto } from "@/components/charts/dashboard/top-customers-pareto";
-import { CategoryMixDonut } from "@/components/charts/dashboard/category-mix-donut";
-import { MonthlyComparisonChart } from "@/components/charts/dashboard/monthly-comparison-chart";
-import { TechServiceWidget } from "@/components/charts/dashboard/tech-service-widget";
-import { SeasonalForecastChart } from "@/components/charts/dashboard/seasonal-forecast-chart";
-import { ForecastSummaryWidget } from "@/components/charts/dashboard/forecast-summary-widget";
+const widgetSkeleton = () => <Skeleton className="h-full w-full" />;
 
-import { HistoricalSalesCategory } from "@/components/charts/premium/historical-sales-category";
-import { GroupingAnalysisCard } from "@/components/charts/premium/grouping-analysis-card";
-import { GroupEvolutionCard } from "@/components/charts/premium/group-evolution-card";
-import { GroupForecastCard } from "@/components/charts/premium/group-forecast-card";
-import { ForecastSalesCategory } from "@/components/charts/premium/forecast-sales-category";
+// FE-055: cada gráfico (recharts / framer-motion) es su propio chunk y se descarga solo
+// cuando el layout lo pinta. El layout por defecto usa 9 de los 32 widgets: antes,
+// /home cargaba todos en el primer JS. Mientras llega el chunk, el esqueleto de siempre.
+// Sin ssr:false: la rejilla solo pinta widgets en cliente (tras medir el ancho), así
+// que nunca se renderizan en servidor.
+const MonthlySalesWidget = dynamic(
+  () => import("@/components/dashboard/monthly-sales-widget").then((m) => m.MonthlySalesWidget),
+  { loading: widgetSkeleton }
+);
+const CumulativeYoYChart = dynamic(
+  () => import("@/components/charts/dashboard/cumulative-yoy-chart").then((m) => m.CumulativeYoYChart),
+  { loading: widgetSkeleton }
+);
+const ExecutionMonthlyChart = dynamic(
+  () => import("@/components/charts/dashboard/execution-monthly-chart").then((m) => m.ExecutionMonthlyChart),
+  { loading: widgetSkeleton }
+);
+const TopCustomersPareto = dynamic(
+  () => import("@/components/charts/dashboard/top-customers-pareto").then((m) => m.TopCustomersPareto),
+  { loading: widgetSkeleton }
+);
+const CategoryMixDonut = dynamic(
+  () => import("@/components/charts/dashboard/category-mix-donut").then((m) => m.CategoryMixDonut),
+  { loading: widgetSkeleton }
+);
+const MonthlyComparisonChart = dynamic(
+  () => import("@/components/charts/dashboard/monthly-comparison-chart").then((m) => m.MonthlyComparisonChart),
+  { loading: widgetSkeleton }
+);
+const TechServiceWidget = dynamic(
+  () => import("@/components/charts/dashboard/tech-service-widget").then((m) => m.TechServiceWidget),
+  { loading: widgetSkeleton }
+);
+const SeasonalForecastChart = dynamic(
+  () => import("@/components/charts/dashboard/seasonal-forecast-chart").then((m) => m.SeasonalForecastChart),
+  { loading: widgetSkeleton }
+);
+const ForecastSummaryWidget = dynamic(
+  () => import("@/components/charts/dashboard/forecast-summary-widget").then((m) => m.ForecastSummaryWidget),
+  { loading: widgetSkeleton }
+);
 
-import { ClientParetoCard } from "@/components/charts/comercial/client-pareto-card";
-import { TopItemsCard } from "@/components/charts/comercial/top-items-card";
-import { SkuParetoCard } from "@/components/charts/comercial/sku-pareto-card";
-import { BrandMixCard } from "@/components/charts/comercial/brand-mix-card";
-import { BucketByClientCard } from "@/components/charts/comercial/bucket-by-client-card";
-import { MonthHeatmapCard } from "@/components/charts/comercial/month-heatmap-card";
-import { NewVsRecurringCard } from "@/components/charts/comercial/new-vs-recurring-card";
-import { SeasonByBucketCard } from "@/components/charts/comercial/season-by-bucket-card";
-import { BucketMixCard } from "@/components/charts/comercial/bucket-mix-card";
+const HistoricalSalesCategory = dynamic(
+  () => import("@/components/charts/premium/historical-sales-category").then((m) => m.HistoricalSalesCategory),
+  { loading: widgetSkeleton }
+);
+const GroupingAnalysisCard = dynamic(
+  () => import("@/components/charts/premium/grouping-analysis-card").then((m) => m.GroupingAnalysisCard),
+  { loading: widgetSkeleton }
+);
+const GroupEvolutionCard = dynamic(
+  () => import("@/components/charts/premium/group-evolution-card").then((m) => m.GroupEvolutionCard),
+  { loading: widgetSkeleton }
+);
+const GroupForecastCard = dynamic(
+  () => import("@/components/charts/premium/group-forecast-card").then((m) => m.GroupForecastCard),
+  { loading: widgetSkeleton }
+);
+const ForecastSalesCategory = dynamic(
+  () => import("@/components/charts/premium/forecast-sales-category").then((m) => m.ForecastSalesCategory),
+  { loading: widgetSkeleton }
+);
 
-import { MarginKpiCard } from "@/components/charts/margin/margin-kpi-card";
-import { MarginByCustomerCard } from "@/components/charts/margin/margin-by-customer-card";
-import { MarginByItemCard } from "@/components/charts/margin/margin-by-item-card";
-import { MarginScatterCard } from "@/components/charts/margin/margin-scatter-card";
+const ClientParetoCard = dynamic(
+  () => import("@/components/charts/comercial/client-pareto-card").then((m) => m.ClientParetoCard),
+  { loading: widgetSkeleton }
+);
+const TopItemsCard = dynamic(
+  () => import("@/components/charts/comercial/top-items-card").then((m) => m.TopItemsCard),
+  { loading: widgetSkeleton }
+);
+const SkuParetoCard = dynamic(
+  () => import("@/components/charts/comercial/sku-pareto-card").then((m) => m.SkuParetoCard),
+  { loading: widgetSkeleton }
+);
+const BrandMixCard = dynamic(
+  () => import("@/components/charts/comercial/brand-mix-card").then((m) => m.BrandMixCard),
+  { loading: widgetSkeleton }
+);
+const BucketByClientCard = dynamic(
+  () => import("@/components/charts/comercial/bucket-by-client-card").then((m) => m.BucketByClientCard),
+  { loading: widgetSkeleton }
+);
+const MonthHeatmapCard = dynamic(
+  () => import("@/components/charts/comercial/month-heatmap-card").then((m) => m.MonthHeatmapCard),
+  { loading: widgetSkeleton }
+);
+const NewVsRecurringCard = dynamic(
+  () => import("@/components/charts/comercial/new-vs-recurring-card").then((m) => m.NewVsRecurringCard),
+  { loading: widgetSkeleton }
+);
+const SeasonByBucketCard = dynamic(
+  () => import("@/components/charts/comercial/season-by-bucket-card").then((m) => m.SeasonByBucketCard),
+  { loading: widgetSkeleton }
+);
+const BucketMixCard = dynamic(
+  () => import("@/components/charts/comercial/bucket-mix-card").then((m) => m.BucketMixCard),
+  { loading: widgetSkeleton }
+);
+
+const MarginKpiCard = dynamic(
+  () => import("@/components/charts/margin/margin-kpi-card").then((m) => m.MarginKpiCard),
+  { loading: widgetSkeleton }
+);
+const MarginByCustomerCard = dynamic(
+  () => import("@/components/charts/margin/margin-by-customer-card").then((m) => m.MarginByCustomerCard),
+  { loading: widgetSkeleton }
+);
+const MarginByItemCard = dynamic(
+  () => import("@/components/charts/margin/margin-by-item-card").then((m) => m.MarginByItemCard),
+  { loading: widgetSkeleton }
+);
+const MarginScatterCard = dynamic(
+  () => import("@/components/charts/margin/margin-scatter-card").then((m) => m.MarginScatterCard),
+  { loading: widgetSkeleton }
+);
 
 export type WidgetSection = "KPIs" | "Dashboard" | "Exploración" | "Forecast" | "Comercial" | "Margen";
 

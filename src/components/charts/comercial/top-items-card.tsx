@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getItemSales } from "@/actions/item-sales-actions";
+import { fetchItemSales } from "@/lib/data-client";
 import { topItems } from "@/lib/analytics-comercial";
 import { formatUSD, formatCompactUSD } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,7 +35,7 @@ export function TopItemsCard({ recordType, year }: { recordType: "SALES_ORDER" |
   const [metric, setMetric] = useState<"importe" | "cantidad">("importe");
   const { data, isLoading } = useQuery({
     queryKey: ["top-items", { recordType, year }],
-    queryFn: () => getItemSales({ tipo: recordType, desde: `${year}-01-01`, hasta: `${year}-12-31` }),
+    queryFn: () => fetchItemSales({ tipo: recordType, desde: `${year}-01-01`, hasta: `${year}-12-31` }),
   });
   const top = useMemo(() => topItems(data ?? [], metric, 15), [data, metric]);
 

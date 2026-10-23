@@ -7,7 +7,7 @@ import {
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getCustomerSales } from "@/actions/customer-sales-actions";
+import { fetchCustomerSales } from "@/lib/data-client";
 import { topCustomers } from "@/lib/dashboard-insights";
 import { formatCompactUSD, formatUSD } from "@/lib/constants";
 import { RecordTypeToggle } from "@/components/common/record-type-toggle";
@@ -33,7 +33,7 @@ export function TopCustomersPareto({ year }: { year: number }) {
   const [tipo, setTipo] = useState<"SALES_ORDER" | "INVOICE">("INVOICE");
   const { data, isLoading } = useQuery({
     queryKey: ["customer-sales-top", { tipo, year }],
-    queryFn: () => getCustomerSales({ tipo, desdeAnio: year, hastaAnio: year }),
+    queryFn: () => fetchCustomerSales({ tipo, desdeAnio: year, hastaAnio: year }),
   });
   const rows = useMemo(
     () => topCustomers((data ?? []).map((r) => ({ customer: r.customer, ventas: r.ventas })), 10),

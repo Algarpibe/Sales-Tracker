@@ -3,7 +3,7 @@
 import { Fragment, useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { getCustomerItemSales } from "@/actions/customer-item-actions";
+import { fetchCustomerItemSales } from "@/lib/data-client";
 import { filterRows } from "@/lib/customer-item";
 import { buildCustomerItemCompare } from "@/lib/customer-item-compare";
 import { customerHref } from "@/lib/customer-detail";
@@ -17,8 +17,8 @@ import { EmptyState } from "@/components/common/empty-state";
 export function CustomerItemCompareTable({ tipo, yearA, yearB }: { tipo: "SALES_ORDER" | "INVOICE"; yearA: number; yearB: number }) {
   const [search, setSearch] = useState("");
 
-  const qA = useQuery({ queryKey: ["customer-item", { tipo, anio: yearA }], queryFn: () => getCustomerItemSales({ tipo, anio: yearA }) });
-  const qB = useQuery({ queryKey: ["customer-item", { tipo, anio: yearB }], queryFn: () => getCustomerItemSales({ tipo, anio: yearB }) });
+  const qA = useQuery({ queryKey: ["customer-item", { tipo, anio: yearA }], queryFn: () => fetchCustomerItemSales({ tipo, anio: yearA }) });
+  const qB = useQuery({ queryKey: ["customer-item", { tipo, anio: yearB }], queryFn: () => fetchCustomerItemSales({ tipo, anio: yearB }) });
   const isLoading = qA.isLoading || qB.isLoading;
 
   const groups = useMemo(

@@ -2,8 +2,7 @@
 
 import { createContext, useContext, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getSalesData } from "@/actions/sales-actions";
-import { getCategories } from "@/actions/category-actions";
+import { fetchCategories, fetchSalesData } from "@/lib/data-client";
 import { computeDashboardMetrics, type DashboardMetrics } from "@/lib/dashboard-metrics";
 import type { Category, SalesRecord } from "@/types/database";
 
@@ -29,15 +28,15 @@ export function useDashboardData(): DashboardData {
 export function DashboardDataProvider({ year, children }: { year: number; children: React.ReactNode }) {
   const { data: recordsData, isLoading: l1 } = useQuery({
     queryKey: ["sales", { year }],
-    queryFn: () => getSalesData({ year }),
+    queryFn: () => fetchSalesData({ year }),
   });
   const { data: prevData, isLoading: l2 } = useQuery({
     queryKey: ["sales", { year: year - 1 }],
-    queryFn: () => getSalesData({ year: year - 1 }),
+    queryFn: () => fetchSalesData({ year: year - 1 }),
   });
   const { data: catsData, isLoading: l3 } = useQuery({
     queryKey: ["categories"],
-    queryFn: getCategories,
+    queryFn: fetchCategories,
   });
 
   const value = useMemo<DashboardData>(() => {

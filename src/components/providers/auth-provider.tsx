@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, useCallback } from "react";
+import { createContext, useContext, useEffect, useState, useCallback, useSyncExternalStore } from "react";
 import { authClient } from "@/lib/auth/client";
 import { getMyProfile } from "@/actions/profile-actions";
 import { logError } from "@/lib/logger";
@@ -130,4 +130,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-export const useAuth = () => useContext(AuthContext);
+// Estado con el que el servidor renderiza AuthProvider: sin sesión (better-auth hidrata
+// useSession con su estado inicial) y sin perfil (solo llega tras getMyProfile).
+const SERVER_AUTH = { user: null, profile: null, loading: true } as const;
+
+const noopSubscribe = () => () => {};
+
+/**
+ * Contexto de auth, hidratación-segura. Un Suspense del HTML de servidor puede hidratar
+ * después de que llegue el perfil (React 19.2 revela esos límites en lote, hasta ~300 ms
+ * tras el primer pintado: le pasa al <Sidebar> del layout). Si en esa hidratación se
+ * leyera el perfil real, el admin pintaría «Usuarios» y el HTML no coincidiría (React
+ * #418). Mientras el componente hidrata se devuelve el estado del servidor; justo después
+ * React vuelve a renderizar con el real. En montajes normales devuelve el real desde ya.
+ */
+export function useAuth(): AuthContextType {
+  const ctx = useContext(AuthContext);
+  const hydrated = useSyncExternalStore(noopSubscribe, () => true, () => false);
+  return hydrated ? ctx : { ...ctx, ...SERVER_AUTH };
+}

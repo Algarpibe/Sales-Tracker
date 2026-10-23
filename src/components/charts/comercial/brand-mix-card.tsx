@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getCustomerItemSales } from "@/actions/customer-item-actions";
+import { fetchCustomerItemSales } from "@/lib/data-client";
 import { buildBrandMix, type BrandMixRow } from "@/lib/analytics-comercial";
 import { formatUSD } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,7 +31,7 @@ function BrandTooltip({ active, payload, total }: ChartTooltipProps<BrandMixRow>
 export function BrandMixCard({ recordType, year }: { recordType: "SALES_ORDER" | "INVOICE"; year: number }) {
   const { data, isLoading } = useQuery({
     queryKey: ["customer-item", { tipo: recordType, anio: year }],
-    queryFn: () => getCustomerItemSales({ tipo: recordType, anio: year }),
+    queryFn: () => fetchCustomerItemSales({ tipo: recordType, anio: year }),
   });
   const { slices, total } = useMemo(() => {
     const all = buildBrandMix(data ?? []);

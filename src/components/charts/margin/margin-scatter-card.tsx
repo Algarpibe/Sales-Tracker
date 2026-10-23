@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getMarginByItem } from "@/actions/margin-actions";
+import { fetchMarginByItem } from "@/lib/data-client";
 import { buildMarginItems, deriveMargin } from "@/lib/analytics-margin";
 import { formatUSD, formatCompactUSD } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,7 +35,7 @@ const FLOOR_PCT = -50;
 export function MarginScatterCard({ recordType, year }: { recordType: "SALES_ORDER" | "INVOICE"; year: number }) {
   const { data, isLoading } = useQuery({
     queryKey: ["margin-item", { tipo: recordType, anio: year }],
-    queryFn: () => getMarginByItem({ tipo: recordType, anio: year }),
+    queryFn: () => fetchMarginByItem({ tipo: recordType, anio: year }),
   });
   const [mode, setMode] = useState<AmountMode>("pct");
   const { points, overallPct } = useMemo(() => {

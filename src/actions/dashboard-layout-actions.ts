@@ -5,33 +5,17 @@ import { db } from "@/db";
 import { savedViews } from "@/db/schema";
 import { requireApproved } from "@/lib/auth/guards";
 import { parseDashboardLayout, type DashboardItem } from "@/lib/dashboard-layout";
+import { DASHBOARD_LAYOUT_NAME, DASHBOARD_VIEW_KEY, readDashboardLayout } from "@/lib/data-reads";
 import { runAction, type ActionResult } from "@/lib/errors";
-import { logError } from "@/lib/logger";
 
-const VIEW_KEY = "dashboard";
-const NAME = "layout";
+const VIEW_KEY = DASHBOARD_VIEW_KEY;
+const NAME = DASHBOARD_LAYOUT_NAME;
 
-// null = el usuario no ha personalizado (el llamante usa DEFAULT_LAYOUT).
+// null = el usuario no ha personalizado (el llamante usa DEFAULT_LAYOUT). La lectura
+// vive en src/lib/data-reads.ts, compartida con GET /api/data/dashboard-layout.
 export async function getDashboardLayout(): Promise<DashboardItem[] | null> {
   const { profile } = await requireApproved();
-  try {
-    const rows = await db
-      .select({ state: savedViews.state })
-      .from(savedViews)
-      .where(and(
-        eq(savedViews.user_id, profile.id),
-        eq(savedViews.view_key, VIEW_KEY),
-        eq(savedViews.name, NAME),
-      ))
-      .limit(1);
-    if (rows.length === 0) return null;
-    return parseDashboardLayout(rows[0].state);
-  } catch (e) {
-    // Degrada al layout por defecto para no romper el dashboard, pero deja rastro del
-    // fallo real (ARQ-077: antes se tragaba en silencio).
-    logError("getDashboardLayout falló; degradando a null", e);
-    return null;
-  }
+  return readDashboardLayout(profile.id);
 }
 
 export async function saveDashboardLayout(items: DashboardItem[]): Promise<ActionResult> {

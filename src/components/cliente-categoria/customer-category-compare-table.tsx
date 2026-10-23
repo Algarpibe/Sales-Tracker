@@ -3,7 +3,7 @@
 import { Fragment, useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { getCustomerItemSales } from "@/actions/customer-item-actions";
+import { fetchCustomerItemSales } from "@/lib/data-client";
 import { SIN_CATEGORIA, filterCategoryRows } from "@/lib/customer-category";
 import { buildCustomerCategoryCompare } from "@/lib/customer-category-compare";
 import { customerHref } from "@/lib/customer-detail";
@@ -19,8 +19,8 @@ export function CustomerCategoryCompareTable({ tipo, yearA, yearB }: { tipo: "SA
 
   // Misma clave que la sección de artículos: si ya se vieron esos años allí, no se
   // vuelven a pedir al hub.
-  const qA = useQuery({ queryKey: ["customer-item", { tipo, anio: yearA }], queryFn: () => getCustomerItemSales({ tipo, anio: yearA }) });
-  const qB = useQuery({ queryKey: ["customer-item", { tipo, anio: yearB }], queryFn: () => getCustomerItemSales({ tipo, anio: yearB }) });
+  const qA = useQuery({ queryKey: ["customer-item", { tipo, anio: yearA }], queryFn: () => fetchCustomerItemSales({ tipo, anio: yearA }) });
+  const qB = useQuery({ queryKey: ["customer-item", { tipo, anio: yearB }], queryFn: () => fetchCustomerItemSales({ tipo, anio: yearB }) });
   const isLoading = qA.isLoading || qB.isLoading;
 
   const groups = useMemo(

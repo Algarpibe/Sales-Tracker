@@ -52,6 +52,7 @@ function normalizeSql(sql: string): string {
 }
 
 const TIPOS = ["SALES_ORDER", "INVOICE"] as const;
+const CLIENTE = "Cliente A";
 
 async function capturar(run: () => Promise<unknown>) {
   state.queries = [];
@@ -124,5 +125,102 @@ describe("SQL del hub (caracterización)", () => {
   });
   it("getHubCommercialNotificationChanges", async () => {
     expect(await capturar(() => getHubCommercialNotificationChanges(2025))).toMatchSnapshot();
+  });
+
+  // DATA-046: variantes filtradas por cliente de la ficha /clientes/[customer].
+  for (const tipo of TIPOS) {
+    it(`getHubCustomerItemSales ${tipo} por cliente`, async () => {
+      expect(await capturar(() => getHubCustomerItemSales({ tipo, anio: 2025, customer: CLIENTE }))).toMatchSnapshot();
+    });
+    it(`getHubCustomerMonthSales ${tipo} por cliente`, async () => {
+      expect(await capturar(() => getHubCustomerMonthSales({ tipo, anio: 2025, customer: CLIENTE }))).toMatchSnapshot();
+    });
+    it(`getHubCustomerSales ${tipo} por cliente`, async () => {
+      expect(
+        await capturar(() => getHubCustomerSales({ tipo, desdeAnio: 2015, hastaAnio: 2025, customer: CLIENTE })),
+      ).toMatchSnapshot();
+    });
+    it(`getHubMarginByCustomer ${tipo} por cliente`, async () => {
+      expect(await capturar(() => getHubMarginByCustomer({ tipo, anio: 2025, customer: CLIENTE }))).toMatchSnapshot();
+    });
+  }
+});
+
+/**
+ * DATA-046: la consulta por cliente es la de toda la empresa con UN predicado más
+ * (`h.customer_name = $n`, con el nombre como parámetro) y nada más. Así, filtrar en
+ * el servidor da exactamente las filas de ese cliente que antes se filtraban en el
+ * navegador: mismas columnas, misma agregación y mismo resto de filtros.
+ */
+describe("consulta por cliente = consulta de la empresa + un predicado", () => {
+  const casos: [string, () => Promise<unknown>, () => Promise<unknown>][] = TIPOS.flatMap(
+    (tipo): [string, () => Promise<unknown>, () => Promise<unknown>][] => [
+      [
+        `getHubCustomerItemSales ${tipo}`,
+        () => getHubCustomerItemSales({ tipo, anio: 2025 }),
+        () => getHubCustomerItemSales({ tipo, anio: 2025, customer: CLIENTE }),
+      ],
+      [
+        `getHubCustomerMonthSales ${tipo}`,
+        () => getHubCustomerMonthSales({ tipo, anio: 2025 }),
+        () => getHubCustomerMonthSales({ tipo, anio: 2025, customer: CLIENTE }),
+      ],
+      [
+        `getHubCustomerSales ${tipo}`,
+        () => getHubCustomerSales({ tipo, desdeAnio: 2015, hastaAnio: 2025 }),
+        () => getHubCustomerSales({ tipo, desdeAnio: 2015, hastaAnio: 2025, customer: CLIENTE }),
+      ],
+      [
+        `getHubMarginByCustomer ${tipo}`,
+        () => getHubMarginByCustomer({ tipo, anio: 2025 }),
+        () => getHubMarginByCustomer({ tipo, anio: 2025, customer: CLIENTE }),
+      ],
+    ],
+  );
+
+  it.each(casos)("%s", async (_n, empresa, cliente) => {
+    const base = await capturar(empresa);
+    const filtrada = await capturar(cliente);
+    const predicado = `AND h.customer_name=$${(base.params ?? []).length + 1}`;
+    expect(filtrada.params).toEqual([...(base.params ?? []), CLIENTE]);
+    expect(filtrada.sql.split(predicado)).toHaveLength(2);
+    expect(normalizeSql(filtrada.sql.replace(predicado, ""))).toBe(base.sql);
+  });
+
+  it("sin cliente no se añade ni predicado ni parámetro", async () => {
+    const { sql, params } = await capturar(() => getHubCustomerItemSales({ tipo: "INVOICE", anio: 2025 }));
+    expect(sql).not.toContain("customer_name=$");
+    expect(params).toEqual([2025]);
+  });
+});
+
+/**
+ * DATA-045: ningún filtro por año envuelve la columna de fecha en extract(): con un
+ * rango, Postgres puede usar un índice B-tree sobre ella. extract() sigue en el SELECT
+ * y en el GROUP BY (agrupar por mes), no en el WHERE.
+ */
+describe("filtros de fecha sargables", () => {
+  const consultas: [string, () => Promise<unknown>][] = [
+    ...TIPOS.flatMap((tipo): [string, () => Promise<unknown>][] => [
+      [`getHubCategoryMonthSales ${tipo}`, () => getHubCategoryMonthSales({ tipo, anio: 2025 })],
+      [`getHubCustomerItemSales ${tipo}`, () => getHubCustomerItemSales({ tipo, anio: 2025 })],
+      [`getHubCustomerMonthSales ${tipo}`, () => getHubCustomerMonthSales({ tipo, anio: 2025 })],
+      [`getHubCustomerSales ${tipo}`, () => getHubCustomerSales({ tipo, desdeAnio: 2021, hastaAnio: 2025 })],
+      [`getHubMarginByItem ${tipo}`, () => getHubMarginByItem({ tipo, anio: 2025 })],
+      [`getHubMarginByCustomer ${tipo}`, () => getHubMarginByCustomer({ tipo, anio: 2025 })],
+      [`getHubCustomerMonthByOwner ${tipo}`, () => getHubCustomerMonthByOwner({ tipo, anio: 2025, owner: null })],
+    ]),
+    ["getHubDealsMonth", () => getHubDealsMonth({ anio: 2025, owner: null })],
+    ["getHubWonDealsMonth", () => getHubWonDealsMonth({ anio: 2025, owner: null })],
+    ["searchHubSalesOrders", () => searchHubSalesOrders("Cliente A", 2025)],
+  ];
+
+  it.each(consultas)("%s filtra el año con un rango, no con extract()", async (_n, run) => {
+    const { sql } = await capturar(run);
+    const desde = sql.indexOf(" WHERE ");
+    const hasta = sql.slice(desde).search(/GROUP BY|ORDER BY/);
+    const where = hasta === -1 ? sql.slice(desde) : sql.slice(desde, desde + hasta);
+    expect(where).not.toMatch(/extract\(year/);
+    expect(where).toMatch(/>=make_(date|timestamptz)\(/);
   });
 });

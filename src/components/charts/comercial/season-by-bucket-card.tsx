@@ -2,8 +2,7 @@
 
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getCategoryMonthSales } from "@/actions/category-month-actions";
-import { getMacroCategorias } from "@/actions/category-actions";
+import { fetchCategoryMonthSales, fetchMacroCategorias } from "@/lib/data-client";
 import { buildBucketSeason } from "@/lib/analytics-comercial";
 import { BUCKET_COLORS, BUCKET_LABELS, MACRO_CATEGORIAS_KEY, mapaMacroCategorias } from "@/lib/customer-item";
 import { MONTH_LABELS, formatUSD, formatCompactUSD } from "@/lib/constants";
@@ -48,14 +47,14 @@ function SeasonTooltip({ active, payload, label }: ChartTooltipProps<SeasonPoint
 export function SeasonByBucketCard({ recordType, year }: { recordType: "SALES_ORDER" | "INVOICE"; year: number }) {
   const { data, isLoading } = useQuery({
     queryKey: ["category-month", { tipo: recordType, anio: year }],
-    queryFn: () => getCategoryMonthSales({ tipo: recordType, anio: year }),
+    queryFn: () => fetchCategoryMonthSales({ tipo: recordType, anio: year }),
   });
   // Clasificación guardada en Configuración. Hasta que llega se ve el esqueleto, nunca
   // un reparto con el mapa vacío (todo en Equipos). Si la consulta falla, el esqueleto
   // se queda.
   const { data: macro } = useQuery({
     queryKey: MACRO_CATEGORIAS_KEY,
-    queryFn: () => getMacroCategorias(),
+    queryFn: () => fetchMacroCategorias(),
   });
   const mapa = useMemo(() => mapaMacroCategorias(macro ?? []), [macro]);
   const rows = useMemo(

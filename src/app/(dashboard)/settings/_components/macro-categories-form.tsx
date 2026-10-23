@@ -4,7 +4,8 @@ import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Layers, Loader2, Save } from "lucide-react";
-import { getMacroCategorias, saveMacroCategorias } from "@/actions/category-actions";
+import { saveMacroCategorias } from "@/actions/category-actions";
+import { fetchMacroCategorias } from "@/lib/data-client";
 import { puedeEditarMetas } from "@/lib/commercial-kpis";
 import { BUCKETS, BUCKET_LABELS, MACRO_CATEGORIAS_KEY } from "@/lib/customer-item";
 import { alternarCategoria, haCambiado, seleccionPorGrupo, type Seleccion } from "@/lib/seleccion-grupos";
@@ -105,7 +106,7 @@ export function MacroCategoriasForm() {
 
   const { data, dataUpdatedAt } = useQuery({
     queryKey: MACRO_CATEGORIAS_KEY,
-    queryFn: () => getMacroCategorias(),
+    queryFn: () => fetchMacroCategorias(),
     enabled: conPerfil,
   });
 

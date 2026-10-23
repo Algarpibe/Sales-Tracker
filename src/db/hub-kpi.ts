@@ -1,5 +1,5 @@
 import { getHubPool } from "@/db/hub";
-import { netAmountSumExpr, sourceFor } from "@/db/hub-sql";
+import { netAmountSumExpr, sourceFor, yearRangeExpr } from "@/db/hub-sql";
 import { isExcludedSalesperson, parseExcludedSalespeople, WON_DEAL_STAGES } from "@/lib/commercial-kpis";
 import type { DealMonthRow } from "@/lib/kpi-score";
 import { FASE_NOTIFICACION_COMERCIAL, type CambioFase } from "@/lib/kpi-tickets";
@@ -48,7 +48,7 @@ export async function getHubCustomerMonthByOwner(f: {
            ${netAmountSumExpr("l", "h")} AS importe
     FROM ${src.lines} l
     JOIN ${src.header} h ON h.${src.fk} = l.${src.fk}
-    WHERE extract(year from h.date) = $1
+    WHERE ${yearRangeExpr("h.date", "$1")}
       AND l.bcy_rate IS NOT NULL
       AND h.status NOT IN ('void','draft')
       AND h.customer_name IS NOT NULL
@@ -65,6 +65,9 @@ export async function getHubCustomerMonthByOwner(f: {
 // Tratos por cuenta y mes. Zoho CRM se replica en el esquema crm del hub, y
 // owner_name usa las mismas cadenas que el vendedor de Books, asi que el filtro
 // por comercial vale para las dos fuentes sin traducir nada.
+// created_time es timestamptz y el año se toma en la zona horaria de la SESION, igual
+// que el extract() del SELECT: make_timestamptz sin zona usa esa misma zona, asi que el
+// rango [1 ene, 1 ene siguiente) equivale al extract(year ...) = $1 de antes (DATA-045).
 export async function getHubDealsMonth(f: {
   anio: number;
   owner: string | null;
@@ -74,7 +77,8 @@ export async function getHubDealsMonth(f: {
            extract(month from d.created_time)::int AS mes,
            count(*)::int AS tratos
     FROM crm.deals d
-    WHERE extract(year from d.created_time) = $1
+    WHERE d.created_time >= make_timestamptz($1::int, 1, 1, 0, 0, 0)
+      AND d.created_time <  make_timestamptz($1::int + 1, 1, 1, 0, 0, 0)
       AND d.account_name IS NOT NULL
       AND ($2::text IS NULL OR d.owner_name = $2)
     GROUP BY d.account_name, extract(month from d.created_time)`;
@@ -97,6 +101,9 @@ export async function getHubDealsMonth(f: {
 // columna la rellena el worker hub-sync de ambientalia-desk, y mezclar los dos criterios
 // ocultaria que el worker no ha terminado. Por eso esta consulta solo se despliega con
 // el barrido del worker a 0 pendientes.
+// El año se filtra con un rango de instantes en hora de Bogota (DATA-045): es el mismo
+// criterio que el extract(year ... AT TIME ZONE 'America/Bogota') del mes, sin envolver
+// la columna.
 export async function getHubWonDealsMonth(f: {
   anio: number;
   owner: string | null;
@@ -107,7 +114,8 @@ export async function getHubWonDealsMonth(f: {
            count(*)::int AS tratos
     FROM crm.deals d
     WHERE d.stage_modified_time IS NOT NULL
-      AND extract(year from d.stage_modified_time AT TIME ZONE 'America/Bogota') = $1
+      AND d.stage_modified_time >= make_timestamptz($1::int, 1, 1, 0, 0, 0, 'America/Bogota')
+      AND d.stage_modified_time <  make_timestamptz($1::int + 1, 1, 1, 0, 0, 0, 'America/Bogota')
       AND d.stage = ANY($2::text[])
       AND d.account_name IS NOT NULL
       AND ($3::text IS NULL OR d.owner_name = $3)
@@ -151,7 +159,7 @@ export async function searchHubSalesOrders(query: string, anio: number): Promise
     JOIN books.sales_orders s ON s.salesorder_id = l.salesorder_id
     WHERE s.status NOT IN ('void','draft')
       AND (s.customer_name ILIKE $1 OR s.salesorder_id ILIKE $1)
-      AND extract(year from s.date) = $2
+      AND ${yearRangeExpr("s.date", "$2")}
     GROUP BY s.salesorder_id, s.customer_name, s.date
     ORDER BY s.date DESC
     LIMIT 25`;

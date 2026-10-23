@@ -205,6 +205,8 @@ export interface CustomerSalesFilters {
    * viendo únicamente lo que devuelve el zoho-hub.
    */
   includeHistory?: boolean;
+  /** Solo las filas de ese cliente (ficha /clientes/[customer], DATA-046). */
+  customer?: string;
 }
 
 export interface CustomerYearRow {
@@ -223,6 +225,8 @@ export interface CustomerYearRow {
 export interface CustomerItemFilters {
   tipo: RecordType;   // "SALES_ORDER" (OV) | "INVOICE" (FAC)
   anio: number;
+  /** Solo las filas de ese cliente (ficha /clientes/[customer], DATA-046). */
+  customer?: string;
 }
 
 export interface CustomerItemRow {
@@ -240,6 +244,8 @@ export interface CustomerItemRow {
 export interface CustomerMonthFilters {
   tipo: RecordType;   // "SALES_ORDER" (OV) | "INVOICE" (FAC)
   anio: number;
+  /** Solo las filas de ese cliente (ficha /clientes/[customer], DATA-046). */
+  customer?: string;
 }
 
 export interface CustomerMonthRow {
@@ -252,6 +258,8 @@ export interface CustomerMonthRow {
 
 export interface MarginByYearFilters { tipo: RecordType }
 export interface MarginFilters { tipo: RecordType; anio: number }
+/** Margen por cliente; con `customer`, solo el de ese cliente (DATA-046). */
+export interface MarginCustomerFilters extends MarginFilters { customer?: string }
 
 export interface MarginYearRow { year: number; ventas: number; costo: number }
 export interface MarginItemRow { item_id: string; sku: string | null; nombre: string; ventas: number; costo: number }

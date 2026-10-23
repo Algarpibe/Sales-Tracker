@@ -52,3 +52,36 @@ for (const route of ROUTES) {
     expect(errors, `Errores de consola en ${route.path}:\n${errors.join("\n")}`).toEqual([]);
   });
 }
+
+/**
+ * Regresión del React #418 intermitente en /tablas. React 19.2 revela en lote los
+ * Suspense del HTML de servidor (`$RC` → `$RV`, hasta ~300 ms tras el primer pintado) y
+ * el <Sidebar> del layout vive en uno: hidrata al revelarse. Si getMyProfile responde
+ * antes, el perfil de admin añade «Usuarios» y el HTML ya no coincide. Se retrasa la
+ * revelación para forzar esa carrera de forma determinista en vez de esperarla al azar.
+ */
+test("el sidebar hidrata sin errores aunque el perfil llegue antes que su Suspense", async ({ page }) => {
+  await page.addInitScript(() => {
+    const w = window as unknown as Record<string, unknown>;
+    let reveal: ((...args: unknown[]) => void) | undefined;
+    Object.defineProperty(w, "$RV", {
+      configurable: true,
+      set(fn: (...args: unknown[]) => void) { reveal = fn; },
+      get() {
+        return (...args: unknown[]) => {
+          w.__revealDelayed = true;
+          setTimeout(() => reveal?.(...args), 1500);
+        };
+      },
+    });
+  });
+  const errors = collectConsoleErrors(page);
+
+  await page.goto("/tablas");
+
+  // El enlace de admin solo existe con el perfil cargado y el sidebar ya hidratado.
+  await expect(page.getByRole("link", { name: "Usuarios", exact: true })).toBeVisible();
+  // Si React deja de usar $RV la prueba no forzaría nada: que falle en vez de pasar en falso.
+  expect(await page.evaluate(() => (window as unknown as Record<string, unknown>).__revealDelayed)).toBe(true);
+  expect(errors, `Errores de consola:\n${errors.join("\n")}`).toEqual([]);
+});

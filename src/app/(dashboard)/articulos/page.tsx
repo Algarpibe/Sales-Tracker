@@ -3,7 +3,7 @@
 import { Suspense, useState, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { getItemSales } from "@/actions/item-sales-actions";
+import { fetchItemSales } from "@/lib/data-client";
 import type { ItemSalesRow } from "@/types/database";
 import { usePeriod } from "@/components/providers/period-provider";
 import { HUB_FIRST_YEAR, formatUSD } from "@/lib/constants";
@@ -101,7 +101,7 @@ function ArticulosContent() {
 
   const { data, isLoading } = useQuery({
     queryKey: ["item-sales", { tipo, desde, hasta }],
-    queryFn: () => getItemSales({ tipo, desde, hasta }),
+    queryFn: () => fetchItemSales({ tipo, desde, hasta }),
     enabled: !compareMode,
   });
   const rows = useMemo<ItemSalesRow[]>(() => data ?? [], [data]);

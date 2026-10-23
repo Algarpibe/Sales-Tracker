@@ -1,37 +1,21 @@
-import { test, expect, type Request } from "@playwright/test";
+import { test, expect } from "@playwright/test";
 import { APPROVED_STATE } from "../constants";
 
 test.use({ storageState: APPROVED_STATE });
 
 /**
  * FE-056: el error de una tarjeta es local. Se hace fallar SOLO la lectura de
- * «Margen bruto estimado» (Server Action getMarginByYear, la única de la pestaña
- * Margen cuyo argumento es { tipo } sin año) devolviendo un 500 a su POST con
- * cabecera Next-Action. Esa tarjeta debe mostrar su aviso con «Reintentar» mientras el
- * resto de la página sigue en pie; al reintentar sin el fallo, carga.
+ * «Margen bruto estimado» (GET /api/data/margin-by-year, la única de la pestaña Margen
+ * que la usa; DATA-043) devolviendo un 500. Esa tarjeta debe mostrar su aviso con
+ * «Reintentar» mientras el resto de la página sigue en pie; al reintentar sin el
+ * fallo, carga.
  */
-function isMarginByYear(req: Request): boolean {
-  if (req.method() !== "POST" || !req.headers()["next-action"]) return false;
-  try {
-    const args = JSON.parse(req.postData() ?? "");
-    return (
-      Array.isArray(args) &&
-      args.length === 1 &&
-      args[0] !== null &&
-      typeof args[0] === "object" &&
-      Object.keys(args[0]).join(",") === "tipo"
-    );
-  } catch {
-    return false;
-  }
-}
-
 test("si falla una tarjeta, solo ella muestra el error y se puede reintentar", async ({ page }) => {
   let fallar = true;
   await page.route(
-    (url) => url.pathname === "/analytics",
+    (url) => url.pathname === "/api/data/margin-by-year",
     async (route) => {
-      if (fallar && isMarginByYear(route.request())) {
+      if (fallar) {
         await route.fulfill({ status: 500, contentType: "text/plain", body: "fallo simulado" });
         return;
       }

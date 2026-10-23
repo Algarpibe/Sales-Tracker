@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getMarginByYear } from "@/actions/margin-actions";
+import { fetchMarginByYear } from "@/lib/data-client";
 import { buildMarginByYear } from "@/lib/analytics-margin";
 import { formatUSD, formatCompactUSD } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -40,7 +40,7 @@ function Tile({ label, value }: { label: string; value: string }) {
 export function MarginKpiCard({ recordType }: { recordType: "SALES_ORDER" | "INVOICE" }) {
   const { data, isLoading } = useQuery({
     queryKey: ["margin-year", { tipo: recordType }],
-    queryFn: () => getMarginByYear({ tipo: recordType }),
+    queryFn: () => fetchMarginByYear({ tipo: recordType }),
   });
   const [mode, setMode] = useState<AmountMode>("pct");
   const { series, totals } = useMemo(() => buildMarginByYear(data ?? []), [data]);

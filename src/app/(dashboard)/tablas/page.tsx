@@ -27,8 +27,7 @@ import { downloadXlsx, copySheetToClipboard } from "@/lib/excel-client";
 import { downloadText } from "@/lib/download";
 import { runExport, XLSX_EXPORT_MESSAGES } from "@/lib/run-export";
 import type { ExcelSheet } from "@/lib/excel-types";
-import { getSalesData } from "@/actions/sales-actions";
-import { getCategories } from "@/actions/category-actions";
+import { fetchCategories, fetchSalesData } from "@/lib/data-client";
 
 interface PivotRow {
   category_id: string;
@@ -42,11 +41,11 @@ export default function TablasPage() {
 
   const { data: salesData, isLoading: salesLoading } = useQuery({
     queryKey: ["sales", { year, record_type: typeFilter }],
-    queryFn: () => getSalesData({ year, record_type: typeFilter }),
+    queryFn: () => fetchSalesData({ year, record_type: typeFilter }),
   });
   const { data: catsData, isLoading: catsLoading } = useQuery({
     queryKey: ["categories"],
-    queryFn: getCategories,
+    queryFn: fetchCategories,
   });
   // useMemo: un `?? []` nuevo en cada render invalidaba los useMemo de abajo (FE-008).
   const records = useMemo<SalesRecord[]>(() => salesData ?? [], [salesData]);

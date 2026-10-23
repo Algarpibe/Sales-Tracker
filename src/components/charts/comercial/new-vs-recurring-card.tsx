@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getCustomerSales } from "@/actions/customer-sales-actions";
+import { fetchCustomerSales } from "@/lib/data-client";
 import { buildNewVsRecurring } from "@/lib/analytics-comercial";
 import type { NewVsRecurringRow } from "@/lib/analytics-comercial";
 import { HUB_FIRST_YEAR, formatUSD, formatCompactUSD } from "@/lib/constants";
@@ -34,7 +34,7 @@ export function NewVsRecurringCard({ recordType }: { recordType: "SALES_ORDER" |
   const thisYear = new Date().getFullYear();
   const { data, isLoading } = useQuery({
     queryKey: ["customer-sales", { tipo: recordType, desdeAnio: FIRST_YEAR, hastaAnio: thisYear }],
-    queryFn: () => getCustomerSales({ tipo: recordType, desdeAnio: FIRST_YEAR, hastaAnio: thisYear }),
+    queryFn: () => fetchCustomerSales({ tipo: recordType, desdeAnio: FIRST_YEAR, hastaAnio: thisYear }),
   });
   const chart = useMemo(() => buildNewVsRecurring(data ?? []), [data]);
 

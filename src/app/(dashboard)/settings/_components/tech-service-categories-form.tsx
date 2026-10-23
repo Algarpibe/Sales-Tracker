@@ -4,7 +4,8 @@ import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Loader2, Save, Wrench } from "lucide-react";
-import { getTechServiceCategories, saveTechServiceBuckets } from "@/actions/category-actions";
+import { saveTechServiceBuckets } from "@/actions/category-actions";
+import { fetchTechServiceCategories } from "@/lib/data-client";
 import { puedeEditarMetas } from "@/lib/commercial-kpis";
 import { TECH_SERVICE_CATEGORIES_KEY } from "@/lib/tech-service";
 import {
@@ -112,7 +113,7 @@ export function TechServiceCategoriesForm() {
 
   const { data, dataUpdatedAt } = useQuery({
     queryKey: TECH_SERVICE_CATEGORIES_KEY,
-    queryFn: () => getTechServiceCategories(),
+    queryFn: () => fetchTechServiceCategories(),
     enabled: conPerfil,
   });
 

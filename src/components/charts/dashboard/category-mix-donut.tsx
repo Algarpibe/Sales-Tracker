@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from "recharts";
-import { getMacroCategorias } from "@/actions/category-actions";
+import { fetchMacroCategorias } from "@/lib/data-client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { bucketMix, nombresPorId, type InsightRecord } from "@/lib/dashboard-insights";
@@ -43,7 +43,7 @@ export function CategoryMixDonut({
   // esqueleto, nunca un reparto con el mapa vacío (todo en Equipos).
   const { data: macro } = useQuery({
     queryKey: MACRO_CATEGORIAS_KEY,
-    queryFn: () => getMacroCategorias(),
+    queryFn: () => fetchMacroCategorias(),
   });
   const mapa = useMemo(() => mapaMacroCategorias(macro ?? []), [macro]);
   // Los nombres salen también de las categorías inactivas: catMap solo trae las activas.

@@ -5,20 +5,19 @@ import { and, eq, notInArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { kpiTargets, kpiProjectOrders } from "@/db/schema";
-import {
-  getHubCommercialNotificationChanges,
-  getHubCustomerMonthByOwner,
-  getHubDealsMonth,
-  getHubSalespeople,
-  getHubWonDealsMonth,
-  searchHubSalesOrders,
-  getHubOrdersByIds,
-  type HubOrderRow,
-} from "@/db/hub-kpi";
+import { searchHubSalesOrders, type HubOrderRow } from "@/db/hub-kpi";
 import { requireApproved, requireRole } from "@/lib/auth/guards";
 import { ROLES_EDITAN_METAS } from "@/lib/commercial-kpis";
+import {
+  readKpiDealsMonthly,
+  readKpiMonthlySales,
+  readKpiProjectOrders,
+  readKpiTargets,
+  readKpiTicketsChanges,
+  readKpiWonDealsMonthly,
+  readSalespeople,
+} from "@/lib/data-reads";
 import { hubOrderSearchSchema, hubYearSchema, kpiTargetsSchema } from "@/lib/validation";
-import { filaDeMeta } from "@/lib/kpi-metas";
 import { runAction, type ActionResult } from "@/lib/errors";
 import { audit } from "@/lib/audit";
 import type { DealMonthRow } from "@/lib/kpi-score";
@@ -36,32 +35,16 @@ export interface KpiTargetRow {
 /** Ámbito de las metas: null es el total de la compañía. */
 export type KpiScope = string | null;
 
+// Las lecturas viven en src/lib/data-reads.ts, compartidas con GET /api/data/*
+// (DATA-043).
 export async function getSalespeople(): Promise<string[]> {
   await requireApproved();
-  return getHubSalespeople();
+  return readSalespeople();
 }
 
 export async function getKpiTargets(year: number, salesperson: KpiScope): Promise<KpiTargetRow[]> {
   const { profile } = await requireApproved();
-  const rows = await db
-    .select({
-      kpi_key: kpiTargets.kpi_key,
-      target_value: kpiTargets.target_value,
-      weight_pct: kpiTargets.weight_pct,
-      plazo_horas: kpiTargets.plazo_horas,
-    })
-    .from(kpiTargets)
-    .where(
-      and(
-        eq(kpiTargets.company_id, profile.company_id),
-        eq(kpiTargets.record_year, year),
-        // eq(col, null) genera "= NULL" y no casa nunca: hace falta IS NOT DISTINCT FROM.
-        sql`${kpiTargets.salesperson} IS NOT DISTINCT FROM ${salesperson}`
-      )
-    );
-
-  // numeric llega como string desde Drizzle: filaDeMeta lo convierte sin volver 0 un plazo nulo.
-  return rows.map(filaDeMeta);
+  return readKpiTargets(profile.company_id, year, salesperson);
 }
 
 export async function saveKpiTargets(
@@ -130,22 +113,19 @@ export async function getKpiMonthlySales(
   owner: KpiScope
 ): Promise<CustomerMonthRow[]> {
   await requireApproved();
-  hubYearSchema.parse(anio);
-  return getHubCustomerMonthByOwner({ tipo, anio, owner });
+  return readKpiMonthlySales(tipo, anio, owner);
 }
 
 /** Tratos por cuenta y mes del año, opcionalmente de un solo comercial. Lectura: lanza en error. */
 export async function getKpiDealsMonthly(anio: number, owner: KpiScope): Promise<DealMonthRow[]> {
   await requireApproved();
-  hubYearSchema.parse(anio);
-  return getHubDealsMonth({ anio, owner });
+  return readKpiDealsMonthly(anio, owner);
 }
 
 /** Tratos ganados por cuenta y mes del año, opcionalmente de un solo comercial. Lectura: lanza en error. */
 export async function getKpiWonDealsMonthly(anio: number, owner: KpiScope): Promise<DealMonthRow[]> {
   await requireApproved();
-  hubYearSchema.parse(anio);
-  return getHubWonDealsMonth({ anio, owner });
+  return readKpiWonDealsMonthly(anio, owner);
 }
 
 /** Busca ordenes de venta para marcarlas como ingresos de proyecto. Lectura: cualquier
@@ -161,11 +141,7 @@ export async function searchSalesOrdersForProjects(query: string, anio: number):
 /** Ordenes ya marcadas como ingresos de proyecto de la empresa, con su importe en vivo. */
 export async function getKpiProjectOrders(): Promise<HubOrderRow[]> {
   const { profile } = await requireApproved();
-  const marcadas = await db
-    .select({ hub_order_id: kpiProjectOrders.hub_order_id })
-    .from(kpiProjectOrders)
-    .where(eq(kpiProjectOrders.company_id, profile.company_id));
-  return getHubOrdersByIds(marcadas.map((m) => m.hub_order_id));
+  return readKpiProjectOrders(profile.company_id);
 }
 
 /** Marca una orden de venta como ingreso de proyecto. Idempotente: marcarla dos veces
@@ -199,6 +175,5 @@ export async function removeProjectOrder(hubOrderId: string): Promise<ActionResu
  *  comercial al ticket, así que no hay ámbito que filtrar. Lectura: lanza en error. */
 export async function getKpiTicketsChanges(year: number): Promise<CambioFase[]> {
   await requireApproved();
-  const anio = hubYearSchema.parse(year);
-  return getHubCommercialNotificationChanges(anio);
+  return readKpiTicketsChanges(year);
 }

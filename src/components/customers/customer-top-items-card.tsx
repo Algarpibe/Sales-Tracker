@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getCustomerItemSales } from "@/actions/customer-item-actions";
+import { fetchCustomerItemSales } from "@/lib/data-client";
 import { customerTopItems } from "@/lib/customer-detail";
 import { formatUSD, formatCompactUSD } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,8 +25,8 @@ function ItemTooltip({ active, payload, label }: ChartTooltipProps<CustomerItemP
 
 export function CustomerTopItemsCard({ customer, recordType, year }: { customer: string; recordType: "SALES_ORDER" | "INVOICE"; year: number }) {
   const { data, isLoading } = useQuery({
-    queryKey: ["customer-item", { tipo: recordType, anio: year }],
-    queryFn: () => getCustomerItemSales({ tipo: recordType, anio: year }),
+    queryKey: ["customer-item", { tipo: recordType, anio: year, customer }],
+    queryFn: () => fetchCustomerItemSales({ tipo: recordType, anio: year, customer }),
   });
   const top = useMemo(() => customerTopItems(data ?? [], customer, 15), [data, customer]);
 

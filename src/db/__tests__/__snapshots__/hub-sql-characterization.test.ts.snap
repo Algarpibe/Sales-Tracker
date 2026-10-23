@@ -5,7 +5,7 @@ exports[`SQL del hub (caracterización) > getHubCategoryMonthSales INVOICE 1`] =
   "params": [
     2025,
   ],
-  "sql": "SELECT extract(month from h.date)::int AS mes,it.category_name AS categoria,round(sum(l.bcy_rate*l.quantity*COALESCE(1-COALESCE((h.raw->>'bcy_discount_total')::numeric,0)/NULLIF(h.bcy_sub_total,0),1))::numeric,2)::float8 AS importe FROM books.invoice_line_items l JOIN books.invoices h ON h.invoice_id=l.invoice_id JOIN books.items it ON it.item_id=l.item_id WHERE extract(year from h.date)=$1 AND l.bcy_rate IS NOT NULL AND h.status NOT IN('void','draft')GROUP BY extract(month from h.date),it.category_name",
+  "sql": "SELECT extract(month from h.date)::int AS mes,it.category_name AS categoria,round(sum(l.bcy_rate*l.quantity*COALESCE(1-COALESCE((h.raw->>'bcy_discount_total')::numeric,0)/NULLIF(h.bcy_sub_total,0),1))::numeric,2)::float8 AS importe FROM books.invoice_line_items l JOIN books.invoices h ON h.invoice_id=l.invoice_id JOIN books.items it ON it.item_id=l.item_id WHERE h.date>=make_date($1::int,1,1)AND h.date<make_date($1::int+1,1,1)AND l.bcy_rate IS NOT NULL AND h.status NOT IN('void','draft')GROUP BY extract(month from h.date),it.category_name",
 }
 `;
 
@@ -14,7 +14,7 @@ exports[`SQL del hub (caracterización) > getHubCategoryMonthSales SALES_ORDER 1
   "params": [
     2025,
   ],
-  "sql": "SELECT extract(month from h.date)::int AS mes,it.category_name AS categoria,round(sum(l.bcy_rate*l.quantity*COALESCE(1-COALESCE((h.raw->>'bcy_discount_total')::numeric,0)/NULLIF(h.bcy_sub_total,0),1))::numeric,2)::float8 AS importe FROM books.salesorder_line_items l JOIN books.sales_orders h ON h.salesorder_id=l.salesorder_id JOIN books.items it ON it.item_id=l.item_id WHERE extract(year from h.date)=$1 AND l.bcy_rate IS NOT NULL AND h.status NOT IN('void','draft')GROUP BY extract(month from h.date),it.category_name",
+  "sql": "SELECT extract(month from h.date)::int AS mes,it.category_name AS categoria,round(sum(l.bcy_rate*l.quantity*COALESCE(1-COALESCE((h.raw->>'bcy_discount_total')::numeric,0)/NULLIF(h.bcy_sub_total,0),1))::numeric,2)::float8 AS importe FROM books.salesorder_line_items l JOIN books.sales_orders h ON h.salesorder_id=l.salesorder_id JOIN books.items it ON it.item_id=l.item_id WHERE h.date>=make_date($1::int,1,1)AND h.date<make_date($1::int+1,1,1)AND l.bcy_rate IS NOT NULL AND h.status NOT IN('void','draft')GROUP BY extract(month from h.date),it.category_name",
 }
 `;
 
@@ -33,7 +33,17 @@ exports[`SQL del hub (caracterización) > getHubCustomerItemSales INVOICE 1`] = 
   "params": [
     2025,
   ],
-  "sql": "SELECT h.customer_name AS customer,it.sku,it.raw->>'manufacturer' AS marca,it.name AS nombre,it.category_name AS categoria,sum(l.quantity)AS cantidad,round(sum(l.bcy_rate*l.quantity*COALESCE(1-COALESCE((h.raw->>'bcy_discount_total')::numeric,0)/NULLIF(h.bcy_sub_total,0),1))::numeric,2)::float8 AS importe FROM books.invoice_line_items l JOIN books.invoices h ON h.invoice_id=l.invoice_id JOIN books.items it ON it.item_id=l.item_id WHERE extract(year from h.date)=$1 AND l.bcy_rate IS NOT NULL AND h.status NOT IN('void','draft')AND h.customer_name IS NOT NULL GROUP BY h.customer_name,it.sku,it.raw->>'manufacturer',it.name,it.category_name",
+  "sql": "SELECT h.customer_name AS customer,it.sku,it.raw->>'manufacturer' AS marca,it.name AS nombre,it.category_name AS categoria,sum(l.quantity)AS cantidad,round(sum(l.bcy_rate*l.quantity*COALESCE(1-COALESCE((h.raw->>'bcy_discount_total')::numeric,0)/NULLIF(h.bcy_sub_total,0),1))::numeric,2)::float8 AS importe FROM books.invoice_line_items l JOIN books.invoices h ON h.invoice_id=l.invoice_id JOIN books.items it ON it.item_id=l.item_id WHERE h.date>=make_date($1::int,1,1)AND h.date<make_date($1::int+1,1,1)AND l.bcy_rate IS NOT NULL AND h.status NOT IN('void','draft')AND h.customer_name IS NOT NULL GROUP BY h.customer_name,it.sku,it.raw->>'manufacturer',it.name,it.category_name",
+}
+`;
+
+exports[`SQL del hub (caracterización) > getHubCustomerItemSales INVOICE por cliente 1`] = `
+{
+  "params": [
+    2025,
+    "Cliente A",
+  ],
+  "sql": "SELECT h.customer_name AS customer,it.sku,it.raw->>'manufacturer' AS marca,it.name AS nombre,it.category_name AS categoria,sum(l.quantity)AS cantidad,round(sum(l.bcy_rate*l.quantity*COALESCE(1-COALESCE((h.raw->>'bcy_discount_total')::numeric,0)/NULLIF(h.bcy_sub_total,0),1))::numeric,2)::float8 AS importe FROM books.invoice_line_items l JOIN books.invoices h ON h.invoice_id=l.invoice_id JOIN books.items it ON it.item_id=l.item_id WHERE h.date>=make_date($1::int,1,1)AND h.date<make_date($1::int+1,1,1)AND l.bcy_rate IS NOT NULL AND h.status NOT IN('void','draft')AND h.customer_name IS NOT NULL AND h.customer_name=$2 GROUP BY h.customer_name,it.sku,it.raw->>'manufacturer',it.name,it.category_name",
 }
 `;
 
@@ -42,7 +52,17 @@ exports[`SQL del hub (caracterización) > getHubCustomerItemSales SALES_ORDER 1`
   "params": [
     2025,
   ],
-  "sql": "SELECT h.customer_name AS customer,it.sku,it.raw->>'manufacturer' AS marca,it.name AS nombre,it.category_name AS categoria,sum(l.quantity)AS cantidad,round(sum(l.bcy_rate*l.quantity*COALESCE(1-COALESCE((h.raw->>'bcy_discount_total')::numeric,0)/NULLIF(h.bcy_sub_total,0),1))::numeric,2)::float8 AS importe FROM books.salesorder_line_items l JOIN books.sales_orders h ON h.salesorder_id=l.salesorder_id JOIN books.items it ON it.item_id=l.item_id WHERE extract(year from h.date)=$1 AND l.bcy_rate IS NOT NULL AND h.status NOT IN('void','draft')AND h.customer_name IS NOT NULL GROUP BY h.customer_name,it.sku,it.raw->>'manufacturer',it.name,it.category_name",
+  "sql": "SELECT h.customer_name AS customer,it.sku,it.raw->>'manufacturer' AS marca,it.name AS nombre,it.category_name AS categoria,sum(l.quantity)AS cantidad,round(sum(l.bcy_rate*l.quantity*COALESCE(1-COALESCE((h.raw->>'bcy_discount_total')::numeric,0)/NULLIF(h.bcy_sub_total,0),1))::numeric,2)::float8 AS importe FROM books.salesorder_line_items l JOIN books.sales_orders h ON h.salesorder_id=l.salesorder_id JOIN books.items it ON it.item_id=l.item_id WHERE h.date>=make_date($1::int,1,1)AND h.date<make_date($1::int+1,1,1)AND l.bcy_rate IS NOT NULL AND h.status NOT IN('void','draft')AND h.customer_name IS NOT NULL GROUP BY h.customer_name,it.sku,it.raw->>'manufacturer',it.name,it.category_name",
+}
+`;
+
+exports[`SQL del hub (caracterización) > getHubCustomerItemSales SALES_ORDER por cliente 1`] = `
+{
+  "params": [
+    2025,
+    "Cliente A",
+  ],
+  "sql": "SELECT h.customer_name AS customer,it.sku,it.raw->>'manufacturer' AS marca,it.name AS nombre,it.category_name AS categoria,sum(l.quantity)AS cantidad,round(sum(l.bcy_rate*l.quantity*COALESCE(1-COALESCE((h.raw->>'bcy_discount_total')::numeric,0)/NULLIF(h.bcy_sub_total,0),1))::numeric,2)::float8 AS importe FROM books.salesorder_line_items l JOIN books.sales_orders h ON h.salesorder_id=l.salesorder_id JOIN books.items it ON it.item_id=l.item_id WHERE h.date>=make_date($1::int,1,1)AND h.date<make_date($1::int+1,1,1)AND l.bcy_rate IS NOT NULL AND h.status NOT IN('void','draft')AND h.customer_name IS NOT NULL AND h.customer_name=$2 GROUP BY h.customer_name,it.sku,it.raw->>'manufacturer',it.name,it.category_name",
 }
 `;
 
@@ -52,7 +72,7 @@ exports[`SQL del hub (caracterización) > getHubCustomerMonthByOwner INVOICE 1`]
     2025,
     "Comercial A",
   ],
-  "sql": "SELECT h.customer_name AS customer,extract(month from h.date)::int AS mes,round(sum(l.bcy_rate*l.quantity*COALESCE(1-COALESCE((h.raw->>'bcy_discount_total')::numeric,0)/NULLIF(h.bcy_sub_total,0),1))::numeric,2)::float8 AS importe FROM books.invoice_line_items l JOIN books.invoices h ON h.invoice_id=l.invoice_id WHERE extract(year from h.date)=$1 AND l.bcy_rate IS NOT NULL AND h.status NOT IN('void','draft')AND h.customer_name IS NOT NULL AND($2::text IS NULL OR h.raw->>'salesperson_name'=$2)GROUP BY h.customer_name,extract(month from h.date)",
+  "sql": "SELECT h.customer_name AS customer,extract(month from h.date)::int AS mes,round(sum(l.bcy_rate*l.quantity*COALESCE(1-COALESCE((h.raw->>'bcy_discount_total')::numeric,0)/NULLIF(h.bcy_sub_total,0),1))::numeric,2)::float8 AS importe FROM books.invoice_line_items l JOIN books.invoices h ON h.invoice_id=l.invoice_id WHERE h.date>=make_date($1::int,1,1)AND h.date<make_date($1::int+1,1,1)AND l.bcy_rate IS NOT NULL AND h.status NOT IN('void','draft')AND h.customer_name IS NOT NULL AND($2::text IS NULL OR h.raw->>'salesperson_name'=$2)GROUP BY h.customer_name,extract(month from h.date)",
 }
 `;
 
@@ -62,7 +82,7 @@ exports[`SQL del hub (caracterización) > getHubCustomerMonthByOwner SALES_ORDER
     2025,
     "Comercial A",
   ],
-  "sql": "SELECT h.customer_name AS customer,extract(month from h.date)::int AS mes,round(sum(l.bcy_rate*l.quantity*COALESCE(1-COALESCE((h.raw->>'bcy_discount_total')::numeric,0)/NULLIF(h.bcy_sub_total,0),1))::numeric,2)::float8 AS importe FROM books.salesorder_line_items l JOIN books.sales_orders h ON h.salesorder_id=l.salesorder_id WHERE extract(year from h.date)=$1 AND l.bcy_rate IS NOT NULL AND h.status NOT IN('void','draft')AND h.customer_name IS NOT NULL AND($2::text IS NULL OR h.raw->>'salesperson_name'=$2)GROUP BY h.customer_name,extract(month from h.date)",
+  "sql": "SELECT h.customer_name AS customer,extract(month from h.date)::int AS mes,round(sum(l.bcy_rate*l.quantity*COALESCE(1-COALESCE((h.raw->>'bcy_discount_total')::numeric,0)/NULLIF(h.bcy_sub_total,0),1))::numeric,2)::float8 AS importe FROM books.salesorder_line_items l JOIN books.sales_orders h ON h.salesorder_id=l.salesorder_id WHERE h.date>=make_date($1::int,1,1)AND h.date<make_date($1::int+1,1,1)AND l.bcy_rate IS NOT NULL AND h.status NOT IN('void','draft')AND h.customer_name IS NOT NULL AND($2::text IS NULL OR h.raw->>'salesperson_name'=$2)GROUP BY h.customer_name,extract(month from h.date)",
 }
 `;
 
@@ -71,7 +91,17 @@ exports[`SQL del hub (caracterización) > getHubCustomerMonthSales INVOICE 1`] =
   "params": [
     2025,
   ],
-  "sql": "SELECT h.customer_name AS customer,extract(month from h.date)::int AS mes,round(sum(l.bcy_rate*l.quantity*COALESCE(1-COALESCE((h.raw->>'bcy_discount_total')::numeric,0)/NULLIF(h.bcy_sub_total,0),1))::numeric,2)::float8 AS importe FROM books.invoice_line_items l JOIN books.invoices h ON h.invoice_id=l.invoice_id WHERE extract(year from h.date)=$1 AND l.bcy_rate IS NOT NULL AND h.status NOT IN('void','draft')AND h.customer_name IS NOT NULL GROUP BY h.customer_name,extract(month from h.date)",
+  "sql": "SELECT h.customer_name AS customer,extract(month from h.date)::int AS mes,round(sum(l.bcy_rate*l.quantity*COALESCE(1-COALESCE((h.raw->>'bcy_discount_total')::numeric,0)/NULLIF(h.bcy_sub_total,0),1))::numeric,2)::float8 AS importe FROM books.invoice_line_items l JOIN books.invoices h ON h.invoice_id=l.invoice_id WHERE h.date>=make_date($1::int,1,1)AND h.date<make_date($1::int+1,1,1)AND l.bcy_rate IS NOT NULL AND h.status NOT IN('void','draft')AND h.customer_name IS NOT NULL GROUP BY h.customer_name,extract(month from h.date)",
+}
+`;
+
+exports[`SQL del hub (caracterización) > getHubCustomerMonthSales INVOICE por cliente 1`] = `
+{
+  "params": [
+    2025,
+    "Cliente A",
+  ],
+  "sql": "SELECT h.customer_name AS customer,extract(month from h.date)::int AS mes,round(sum(l.bcy_rate*l.quantity*COALESCE(1-COALESCE((h.raw->>'bcy_discount_total')::numeric,0)/NULLIF(h.bcy_sub_total,0),1))::numeric,2)::float8 AS importe FROM books.invoice_line_items l JOIN books.invoices h ON h.invoice_id=l.invoice_id WHERE h.date>=make_date($1::int,1,1)AND h.date<make_date($1::int+1,1,1)AND l.bcy_rate IS NOT NULL AND h.status NOT IN('void','draft')AND h.customer_name IS NOT NULL AND h.customer_name=$2 GROUP BY h.customer_name,extract(month from h.date)",
 }
 `;
 
@@ -80,7 +110,17 @@ exports[`SQL del hub (caracterización) > getHubCustomerMonthSales SALES_ORDER 1
   "params": [
     2025,
   ],
-  "sql": "SELECT h.customer_name AS customer,extract(month from h.date)::int AS mes,round(sum(l.bcy_rate*l.quantity*COALESCE(1-COALESCE((h.raw->>'bcy_discount_total')::numeric,0)/NULLIF(h.bcy_sub_total,0),1))::numeric,2)::float8 AS importe FROM books.salesorder_line_items l JOIN books.sales_orders h ON h.salesorder_id=l.salesorder_id WHERE extract(year from h.date)=$1 AND l.bcy_rate IS NOT NULL AND h.status NOT IN('void','draft')AND h.customer_name IS NOT NULL GROUP BY h.customer_name,extract(month from h.date)",
+  "sql": "SELECT h.customer_name AS customer,extract(month from h.date)::int AS mes,round(sum(l.bcy_rate*l.quantity*COALESCE(1-COALESCE((h.raw->>'bcy_discount_total')::numeric,0)/NULLIF(h.bcy_sub_total,0),1))::numeric,2)::float8 AS importe FROM books.salesorder_line_items l JOIN books.sales_orders h ON h.salesorder_id=l.salesorder_id WHERE h.date>=make_date($1::int,1,1)AND h.date<make_date($1::int+1,1,1)AND l.bcy_rate IS NOT NULL AND h.status NOT IN('void','draft')AND h.customer_name IS NOT NULL GROUP BY h.customer_name,extract(month from h.date)",
+}
+`;
+
+exports[`SQL del hub (caracterización) > getHubCustomerMonthSales SALES_ORDER por cliente 1`] = `
+{
+  "params": [
+    2025,
+    "Cliente A",
+  ],
+  "sql": "SELECT h.customer_name AS customer,extract(month from h.date)::int AS mes,round(sum(l.bcy_rate*l.quantity*COALESCE(1-COALESCE((h.raw->>'bcy_discount_total')::numeric,0)/NULLIF(h.bcy_sub_total,0),1))::numeric,2)::float8 AS importe FROM books.salesorder_line_items l JOIN books.sales_orders h ON h.salesorder_id=l.salesorder_id WHERE h.date>=make_date($1::int,1,1)AND h.date<make_date($1::int+1,1,1)AND l.bcy_rate IS NOT NULL AND h.status NOT IN('void','draft')AND h.customer_name IS NOT NULL AND h.customer_name=$2 GROUP BY h.customer_name,extract(month from h.date)",
 }
 `;
 
@@ -90,7 +130,18 @@ exports[`SQL del hub (caracterización) > getHubCustomerSales INVOICE 1`] = `
     2021,
     2025,
   ],
-  "sql": "SELECT h.customer_name AS customer,extract(year from h.date)::int AS year,round(sum(l.bcy_rate*l.quantity*COALESCE(1-COALESCE((h.raw->>'bcy_discount_total')::numeric,0)/NULLIF(h.bcy_sub_total,0),1))::numeric,2)::float8 AS ventas FROM books.invoice_line_items l JOIN books.invoices h ON h.invoice_id=l.invoice_id WHERE extract(year from h.date)BETWEEN$1 AND$2 AND l.bcy_rate IS NOT NULL AND h.status NOT IN('void','draft')AND h.customer_name IS NOT NULL GROUP BY h.customer_name,extract(year from h.date)",
+  "sql": "SELECT h.customer_name AS customer,extract(year from h.date)::int AS year,round(sum(l.bcy_rate*l.quantity*COALESCE(1-COALESCE((h.raw->>'bcy_discount_total')::numeric,0)/NULLIF(h.bcy_sub_total,0),1))::numeric,2)::float8 AS ventas FROM books.invoice_line_items l JOIN books.invoices h ON h.invoice_id=l.invoice_id WHERE h.date>=make_date($1::int,1,1)AND h.date<make_date($2::int+1,1,1)AND l.bcy_rate IS NOT NULL AND h.status NOT IN('void','draft')AND h.customer_name IS NOT NULL GROUP BY h.customer_name,extract(year from h.date)",
+}
+`;
+
+exports[`SQL del hub (caracterización) > getHubCustomerSales INVOICE por cliente 1`] = `
+{
+  "params": [
+    2015,
+    2025,
+    "Cliente A",
+  ],
+  "sql": "SELECT h.customer_name AS customer,extract(year from h.date)::int AS year,round(sum(l.bcy_rate*l.quantity*COALESCE(1-COALESCE((h.raw->>'bcy_discount_total')::numeric,0)/NULLIF(h.bcy_sub_total,0),1))::numeric,2)::float8 AS ventas FROM books.invoice_line_items l JOIN books.invoices h ON h.invoice_id=l.invoice_id WHERE h.date>=make_date($1::int,1,1)AND h.date<make_date($2::int+1,1,1)AND l.bcy_rate IS NOT NULL AND h.status NOT IN('void','draft')AND h.customer_name IS NOT NULL AND h.customer_name=$3 GROUP BY h.customer_name,extract(year from h.date)",
 }
 `;
 
@@ -100,7 +151,18 @@ exports[`SQL del hub (caracterización) > getHubCustomerSales SALES_ORDER 1`] = 
     2021,
     2025,
   ],
-  "sql": "SELECT h.customer_name AS customer,extract(year from h.date)::int AS year,round(sum(l.bcy_rate*l.quantity*COALESCE(1-COALESCE((h.raw->>'bcy_discount_total')::numeric,0)/NULLIF(h.bcy_sub_total,0),1))::numeric,2)::float8 AS ventas FROM books.salesorder_line_items l JOIN books.sales_orders h ON h.salesorder_id=l.salesorder_id WHERE extract(year from h.date)BETWEEN$1 AND$2 AND l.bcy_rate IS NOT NULL AND h.status NOT IN('void','draft')AND h.customer_name IS NOT NULL GROUP BY h.customer_name,extract(year from h.date)",
+  "sql": "SELECT h.customer_name AS customer,extract(year from h.date)::int AS year,round(sum(l.bcy_rate*l.quantity*COALESCE(1-COALESCE((h.raw->>'bcy_discount_total')::numeric,0)/NULLIF(h.bcy_sub_total,0),1))::numeric,2)::float8 AS ventas FROM books.salesorder_line_items l JOIN books.sales_orders h ON h.salesorder_id=l.salesorder_id WHERE h.date>=make_date($1::int,1,1)AND h.date<make_date($2::int+1,1,1)AND l.bcy_rate IS NOT NULL AND h.status NOT IN('void','draft')AND h.customer_name IS NOT NULL GROUP BY h.customer_name,extract(year from h.date)",
+}
+`;
+
+exports[`SQL del hub (caracterización) > getHubCustomerSales SALES_ORDER por cliente 1`] = `
+{
+  "params": [
+    2015,
+    2025,
+    "Cliente A",
+  ],
+  "sql": "SELECT h.customer_name AS customer,extract(year from h.date)::int AS year,round(sum(l.bcy_rate*l.quantity*COALESCE(1-COALESCE((h.raw->>'bcy_discount_total')::numeric,0)/NULLIF(h.bcy_sub_total,0),1))::numeric,2)::float8 AS ventas FROM books.salesorder_line_items l JOIN books.sales_orders h ON h.salesorder_id=l.salesorder_id WHERE h.date>=make_date($1::int,1,1)AND h.date<make_date($2::int+1,1,1)AND l.bcy_rate IS NOT NULL AND h.status NOT IN('void','draft')AND h.customer_name IS NOT NULL AND h.customer_name=$3 GROUP BY h.customer_name,extract(year from h.date)",
 }
 `;
 
@@ -110,7 +172,7 @@ exports[`SQL del hub (caracterización) > getHubDealsMonth 1`] = `
     2025,
     null,
   ],
-  "sql": "SELECT d.account_name,extract(month from d.created_time)::int AS mes,count(*)::int AS tratos FROM crm.deals d WHERE extract(year from d.created_time)=$1 AND d.account_name IS NOT NULL AND($2::text IS NULL OR d.owner_name=$2)GROUP BY d.account_name,extract(month from d.created_time)",
+  "sql": "SELECT d.account_name,extract(month from d.created_time)::int AS mes,count(*)::int AS tratos FROM crm.deals d WHERE d.created_time>=make_timestamptz($1::int,1,1,0,0,0)AND d.created_time<make_timestamptz($1::int+1,1,1,0,0,0)AND d.account_name IS NOT NULL AND($2::text IS NULL OR d.owner_name=$2)GROUP BY d.account_name,extract(month from d.created_time)",
 }
 `;
 
@@ -139,7 +201,17 @@ exports[`SQL del hub (caracterización) > getHubMarginByCustomer INVOICE 1`] = `
   "params": [
     2025,
   ],
-  "sql": "SELECT h.customer_name AS customer,round(sum(l.bcy_rate*l.quantity*COALESCE(1-COALESCE((h.raw->>'bcy_discount_total')::numeric,0)/NULLIF(h.bcy_sub_total,0),1))::numeric,2)::float8 AS ventas,round(sum(NULLIF(it.raw->>'purchase_rate','')::numeric*l.quantity)::numeric,2)::float8 AS costo FROM books.invoice_line_items l JOIN books.invoices h ON h.invoice_id=l.invoice_id JOIN books.items it ON it.item_id=l.item_id WHERE extract(year from h.date)=$1 AND h.customer_name IS NOT NULL AND l.bcy_rate IS NOT NULL AND h.status NOT IN('void','draft')AND NULLIF(it.raw->>'purchase_rate','')::numeric>0 GROUP BY h.customer_name",
+  "sql": "SELECT h.customer_name AS customer,round(sum(l.bcy_rate*l.quantity*COALESCE(1-COALESCE((h.raw->>'bcy_discount_total')::numeric,0)/NULLIF(h.bcy_sub_total,0),1))::numeric,2)::float8 AS ventas,round(sum(NULLIF(it.raw->>'purchase_rate','')::numeric*l.quantity)::numeric,2)::float8 AS costo FROM books.invoice_line_items l JOIN books.invoices h ON h.invoice_id=l.invoice_id JOIN books.items it ON it.item_id=l.item_id WHERE h.date>=make_date($1::int,1,1)AND h.date<make_date($1::int+1,1,1)AND h.customer_name IS NOT NULL AND l.bcy_rate IS NOT NULL AND h.status NOT IN('void','draft')AND NULLIF(it.raw->>'purchase_rate','')::numeric>0 GROUP BY h.customer_name",
+}
+`;
+
+exports[`SQL del hub (caracterización) > getHubMarginByCustomer INVOICE por cliente 1`] = `
+{
+  "params": [
+    2025,
+    "Cliente A",
+  ],
+  "sql": "SELECT h.customer_name AS customer,round(sum(l.bcy_rate*l.quantity*COALESCE(1-COALESCE((h.raw->>'bcy_discount_total')::numeric,0)/NULLIF(h.bcy_sub_total,0),1))::numeric,2)::float8 AS ventas,round(sum(NULLIF(it.raw->>'purchase_rate','')::numeric*l.quantity)::numeric,2)::float8 AS costo FROM books.invoice_line_items l JOIN books.invoices h ON h.invoice_id=l.invoice_id JOIN books.items it ON it.item_id=l.item_id WHERE h.date>=make_date($1::int,1,1)AND h.date<make_date($1::int+1,1,1)AND h.customer_name IS NOT NULL AND h.customer_name=$2 AND l.bcy_rate IS NOT NULL AND h.status NOT IN('void','draft')AND NULLIF(it.raw->>'purchase_rate','')::numeric>0 GROUP BY h.customer_name",
 }
 `;
 
@@ -148,7 +220,17 @@ exports[`SQL del hub (caracterización) > getHubMarginByCustomer SALES_ORDER 1`]
   "params": [
     2025,
   ],
-  "sql": "SELECT h.customer_name AS customer,round(sum(l.bcy_rate*l.quantity*COALESCE(1-COALESCE((h.raw->>'bcy_discount_total')::numeric,0)/NULLIF(h.bcy_sub_total,0),1))::numeric,2)::float8 AS ventas,round(sum(NULLIF(it.raw->>'purchase_rate','')::numeric*l.quantity)::numeric,2)::float8 AS costo FROM books.salesorder_line_items l JOIN books.sales_orders h ON h.salesorder_id=l.salesorder_id JOIN books.items it ON it.item_id=l.item_id WHERE extract(year from h.date)=$1 AND h.customer_name IS NOT NULL AND l.bcy_rate IS NOT NULL AND h.status NOT IN('void','draft')AND NULLIF(it.raw->>'purchase_rate','')::numeric>0 GROUP BY h.customer_name",
+  "sql": "SELECT h.customer_name AS customer,round(sum(l.bcy_rate*l.quantity*COALESCE(1-COALESCE((h.raw->>'bcy_discount_total')::numeric,0)/NULLIF(h.bcy_sub_total,0),1))::numeric,2)::float8 AS ventas,round(sum(NULLIF(it.raw->>'purchase_rate','')::numeric*l.quantity)::numeric,2)::float8 AS costo FROM books.salesorder_line_items l JOIN books.sales_orders h ON h.salesorder_id=l.salesorder_id JOIN books.items it ON it.item_id=l.item_id WHERE h.date>=make_date($1::int,1,1)AND h.date<make_date($1::int+1,1,1)AND h.customer_name IS NOT NULL AND l.bcy_rate IS NOT NULL AND h.status NOT IN('void','draft')AND NULLIF(it.raw->>'purchase_rate','')::numeric>0 GROUP BY h.customer_name",
+}
+`;
+
+exports[`SQL del hub (caracterización) > getHubMarginByCustomer SALES_ORDER por cliente 1`] = `
+{
+  "params": [
+    2025,
+    "Cliente A",
+  ],
+  "sql": "SELECT h.customer_name AS customer,round(sum(l.bcy_rate*l.quantity*COALESCE(1-COALESCE((h.raw->>'bcy_discount_total')::numeric,0)/NULLIF(h.bcy_sub_total,0),1))::numeric,2)::float8 AS ventas,round(sum(NULLIF(it.raw->>'purchase_rate','')::numeric*l.quantity)::numeric,2)::float8 AS costo FROM books.salesorder_line_items l JOIN books.sales_orders h ON h.salesorder_id=l.salesorder_id JOIN books.items it ON it.item_id=l.item_id WHERE h.date>=make_date($1::int,1,1)AND h.date<make_date($1::int+1,1,1)AND h.customer_name IS NOT NULL AND h.customer_name=$2 AND l.bcy_rate IS NOT NULL AND h.status NOT IN('void','draft')AND NULLIF(it.raw->>'purchase_rate','')::numeric>0 GROUP BY h.customer_name",
 }
 `;
 
@@ -157,7 +239,7 @@ exports[`SQL del hub (caracterización) > getHubMarginByItem INVOICE 1`] = `
   "params": [
     2025,
   ],
-  "sql": "SELECT it.item_id,it.sku,it.name AS nombre,round(sum(l.bcy_rate*l.quantity*COALESCE(1-COALESCE((h.raw->>'bcy_discount_total')::numeric,0)/NULLIF(h.bcy_sub_total,0),1))::numeric,2)::float8 AS ventas,round(sum(NULLIF(it.raw->>'purchase_rate','')::numeric*l.quantity)::numeric,2)::float8 AS costo FROM books.invoice_line_items l JOIN books.invoices h ON h.invoice_id=l.invoice_id JOIN books.items it ON it.item_id=l.item_id WHERE extract(year from h.date)=$1 AND l.bcy_rate IS NOT NULL AND h.status NOT IN('void','draft')AND NULLIF(it.raw->>'purchase_rate','')::numeric>0 GROUP BY it.item_id,it.sku,it.name",
+  "sql": "SELECT it.item_id,it.sku,it.name AS nombre,round(sum(l.bcy_rate*l.quantity*COALESCE(1-COALESCE((h.raw->>'bcy_discount_total')::numeric,0)/NULLIF(h.bcy_sub_total,0),1))::numeric,2)::float8 AS ventas,round(sum(NULLIF(it.raw->>'purchase_rate','')::numeric*l.quantity)::numeric,2)::float8 AS costo FROM books.invoice_line_items l JOIN books.invoices h ON h.invoice_id=l.invoice_id JOIN books.items it ON it.item_id=l.item_id WHERE h.date>=make_date($1::int,1,1)AND h.date<make_date($1::int+1,1,1)AND l.bcy_rate IS NOT NULL AND h.status NOT IN('void','draft')AND NULLIF(it.raw->>'purchase_rate','')::numeric>0 GROUP BY it.item_id,it.sku,it.name",
 }
 `;
 
@@ -166,7 +248,7 @@ exports[`SQL del hub (caracterización) > getHubMarginByItem SALES_ORDER 1`] = `
   "params": [
     2025,
   ],
-  "sql": "SELECT it.item_id,it.sku,it.name AS nombre,round(sum(l.bcy_rate*l.quantity*COALESCE(1-COALESCE((h.raw->>'bcy_discount_total')::numeric,0)/NULLIF(h.bcy_sub_total,0),1))::numeric,2)::float8 AS ventas,round(sum(NULLIF(it.raw->>'purchase_rate','')::numeric*l.quantity)::numeric,2)::float8 AS costo FROM books.salesorder_line_items l JOIN books.sales_orders h ON h.salesorder_id=l.salesorder_id JOIN books.items it ON it.item_id=l.item_id WHERE extract(year from h.date)=$1 AND l.bcy_rate IS NOT NULL AND h.status NOT IN('void','draft')AND NULLIF(it.raw->>'purchase_rate','')::numeric>0 GROUP BY it.item_id,it.sku,it.name",
+  "sql": "SELECT it.item_id,it.sku,it.name AS nombre,round(sum(l.bcy_rate*l.quantity*COALESCE(1-COALESCE((h.raw->>'bcy_discount_total')::numeric,0)/NULLIF(h.bcy_sub_total,0),1))::numeric,2)::float8 AS ventas,round(sum(NULLIF(it.raw->>'purchase_rate','')::numeric*l.quantity)::numeric,2)::float8 AS costo FROM books.salesorder_line_items l JOIN books.sales_orders h ON h.salesorder_id=l.salesorder_id JOIN books.items it ON it.item_id=l.item_id WHERE h.date>=make_date($1::int,1,1)AND h.date<make_date($1::int+1,1,1)AND l.bcy_rate IS NOT NULL AND h.status NOT IN('void','draft')AND NULLIF(it.raw->>'purchase_rate','')::numeric>0 GROUP BY it.item_id,it.sku,it.name",
 }
 `;
 
@@ -219,7 +301,7 @@ exports[`SQL del hub (caracterización) > getHubWonDealsMonth 1`] = `
     ],
     null,
   ],
-  "sql": "SELECT d.account_name,extract(month from d.stage_modified_time AT TIME ZONE 'America/Bogota')::int AS mes,count(*)::int AS tratos FROM crm.deals d WHERE d.stage_modified_time IS NOT NULL AND extract(year from d.stage_modified_time AT TIME ZONE 'America/Bogota')=$1 AND d.stage=ANY($2::text[])AND d.account_name IS NOT NULL AND($3::text IS NULL OR d.owner_name=$3)GROUP BY d.account_name,extract(month from d.stage_modified_time AT TIME ZONE 'America/Bogota')",
+  "sql": "SELECT d.account_name,extract(month from d.stage_modified_time AT TIME ZONE 'America/Bogota')::int AS mes,count(*)::int AS tratos FROM crm.deals d WHERE d.stage_modified_time IS NOT NULL AND d.stage_modified_time>=make_timestamptz($1::int,1,1,0,0,0,'America/Bogota')AND d.stage_modified_time<make_timestamptz($1::int+1,1,1,0,0,0,'America/Bogota')AND d.stage=ANY($2::text[])AND d.account_name IS NOT NULL AND($3::text IS NULL OR d.owner_name=$3)GROUP BY d.account_name,extract(month from d.stage_modified_time AT TIME ZONE 'America/Bogota')",
 }
 `;
 
@@ -229,6 +311,6 @@ exports[`SQL del hub (caracterización) > searchHubSalesOrders 1`] = `
     "%Cliente A%",
     2025,
   ],
-  "sql": "SELECT s.salesorder_id AS hub_order_id,s.customer_name,s.date::text AS date,round(sum(l.bcy_rate*l.quantity*COALESCE(1-COALESCE((s.raw->>'bcy_discount_total')::numeric,0)/NULLIF(s.bcy_sub_total,0),1))::numeric,2)::float8 AS importe FROM books.salesorder_line_items l JOIN books.sales_orders s ON s.salesorder_id=l.salesorder_id WHERE s.status NOT IN('void','draft')AND(s.customer_name ILIKE$1 OR s.salesorder_id ILIKE$1)AND extract(year from s.date)=$2 GROUP BY s.salesorder_id,s.customer_name,s.date ORDER BY s.date DESC LIMIT 25",
+  "sql": "SELECT s.salesorder_id AS hub_order_id,s.customer_name,s.date::text AS date,round(sum(l.bcy_rate*l.quantity*COALESCE(1-COALESCE((s.raw->>'bcy_discount_total')::numeric,0)/NULLIF(s.bcy_sub_total,0),1))::numeric,2)::float8 AS importe FROM books.salesorder_line_items l JOIN books.sales_orders s ON s.salesorder_id=l.salesorder_id WHERE s.status NOT IN('void','draft')AND(s.customer_name ILIKE$1 OR s.salesorder_id ILIKE$1)AND s.date>=make_date($2::int,1,1)AND s.date<make_date($2::int+1,1,1)GROUP BY s.salesorder_id,s.customer_name,s.date ORDER BY s.date DESC LIMIT 25",
 }
 `;

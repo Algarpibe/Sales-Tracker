@@ -1,7 +1,7 @@
 import { getHubPool } from "@/db/hub";
-import { netAmountSumExpr, sourceFor } from "@/db/hub-sql";
+import { customerPredicate, netAmountSumExpr, sourceFor, yearRangeExpr } from "@/db/hub-sql";
 import type {
-  MarginByYearFilters, MarginFilters,
+  MarginByYearFilters, MarginFilters, MarginCustomerFilters,
   MarginYearRow, MarginItemRow, MarginCustomerRow,
 } from "@/types/database";
 
@@ -36,7 +36,7 @@ export async function getHubMarginByItem(f: MarginFilters): Promise<MarginItemRo
     FROM ${s.lines} l
     JOIN ${s.header} h ON h.${s.fk} = l.${s.fk}
     JOIN books.items it ON it.item_id = l.item_id
-    WHERE extract(year from h.date) = $1
+    WHERE ${yearRangeExpr("h.date", "$1")}
       AND ${COMMON_WHERE}
     GROUP BY it.item_id, it.sku, it.name`;
   const { rows } = await getHubPool().query(sql, [f.anio]);
@@ -46,17 +46,20 @@ export async function getHubMarginByItem(f: MarginFilters): Promise<MarginItemRo
   }));
 }
 
-export async function getHubMarginByCustomer(f: MarginFilters): Promise<MarginCustomerRow[]> {
+export async function getHubMarginByCustomer(f: MarginCustomerFilters): Promise<MarginCustomerRow[]> {
   const s = sourceFor(f.tipo);
+  const params: unknown[] = [f.anio];
+  const porCliente = customerPredicate(params, f.customer);
   const sql = `
     SELECT h.customer_name AS customer, ${VENTAS} AS ventas, ${COSTO} AS costo
     FROM ${s.lines} l
     JOIN ${s.header} h ON h.${s.fk} = l.${s.fk}
     JOIN books.items it ON it.item_id = l.item_id
-    WHERE extract(year from h.date) = $1
+    WHERE ${yearRangeExpr("h.date", "$1")}
       AND h.customer_name IS NOT NULL
+      ${porCliente}
       AND ${COMMON_WHERE}
     GROUP BY h.customer_name`;
-  const { rows } = await getHubPool().query(sql, [f.anio]);
+  const { rows } = await getHubPool().query(sql, params);
   return rows.map((r) => ({ customer: String(r.customer), ventas: Number(r.ventas), costo: Number(r.costo) }));
 }
