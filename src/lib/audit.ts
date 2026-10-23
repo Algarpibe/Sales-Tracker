@@ -1,4 +1,5 @@
 import { logInfo } from "@/lib/logger";
+import { dropPiiKeys } from "@/lib/pii";
 
 // Rastro de auditoría de acciones administrativas (ARQ-078). Una línea JSON por evento
 // con `event: "audit"` para poder filtrarla en los logs de EasyPanel/Docker. Solo
@@ -34,26 +35,12 @@ export interface AuditInput {
   meta?: Record<string, unknown>;
 }
 
-// Claves que pueden llevar datos personales o de clientes: se descartan a cualquier
-// profundidad aunque un llamador las pase por error.
-const PII_KEY = /e-?mail|name|nombre|customer|cliente|phone|tel[eé]fono|address|direcci[oó]n|password|token|secret/i;
+// Las claves con datos personales se descartan a cualquier profundidad con el filtro
+// compartido (src/lib/pii.ts) y los textos se acotan.
 const MAX_TEXT = 120;
 
-function sanitize(value: unknown): unknown {
-  if (typeof value === "string") return value.slice(0, MAX_TEXT);
-  if (Array.isArray(value)) return value.map(sanitize);
-  if (value !== null && typeof value === "object") {
-    const out: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(value)) {
-      if (!PII_KEY.test(k)) out[k] = sanitize(v);
-    }
-    return out;
-  }
-  return value;
-}
-
 export function buildAuditEntry(input: AuditInput): Record<string, unknown> {
-  const meta = input.meta ? (sanitize(input.meta) as Record<string, unknown>) : {};
+  const meta = input.meta ? (dropPiiKeys(input.meta, { maxText: MAX_TEXT }) as Record<string, unknown>) : {};
   return {
     ...meta,
     // Los campos fijos van después: los metadatos no pueden pisarlos.

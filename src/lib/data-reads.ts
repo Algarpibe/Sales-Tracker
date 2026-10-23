@@ -70,10 +70,12 @@ import type {
 const SALES_PAYLOAD_WARN_THRESHOLD = 5000;
 function warnIfLargeSalesPayload(count: number, filters: SalesFilters) {
   if (count > SALES_PAYLOAD_WARN_THRESHOLD) {
+    // PRIV-017: `search` es texto libre (puede ser un cliente); solo se registra si hubo.
+    const { search, ...rest } = filters;
     logWarn("getSalesData payload grande", {
       count,
       threshold: SALES_PAYLOAD_WARN_THRESHOLD,
-      filters,
+      filters: { ...rest, hasSearch: Boolean(search) },
     });
   }
 }

@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useState, useCallback, useSyncExt
 import { authClient } from "@/lib/auth/client";
 import { getMyProfile } from "@/actions/profile-actions";
 import { logError } from "@/lib/logger";
+import { profileAvatarUrl } from "@/lib/avatar";
 import type { Profile, UserRole } from "@/types/database";
 
 type SessionUser = {
@@ -57,7 +58,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         company_id: p?.company_id ?? "",
         email: u.email,
         full_name: u.name,
-        avatar_url: p?.has_avatar ? `/api/avatar/${u.id}` : u.image ?? null,
+        avatar_url: profileAvatarUrl({
+          userId: u.id,
+          hasAvatar: p?.has_avatar,
+          version: p?.updated_at ? String(p.updated_at) : null,
+          fallbackImage: u.image,
+        }),
         role: (p?.role as UserRole) ?? "lector",
         is_active: p?.is_active ?? false,
         created_at:
