@@ -40,6 +40,22 @@ contradice a este, manda este. Lo que hay en `docs/archive/` está obsoleto: no 
 7. **Tests primero** en lógica pura (`src/lib`): el test nuevo debe fallar antes de
    implementar. Gates antes de dar algo por terminado: `npm run typecheck`,
    `npm run lint`, `npm test` y, si toca flujos de usuario, `npm run test:e2e`.
+8. **Nombres.** El código existente mezcla `year`/`anio`/`record_year` e
+   `importe`/`ventas`/`amount_usd`. No se renombra en bloque (mucho riesgo y ningún
+   cambio para el usuario), pero el código nuevo sigue estas reglas:
+   - Lo que refleja la BD de la app (`src/db/schema.ts` y sus tipos) usa los nombres
+     del esquema tal cual: `record_year`, `record_month`, `amount_usd`.
+   - Los alias del SQL del hub (`src/db/hub-*.ts`) y las filas de dominio de `src/lib`
+     usan el vocabulario en español que ya existe: `ventas`, `importe`, `costo`,
+     `margen`, `mes`. Entre `ventas` e `importe`, el que ya use el módulo vecino.
+   - Año: `year`. No se crean variables nuevas `anio`/`año`.
+   - Un concepto se llama igual a lo largo de su cadena (`hub-*.ts` → `src/lib` →
+     componente). La traducción entre nombres de BD y de dominio se hace en un solo
+     sitio, el lector de datos, no en el componente.
+   - Helpers, hooks y props genéricos de UI, en inglés como hoy; comentarios, en
+     español.
+   - Unificar nombres dentro de un fichero que ya se está tocando está bien; un
+     renombrado que cruce capas va en su propio PR, con tests de caracterización.
 
 ## Base de datos y migraciones
 
