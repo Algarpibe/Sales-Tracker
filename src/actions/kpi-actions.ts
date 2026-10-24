@@ -5,7 +5,6 @@ import { and, eq, notInArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { kpiTargets, kpiProjectOrders } from "@/db/schema";
-import { searchHubSalesOrders, type HubOrderRow } from "@/db/hub-kpi";
 import { requireApproved, requireRole } from "@/lib/auth/guards";
 import { ROLES_EDITAN_METAS } from "@/lib/commercial-kpis";
 import {
@@ -15,7 +14,9 @@ import {
   readKpiTargets,
   readKpiTicketsChanges,
   readKpiWonDealsMonthly,
+  readSalesOrderSearch,
   readSalespeople,
+  type HubOrderRow,
 } from "@/lib/data-reads";
 import { hubOrderSearchSchema, hubYearSchema, kpiTargetsSchema } from "@/lib/validation";
 import { runAction, type ActionResult } from "@/lib/errors";
@@ -36,10 +37,10 @@ export interface KpiTargetRow {
 export type KpiScope = string | null;
 
 // Las lecturas viven en src/lib/data-reads.ts, compartidas con GET /api/data/*
-// (DATA-043).
+// (DATA-043). Las del hub reciben la empresa de la sesión (SEC-035, HUB_COMPANY_ID).
 export async function getSalespeople(): Promise<string[]> {
-  await requireApproved();
-  return readSalespeople();
+  const { profile } = await requireApproved();
+  return readSalespeople(profile.company_id);
 }
 
 export async function getKpiTargets(year: number, salesperson: KpiScope): Promise<KpiTargetRow[]> {
@@ -112,30 +113,30 @@ export async function getKpiMonthlySales(
   anio: number,
   owner: KpiScope
 ): Promise<CustomerMonthRow[]> {
-  await requireApproved();
-  return readKpiMonthlySales(tipo, anio, owner);
+  const { profile } = await requireApproved();
+  return readKpiMonthlySales(profile.company_id, tipo, anio, owner);
 }
 
 /** Tratos por cuenta y mes del año, opcionalmente de un solo comercial. Lectura: lanza en error. */
 export async function getKpiDealsMonthly(anio: number, owner: KpiScope): Promise<DealMonthRow[]> {
-  await requireApproved();
-  return readKpiDealsMonthly(anio, owner);
+  const { profile } = await requireApproved();
+  return readKpiDealsMonthly(profile.company_id, anio, owner);
 }
 
 /** Tratos ganados por cuenta y mes del año, opcionalmente de un solo comercial. Lectura: lanza en error. */
 export async function getKpiWonDealsMonthly(anio: number, owner: KpiScope): Promise<DealMonthRow[]> {
-  await requireApproved();
-  return readKpiWonDealsMonthly(anio, owner);
+  const { profile } = await requireApproved();
+  return readKpiWonDealsMonthly(profile.company_id, anio, owner);
 }
 
 /** Busca ordenes de venta para marcarlas como ingresos de proyecto. Lectura: cualquier
  *  usuario aprobado puede buscar, no expone nada que no vea ya en el resto de la app. */
 export async function searchSalesOrdersForProjects(query: string, anio: number): Promise<HubOrderRow[]> {
-  await requireApproved();
+  const { profile } = await requireApproved();
   const q = hubOrderSearchSchema.parse(query.trim());
   if (q.length < 2) return [];
   const a = hubYearSchema.parse(anio);
-  return searchHubSalesOrders(q, a);
+  return readSalesOrderSearch(profile.company_id, q, a);
 }
 
 /** Ordenes ya marcadas como ingresos de proyecto de la empresa, con su importe en vivo. */
@@ -174,6 +175,6 @@ export async function removeProjectOrder(hubOrderId: string): Promise<ActionResu
 /** Cambios de fase de "Notificación Comercial" del año. De compañía: Desk no asigna
  *  comercial al ticket, así que no hay ámbito que filtrar. Lectura: lanza en error. */
 export async function getKpiTicketsChanges(year: number): Promise<CambioFase[]> {
-  await requireApproved();
-  return readKpiTicketsChanges(year);
+  const { profile } = await requireApproved();
+  return readKpiTicketsChanges(profile.company_id, year);
 }

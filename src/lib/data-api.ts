@@ -37,7 +37,8 @@ import {
  *
  * Contrato de la respuesta, siempre JSON y nunca cacheable (datos por usuario):
  *  - 401 / 403  sin sesión / cuenta sin aprobar (el proxy ya lo corta antes; esto es
- *               defensa en profundidad).
+ *               defensa en profundidad). También 403 FORBIDDEN si la lectura es del hub
+ *               y la empresa de la sesión no es la de HUB_COMPANY_ID (SEC-035).
  *  - 404        recurso desconocido (solo con sesión aprobada: no se revela qué existe).
  *  - 400        filtros inválidos; no se llega a consultar.
  *  - 429        límite de lecturas por usuario superado (SEC-006), con Retry-After.
@@ -84,24 +85,36 @@ const ROUTES = {
     z.strictObject({ tipo, desdeAnio: num, hastaAnio: num, includeHistory: bool, customer }),
     (s, p) => readCustomerSales(s.profile.company_id, p)
   ),
-  "customer-item": route(z.strictObject({ tipo, anio: num, customer }), (_s, p) => readCustomerItemSales(p)),
-  "customer-month": route(z.strictObject({ tipo, anio: num, customer }), (_s, p) => readCustomerMonthSales(p)),
-  "category-month": route(z.strictObject({ tipo, anio: num }), (_s, p) => readCategoryMonthSales(p)),
-  "item-sales": route(z.strictObject({ tipo, desde: z.string(), hasta: z.string() }), (_s, p) => readItemSales(p)),
-  "margin-by-year": route(z.strictObject({ tipo }), (_s, p) => readMarginByYear(p)),
-  "margin-by-item": route(z.strictObject({ tipo, anio: num }), (_s, p) => readMarginByItem(p)),
-  "margin-by-customer": route(z.strictObject({ tipo, anio: num, customer }), (_s, p) => readMarginByCustomer(p)),
-  salespeople: route(empty, () => readSalespeople()),
+  "customer-item": route(z.strictObject({ tipo, anio: num, customer }), (s, p) =>
+    readCustomerItemSales(s.profile.company_id, p)
+  ),
+  "customer-month": route(z.strictObject({ tipo, anio: num, customer }), (s, p) =>
+    readCustomerMonthSales(s.profile.company_id, p)
+  ),
+  "category-month": route(z.strictObject({ tipo, anio: num }), (s, p) => readCategoryMonthSales(s.profile.company_id, p)),
+  "item-sales": route(z.strictObject({ tipo, desde: z.string(), hasta: z.string() }), (s, p) =>
+    readItemSales(s.profile.company_id, p)
+  ),
+  "margin-by-year": route(z.strictObject({ tipo }), (s, p) => readMarginByYear(s.profile.company_id, p)),
+  "margin-by-item": route(z.strictObject({ tipo, anio: num }), (s, p) => readMarginByItem(s.profile.company_id, p)),
+  "margin-by-customer": route(z.strictObject({ tipo, anio: num, customer }), (s, p) =>
+    readMarginByCustomer(s.profile.company_id, p)
+  ),
+  salespeople: route(empty, (s) => readSalespeople(s.profile.company_id)),
   "kpi-targets": route(
     z.strictObject({ year: num.pipe(z.number().int()), salesperson: scope }),
     (s, p) => readKpiTargets(s.profile.company_id, p.year, p.salesperson)
   ),
-  "kpi-monthly-sales": route(z.strictObject({ tipo, anio: num, owner: scope }), (_s, p) =>
-    readKpiMonthlySales(p.tipo, p.anio, p.owner)
+  "kpi-monthly-sales": route(z.strictObject({ tipo, anio: num, owner: scope }), (s, p) =>
+    readKpiMonthlySales(s.profile.company_id, p.tipo, p.anio, p.owner)
   ),
-  "kpi-deals": route(z.strictObject({ anio: num, owner: scope }), (_s, p) => readKpiDealsMonthly(p.anio, p.owner)),
-  "kpi-won-deals": route(z.strictObject({ anio: num, owner: scope }), (_s, p) => readKpiWonDealsMonthly(p.anio, p.owner)),
-  "kpi-tickets": route(z.strictObject({ anio: num }), (_s, p) => readKpiTicketsChanges(p.anio)),
+  "kpi-deals": route(z.strictObject({ anio: num, owner: scope }), (s, p) =>
+    readKpiDealsMonthly(s.profile.company_id, p.anio, p.owner)
+  ),
+  "kpi-won-deals": route(z.strictObject({ anio: num, owner: scope }), (s, p) =>
+    readKpiWonDealsMonthly(s.profile.company_id, p.anio, p.owner)
+  ),
+  "kpi-tickets": route(z.strictObject({ anio: num }), (s, p) => readKpiTicketsChanges(s.profile.company_id, p.anio)),
   "kpi-project-orders": route(empty, (s) => readKpiProjectOrders(s.profile.company_id)),
 };
 

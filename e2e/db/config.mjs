@@ -15,6 +15,13 @@ export const MAINTENANCE_URL = `${base}/postgres`;
 export const APP_URL = `${base}/${APP_DB_NAME}`;
 export const HUB_URL = `${base}/${HUB_DB_NAME}`;
 
+/**
+ * Id fijo (ficticio) de la empresa que siembra seed-app.mjs. playwright.config.ts lo
+ * pasa como HUB_COMPANY_ID (SEC-035) para que E2E recorra la comprobación de que la
+ * empresa de la sesión es la dueña del hub.
+ */
+export const E2E_COMPANY_ID = "0e2e0000-0000-4000-8000-000000000001";
+
 // Rol de minimo privilegio que crea la migracion 0014 (NOLOGIN y sin password).
 // reset.mjs le da LOGIN con esta password, tan trivial como la de postgres: solo
 // vale en este contenedor efimero. En produccion la password se pone a mano.

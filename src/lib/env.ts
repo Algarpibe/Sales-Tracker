@@ -26,6 +26,14 @@ export function assertRuntimeEnv(env: Env): { warnings: string[] } {
       "HUB_DB_URL no está definido: la lectura del zoho-hub queda deshabilitada y se usa sales_records (fallback)."
     );
   }
+  const hubCompany = hubCompanyConfig(env);
+  if (hubCompany.invalid) {
+    warnings.push(`${HUB_COMPANY_ID_ENV} no es un UUID válido: se ignora y los datos del hub no se restringen a ninguna empresa.`);
+  } else if (env.HUB_DB_URL?.trim() && hubCompany.id === null) {
+    warnings.push(
+      `${HUB_COMPANY_ID_ENV} no está definido: cualquier empresa de la app puede leer los datos del hub (SEC-035). Defínelo con el id de la empresa dueña del hub.`
+    );
+  }
   for (const name of DB_URL_ENV) {
     const url = env[name]?.trim();
     if (url && needsTls(url)) {
@@ -35,6 +43,23 @@ export function assertRuntimeEnv(env: Env): { warnings: string[] } {
     }
   }
   return { warnings };
+}
+
+// SEC-035: el zoho-hub es la réplica de UNA empresa y sus consultas no filtran por
+// empresa. HUB_COMPANY_ID (opcional) es el id de la empresa de la app dueña de esos
+// datos; con él, src/lib/hub-company.ts impide que otra empresa lea el hub. Sin él (o
+// si no es un UUID, que se trata como ausente) no se restringe nada, como antes.
+export const HUB_COMPANY_ID_ENV = "HUB_COMPANY_ID";
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export type HubCompanyConfig = { id: string | null; invalid: boolean };
+
+export function hubCompanyConfig(env: Env = process.env): HubCompanyConfig {
+  const raw = env[HUB_COMPANY_ID_ENV]?.trim();
+  if (!raw) return { id: null, invalid: false };
+  if (!UUID_RE.test(raw)) return { id: null, invalid: true };
+  return { id: raw.toLowerCase(), invalid: false };
 }
 
 // PRIV-095: las BD viven en la red Docker interna del VPS, donde la conexión sin TLS

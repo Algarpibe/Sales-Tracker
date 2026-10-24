@@ -1,11 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { assertRuntimeEnv, enforceRuntimeEnv, RATE_LIMIT_DEFAULTS, rateLimitConfig } from "@/lib/env";
+import { assertRuntimeEnv, enforceRuntimeEnv, hubCompanyConfig, RATE_LIMIT_DEFAULTS, rateLimitConfig } from "@/lib/env";
 
 const PROD_OK = {
   NODE_ENV: "production",
   DATABASE_URL: "postgres://app:secreto-db@db-interno:5432/app",
   BETTER_AUTH_URL: "https://salestracker.example.com",
   HUB_DB_URL: "postgres://hub_reader:secreto-hub@hub-interno:5432/zoho_hub",
+  HUB_COMPANY_ID: "0e2e0000-0000-4000-8000-0000000000aa",
 };
 
 describe("assertRuntimeEnv", () => {
@@ -121,6 +122,57 @@ describe("enforceRuntimeEnv", () => {
 
   it("propaga el error si falta una obligatoria", () => {
     expect(() => enforceRuntimeEnv({ NODE_ENV: "production" }, vi.fn())).toThrow("DATABASE_URL");
+  });
+});
+
+// SEC-035: el hub guarda los datos de UNA empresa. HUB_COMPANY_ID (opcional) dice cuál;
+// un valor que no es un UUID se ignora (como si no estuviera) y se avisa.
+describe("hubCompanyConfig", () => {
+  it("sin la variable (o vacía) no restringe nada", () => {
+    expect(hubCompanyConfig({})).toEqual({ id: null, invalid: false });
+    expect(hubCompanyConfig({ HUB_COMPANY_ID: "  " })).toEqual({ id: null, invalid: false });
+  });
+
+  it("lee un UUID, sin espacios y en minúsculas", () => {
+    expect(hubCompanyConfig({ HUB_COMPANY_ID: " 0E2E0000-0000-4000-8000-0000000000AA " })).toEqual({
+      id: "0e2e0000-0000-4000-8000-0000000000aa",
+      invalid: false,
+    });
+  });
+
+  it.each(["no-es-uuid", "0e2e0000-0000-4000-8000", "0e2e0000-0000-4000-8000-0000000000aa-x", "'; drop table x; --"])(
+    "un valor que no es UUID (%j) se trata como ausente y se marca inválido",
+    (v) => {
+      expect(hubCompanyConfig({ HUB_COMPANY_ID: v })).toEqual({ id: null, invalid: true });
+    }
+  );
+});
+
+describe("assertRuntimeEnv: HUB_COMPANY_ID (SEC-035)", () => {
+  it("con el hub y sin HUB_COMPANY_ID avisa (nunca lanza), nombrando solo la variable", () => {
+    const { warnings } = assertRuntimeEnv({ ...PROD_OK, HUB_COMPANY_ID: undefined });
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain("HUB_COMPANY_ID");
+    expect(warnings[0]).not.toMatch(/secreto|hub-interno/);
+  });
+
+  it("con un HUB_COMPANY_ID que no es UUID avisa sin repetir el valor", () => {
+    const { warnings } = assertRuntimeEnv({ ...PROD_OK, HUB_COMPANY_ID: "valor-raro-123" });
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain("HUB_COMPANY_ID");
+    expect(warnings[0]).not.toContain("valor-raro-123");
+  });
+
+  it("sin el hub no pide HUB_COMPANY_ID: solo queda el aviso de HUB_DB_URL", () => {
+    const { warnings } = assertRuntimeEnv({ ...PROD_OK, HUB_DB_URL: undefined, HUB_COMPANY_ID: undefined });
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain("HUB_DB_URL");
+  });
+
+  it("fuera de producción no avisa", () => {
+    expect(assertRuntimeEnv({ NODE_ENV: "development", HUB_DB_URL: "postgres://u:p@localhost/hub" })).toEqual({
+      warnings: [],
+    });
   });
 });
 

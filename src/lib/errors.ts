@@ -36,6 +36,15 @@ export function isRateLimited(e: unknown): boolean {
   return e instanceof AppError && e.code === RATE_LIMITED_CODE;
 }
 
+// SEC-035: la empresa de la sesión no es la dueña de los datos del hub (HUB_COMPANY_ID,
+// src/lib/hub-company.ts). Viaja como FORBIDDEN (403 en /api/data); el mensaje lo
+// comparten servidor y cliente para que la tarjeta explique por qué no hay datos.
+export const HUB_COMPANY_FORBIDDEN_MESSAGE = "Tu empresa no tiene acceso a los datos del hub.";
+
+export function isHubCompanyForbidden(e: unknown): boolean {
+  return e instanceof AppError && e.code === "FORBIDDEN" && e.message === HUB_COMPANY_FORBIDDEN_MESSAGE;
+}
+
 // Status HTTP de un error de los guards (requireUser/requireApproved/requireRole)
 // para Route Handlers. null = no es un error de autorización: el llamador lo relanza.
 // El guard también corta por el límite de mutaciones (SEC-006): 429.

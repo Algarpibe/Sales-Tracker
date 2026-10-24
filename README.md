@@ -34,6 +34,7 @@ Variables que lee el código:
 | `BETTER_AUTH_SECRET` | Secreto de better-auth. |
 | `BETTER_AUTH_URL` | URL pública del app (origen de cookies y enlaces). Obligatoria en producción. |
 | `HUB_DB_URL` | Conexión de solo lectura al zoho-hub. Sin ella, solo las vistas agregadas funcionan (con `sales_records`); clientes, artículos, márgenes y KPIs fallan. |
+| `HUB_COMPANY_ID` | Opcional, **recomendada en producción** si hay `HUB_DB_URL`. Id (UUID) de la empresa del app dueña de los datos del hub: el hub es la réplica de una sola empresa y sus consultas no filtran por empresa, así que con esta variable una sesión de otra empresa recibe 403 al leer del hub (el login y los datos propios del app no cambian). Para saber el valor, como `postgres` en la BD del app: `select id, name from companies;`. Sin ella (o si no es un UUID) no se restringe nada y el arranque avisa. Para deshacerlo, basta con quitarla. |
 | `PG_POOL_MAX` | Tamaño del pool del app (por defecto 5). |
 | `HUB_POOL_MAX` | Tamaño del pool del hub (por defecto 5). |
 | `HUB_STATEMENT_TIMEOUT_MS` | Tope por consulta al hub, en ms (por defecto 30000). |

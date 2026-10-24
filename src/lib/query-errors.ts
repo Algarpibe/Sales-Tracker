@@ -1,4 +1,4 @@
-import { isRateLimited, RATE_LIMITED_MESSAGE } from "@/lib/errors";
+import { HUB_COMPANY_FORBIDDEN_MESSAGE, isHubCompanyForbidden, isRateLimited, RATE_LIMITED_MESSAGE } from "@/lib/errors";
 
 // Política de errores de lectura de react-query (FE-056). Solo se lanza al error
 // boundary más cercano (el de la tarjeta, CardErrorBoundary) cuando la consulta no
@@ -17,8 +17,11 @@ export function retryUnlessRateLimited(failureCount: number, error: unknown): bo
 export const READ_ERROR_MESSAGE = "No se pudieron cargar los datos.";
 
 // Texto del aviso de una lectura fallida: el genérico (nunca el detalle del error),
-// salvo con el límite por usuario, que explica que basta con esperar. Un 429 no
-// cierra la sesión ni redirige: solo cambia este texto.
+// salvo con el límite por usuario, que explica que basta con esperar, y con la empresa
+// sin acceso al hub (SEC-035), que explica por qué no hay datos. Ni el 429 ni ese 403
+// cierran la sesión ni redirigen: solo cambian este texto.
 export function readErrorMessage(error: unknown): string {
-  return isRateLimited(error) ? RATE_LIMITED_MESSAGE : READ_ERROR_MESSAGE;
+  if (isRateLimited(error)) return RATE_LIMITED_MESSAGE;
+  if (isHubCompanyForbidden(error)) return HUB_COMPANY_FORBIDDEN_MESSAGE;
+  return READ_ERROR_MESSAGE;
 }
