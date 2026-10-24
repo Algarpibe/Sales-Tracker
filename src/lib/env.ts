@@ -26,7 +26,48 @@ export function assertRuntimeEnv(env: Env): { warnings: string[] } {
       "HUB_DB_URL no está definido: la lectura del zoho-hub queda deshabilitada y se usa sales_records (fallback)."
     );
   }
+  for (const name of DB_URL_ENV) {
+    const url = env[name]?.trim();
+    if (url && needsTls(url)) {
+      warnings.push(
+        `${name} apunta a un host fuera de la red interna sin TLS obligatorio: añade sslmode=require (o verify-full) a la URL.`
+      );
+    }
+  }
   return { warnings };
+}
+
+// PRIV-095: las BD viven en la red Docker interna del VPS, donde la conexión sin TLS
+// no sale del host. Si una URL apunta fuera (otro servidor, BD gestionada) y no exige
+// TLS, las credenciales y los datos viajarían en claro: se avisa al arrancar. Solo
+// aviso, nunca error, para que un falso positivo no tumbe producción.
+const DB_URL_ENV = ["DATABASE_URL", "HUB_DB_URL"] as const;
+
+// Modos de pg que obligan a cifrar (prefer/allow/disable no lo garantizan).
+const TLS_SSLMODES = new Set(["require", "verify-ca", "verify-full", "no-verify"]);
+
+function needsTls(raw: string): boolean {
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return false; // no analizable: ya fallará al conectar; aquí no se adivina
+  }
+  if (isInternalHost(url.hostname)) return false;
+  const sslmode = url.searchParams.get("sslmode")?.toLowerCase();
+  const ssl = url.searchParams.get("ssl")?.toLowerCase();
+  return !(sslmode && TLS_SSLMODES.has(sslmode)) && ssl !== "true" && ssl !== "1";
+}
+
+// Interno: localhost, nombre de servicio Docker (sin punto), *.internal/*.local o IP
+// privada/loopback (10/8, 172.16/12, 192.168/16, 127/8).
+function isInternalHost(host: string): boolean {
+  const h = host.toLowerCase();
+  if (h === "localhost" || !h.includes(".") || h.endsWith(".internal") || h.endsWith(".local")) return true;
+  const ip = h.match(/^(\d{1,3})\.(\d{1,3})\.\d{1,3}\.\d{1,3}$/);
+  if (!ip) return false;
+  const [a, b] = [Number(ip[1]), Number(ip[2])];
+  return a === 10 || a === 127 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168);
 }
 
 // Aplica la comprobación y emite los avisos una sola vez por proceso (el módulo

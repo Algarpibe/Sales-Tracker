@@ -60,6 +60,47 @@ describe("assertRuntimeEnv", () => {
     expect(warnings).toHaveLength(1);
     expect(warnings[0]).toContain("HUB_DB_URL");
   });
+
+  // PRIV-095: hosts internos (red Docker, IP privada, localhost) no necesitan TLS; uno
+  // público sin sslmode viajaría en claro. Solo avisa: nunca tumba el arranque.
+  describe("TLS de las URLs de BD (PRIV-095)", () => {
+    it.each([
+      "postgres://u:p@db-interno:5432/app",
+      "postgres://u:p@localhost:5432/app",
+      "postgres://u:p@127.0.0.1:5432/app",
+      "postgres://u:p@10.0.3.7:5432/app",
+      "postgres://u:p@172.18.0.5:5432/app",
+      "postgres://u:p@192.168.1.20:5432/app",
+      "postgres://u:p@db.internal:5432/app",
+    ])("no avisa con un host interno: %s", (url) => {
+      expect(assertRuntimeEnv({ ...PROD_OK, DATABASE_URL: url })).toEqual({ warnings: [] });
+    });
+
+    it.each([
+      "postgres://u:p@db.example.com:5432/app?sslmode=require",
+      "postgres://u:p@db.example.com:5432/app?sslmode=verify-full",
+      "postgres://u:p@203.0.113.9:5432/app?ssl=true",
+    ])("no avisa con un host externo que pide TLS: %s", (url) => {
+      expect(assertRuntimeEnv({ ...PROD_OK, DATABASE_URL: url })).toEqual({ warnings: [] });
+    });
+
+    it.each([
+      ["DATABASE_URL", "postgres://u:secreto@db.example.com:5432/app"],
+      ["DATABASE_URL", "postgres://u:secreto@203.0.113.9:5432/app?sslmode=disable"],
+      ["HUB_DB_URL", "postgres://u:secreto@172.32.0.1:5432/hub"],
+      ["HUB_DB_URL", "postgres://u:secreto@hub.example.com:5432/hub?sslmode=prefer"],
+    ])("avisa si %s apunta a un host externo sin TLS obligatorio, sin el valor", (name, url) => {
+      const { warnings } = assertRuntimeEnv({ ...PROD_OK, [name]: url });
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0]).toContain(name);
+      expect(warnings[0]).toContain("sslmode");
+      expect(warnings[0]).not.toMatch(/secreto|example\.com|203\.0|172\.32/);
+    });
+
+    it("una URL que no se puede analizar no lanza ni avisa por TLS", () => {
+      expect(assertRuntimeEnv({ ...PROD_OK, DATABASE_URL: "no-es-una-url" })).toEqual({ warnings: [] });
+    });
+  });
 });
 
 describe("enforceRuntimeEnv", () => {
