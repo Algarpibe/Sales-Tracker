@@ -51,7 +51,7 @@ contradice a este, manda este. Lo que hay en `docs/archive/` está obsoleto: no 
   [docs/runbooks/migrations.md](docs/runbooks/migrations.md); rol del app:
   [docs/runbooks/db-least-privilege.md](docs/runbooks/db-least-privilege.md).
 - Migraciones nuevas: SQL escrito a mano (`NNNN_descripcion.sql`, sin `BEGIN`/`COMMIT`),
-  nunca `drizzle-kit generate`/`migrate`/`push` (el journal se quedó en 0001).
+  `drizzle-kit` no está instalado y no se reinstala: su journal se quedó en 0001 y no conoce `migrations.applied`.
 - Una migración ya aplicada (o marcada por baseline) no se edita: se añade otra. El
   runner detecta el cambio por checksum y se niega a seguir.
 - Las migraciones versionadas no llevan secretos ni datos de clientes.
