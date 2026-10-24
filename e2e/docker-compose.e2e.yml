@@ -3,7 +3,8 @@
 # script sirva aqui y en el service container de CI, sin logica duplicada.
 services:
   postgres-e2e:
-    image: postgres:16-alpine
+    # Fijada por digest (INFRA-011), la misma que el service de .github/workflows/ci.yml.
+    image: postgres:16-alpine@sha256:f4610795587492cd4fb887c2dc3de301b813278bb6f616992061141b5f15ac36
     container_name: salestracker-postgres-e2e
     environment:
       POSTGRES_USER: postgres

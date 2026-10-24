@@ -198,6 +198,14 @@ describe("GET /api/avatar/[userId]", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("Content-Type")).toBe("image/png");
   });
+
+  it("rechaza con 403 el avatar de alguien de otra empresa (IDOR)", async () => {
+    const { GET } = await import("@/app/api/avatar/[userId]/route");
+    loginAs(ADMIN_ID);
+    state.selects.push([{ ...avatarRow[0], company_id: "88888888-8888-4888-8888-888888888888" }]);
+    const res = await GET(req(), params(OTRO_ADMIN_ID));
+    expect(res.status).toBe(403);
+  });
 });
 
 describe("updateMyAccount", () => {

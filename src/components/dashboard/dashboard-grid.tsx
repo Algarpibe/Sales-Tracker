@@ -41,7 +41,7 @@ export function DashboardGrid() {
 
   // Carga inicial: layout guardado o el por defecto. El setState aquí es
   // intencional (hidrata el layout persistido una sola vez, cuando la query
-  // resuelve); mismo criterio que period-provider.tsx.
+  // resuelve). Excepción explícita a set-state-in-effect, que es error (FE-008).
   useEffect(() => {
     if (items === null && !layoutQ.isLoading) {
       // `null` = el usuario nunca personalizó → por defecto. Un array vacío es una

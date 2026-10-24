@@ -99,3 +99,40 @@ describe("saveView", () => {
     expect(state.views).toHaveLength(51);
   });
 });
+
+/**
+ * SEC-005: tamaño máximo del nombre (120 caracteres, ya recortado) y del estado
+ * (32 000 caracteres de JSON). Lo que se pasa del límite no llega a la BD.
+ */
+describe("saveView: límites de tamaño (SEC-005)", () => {
+  // JSON.stringify({ s: "x".repeat(n) }) mide n + 8 caracteres: {"s":"…"}.
+  const estadoDe = (longitudJson: number) => ({ s: "x".repeat(longitudJson - 8) });
+
+  it("acepta un nombre de 120 caracteres", async () => {
+    await expect(saveView("clientes", "n".repeat(120), {})).resolves.toEqual({ ok: true, data: undefined });
+    expect(state.views).toEqual([{ view_key: "clientes", name: "n".repeat(120) }]);
+  });
+
+  it("el límite cuenta el nombre ya recortado", async () => {
+    await expect(saveView("clientes", `  ${"n".repeat(120)}  `, {})).resolves.toEqual({ ok: true, data: undefined });
+  });
+
+  it("rechaza un nombre de 121 caracteres sin tocar la BD", async () => {
+    await expect(saveView("clientes", "n".repeat(121), {})).resolves.toMatchObject({ ok: false, code: "VALIDATION" });
+    expect(state.calls).toBe(0);
+  });
+
+  it("acepta un estado de justo 32 000 caracteres de JSON", async () => {
+    const estado = estadoDe(32_000);
+    expect(JSON.stringify(estado)).toHaveLength(32_000);
+    await expect(saveView("clientes", "grande", estado)).resolves.toEqual({ ok: true, data: undefined });
+    expect(state.views).toHaveLength(1);
+  });
+
+  it("rechaza un estado de 32 001 caracteres sin tocar la BD", async () => {
+    const estado = estadoDe(32_001);
+    expect(JSON.stringify(estado)).toHaveLength(32_001);
+    await expect(saveView("clientes", "grande", estado)).resolves.toMatchObject({ ok: false, code: "PAYLOAD_TOO_LARGE" });
+    expect(state.calls).toBe(0);
+  });
+});
