@@ -41,7 +41,6 @@ Variables que lee el código:
 | `RATE_LIMIT_READS_PER_MINUTE` | Opcional. Lecturas de `/api/data` por usuario y minuto (por defecto 600). Pasado el límite: 429 con `Retry-After`. |
 | `RATE_LIMIT_MUTATIONS_PER_MINUTE` | Opcional. Mutaciones (Server Actions de escritura y subida de avatar) por usuario y minuto (por defecto 120). |
 | `RATE_LIMIT_EXPORTS_PER_MINUTE` | Opcional. Exportaciones a Excel por usuario y minuto (por defecto 30). |
-| `DRIZZLE_DATABASE_URL` | Opcional, solo para `drizzle-kit`. Debe ser una URL con el usuario `postgres`. |
 | `MIGRATIONS_DATABASE_URL` | Solo para `npm run db:migrate`, nunca en el app. URL de la BD del app con el usuario `postgres`; el runner se niega si coincide con `DATABASE_URL` o si el usuario es `salestracker_app`. |
 
 Nunca se commitean `.env*` reales (solo `.env.example`).

@@ -227,7 +227,7 @@ Si `up` falla en una migración normal, esa queda revertida entera y las anterio
 ## 6. Añadir una migración
 
 - **A mano**, como 0002–0014: `drizzle/NNNN_descripcion.sql` con el número siguiente al más alto (los huecos dan igual; un número repetido hace fallar al runner). En el mismo PR, el cambio equivalente en `src/db/schema.ts`.
-- **No usar `drizzle-kit generate`, `migrate` ni `push`.** `drizzle/meta/_journal.json` y los snapshots se quedaron en 0001: `generate` volvería a generar todo lo hecho a mano desde entonces, y `migrate`/`push` no saben nada de `migrations.applied`.
+- **`drizzle-kit` no está instalado y no se reinstala** (se retiró: no tenía ningún uso y arrastraba un esbuild vulnerable). `drizzle/meta/_journal.json` y los snapshots se quedaron en 0001: su `generate` volvería a generar todo lo hecho a mano desde entonces, y `migrate`/`push` no saben nada de `migrations.applied`.
 - **Sin `BEGIN`/`COMMIT`:** la transacción la pone el runner. Para `CONCURRENTLY` o `VACUUM`, primera línea `-- migrate:no-transaction` y cada sentencia separada con `--> statement-breakpoint`.
 - **Idempotente cuando sea barato** (`IF NOT EXISTS`, bloques `DO ... EXCEPTION WHEN duplicate_object`): ayuda si una base quedó a medias.
 - **Sin secretos ni datos de clientes** (AGENTS.md).

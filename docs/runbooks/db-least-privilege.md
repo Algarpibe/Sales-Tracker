@@ -203,7 +203,7 @@ No hace falta restaurar el backup: la migración 0014 no cambia datos ni estruct
 
 - **Migraciones futuras:** se siguen aplicando como `postgres`, nunca con el `DATABASE_URL` del app, ahora con el runner `npm run db:migrate` y `MIGRATIONS_DATABASE_URL` (DATA-047). Procedimiento y baseline inicial: [migrations.md](migrations.md).
 
-  Las cabeceras de migraciones antiguas dicen `psql "$DATABASE_URL" -f ...`: con el `DATABASE_URL` nuevo fallarían con `must be owner` o `permission denied`. Lo mismo `drizzle.config.ts`, que usa `DATABASE_URL` si no hay `DRIZZLE_DATABASE_URL`: para `drizzle-kit` hay que pasar una URL de `postgres`.
+  Las cabeceras de migraciones antiguas dicen `psql "$DATABASE_URL" -f ...`: con el `DATABASE_URL` nuevo fallarían con `must be owner` o `permission denied`.
 - **Tablas nuevas:** los *default privileges* de 0014 dan `SELECT, INSERT, UPDATE, DELETE` a toda tabla o vista que cree `postgres` en `public`. Si una tabla la creara otro usuario, no los heredaría: volver a ejecutar 0014 la cubre.
 - **RLS (DATA-006):** hasta hoy no tenía efecto, porque un superusuario ignora las políticas RLS. Con el app conectado como `salestracker_app` (sin `BYPASSRLS`, y sin ser dueño de las tablas) las políticas ya se aplicarían. Al activarlas, cada tabla con RLS necesita políticas para este rol, o el app dejará de ver filas.
 
