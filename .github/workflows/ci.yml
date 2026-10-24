@@ -59,7 +59,8 @@ jobs:
     timeout-minutes: 25
     services:
       postgres:
-        image: postgres:16-alpine
+        # Fijada por digest (INFRA-011), la misma que e2e/docker-compose.e2e.yml.
+        image: postgres:16-alpine@sha256:f4610795587492cd4fb887c2dc3de301b813278bb6f616992061141b5f15ac36
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres

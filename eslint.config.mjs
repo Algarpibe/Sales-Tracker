@@ -13,7 +13,7 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
-  // Reglas react-hooks degradadas a warning: corresponden a patrones intencionales
+  // Reglas react-hooks degradadas a warning (salvo set-state-in-effect): corresponden a patrones intencionales
   // del código (useEffect con deps acotadas a propósito, etc.). Quedan como AVISO
   // —visibles pero no bloquean—, de modo que el lint pueda ser gate duro en CI
   // (rechaza errores NUEVOS: any, imports sin usar, etc.) sin reescribir efectos
@@ -22,7 +22,9 @@ const eslintConfig = defineConfig([
     rules: {
       "react-hooks/exhaustive-deps": "warn",
       "react-hooks/immutability": "warn",
-      "react-hooks/set-state-in-effect": "warn",
+      // FE-008: vuelve a ser error. Para leer un valor del navegador sin romper la
+      // hidratación se usa useSyncExternalStore (period-provider.tsx, useAuth).
+      "react-hooks/set-state-in-effect": "error",
       "react-hooks/static-components": "warn",
     },
   },
