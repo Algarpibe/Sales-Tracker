@@ -15,6 +15,15 @@ contradice a este, manda este. Lo que hay en `docs/archive/` está obsoleto: no 
   `src/db/hub-*.ts` como **SQL crudo parametrizado** (`$1`, `$2`…), nunca con
   interpolación de entrada de usuario. El pool del hub abre las sesiones en modo
   `default_transaction_read_only`: no se escribe nunca en el hub.
+- **Invariante: el hub es de UNA sola empresa (SEC-035).** Replica el Zoho de una
+  empresa y sus consultas no filtran por empresa. `HUB_COMPANY_ID` (opcional, recomendada
+  en producción) es el id de la empresa del app dueña de esos datos: con ella, una sesión
+  de otra empresa recibe `FORBIDDEN` (403 en `/api/data`) antes de consultar el hub. La
+  comprobación es `assertHubCompany()` (`src/lib/hub-company.ts`) y vive en la capa de
+  lecturas: **solo `src/lib/data-reads.ts` importa los módulos `src/db/hub-*.ts`**, y
+  toda lectura del hub recibe la empresa de la sesión. Una acción o ruta nueva que lea
+  del hub pasa por una función de `data-reads.ts`, nunca importa `hub-*` directamente
+  (lo vigila `hub-company-scope.test.ts`). Sin la variable no se restringe nada.
 - **UI:** Tailwind 4, componentes shadcn (`src/components/ui`), lucide-react, Recharts,
   framer-motion, sonner y @tanstack/react-query.
 - **Formularios:** react-hook-form + zod.

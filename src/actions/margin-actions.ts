@@ -8,16 +8,16 @@ import type {
 } from "@/types/database";
 
 export async function getMarginByYear(f: MarginByYearFilters): Promise<MarginYearRow[]> {
-  await requireApproved();
-  return readMarginByYear(f);
+  const { profile } = await requireApproved();
+  return readMarginByYear(profile.company_id, f);
 }
 
 export async function getMarginByItem(f: MarginFilters): Promise<MarginItemRow[]> {
-  await requireApproved();
-  return readMarginByItem(f);
+  const { profile } = await requireApproved();
+  return readMarginByItem(profile.company_id, f);
 }
 
 export async function getMarginByCustomer(f: MarginCustomerFilters): Promise<MarginCustomerRow[]> {
-  await requireApproved();
-  return readMarginByCustomer(f);
+  const { profile } = await requireApproved();
+  return readMarginByCustomer(profile.company_id, f);
 }

@@ -17,11 +17,16 @@ import {
   getHubOrdersByIds,
   getHubSalespeople,
   getHubWonDealsMonth,
+  searchHubSalesOrders,
   type HubOrderRow,
 } from "@/db/hub-kpi";
+import type { HubSalesRow } from "@/db/hub-sales";
+
+export type { HubOrderRow };
 import { getHistoricalCustomerSales, HISTORICAL_LAST_YEAR } from "@/db/historical-customer-sales";
 import { mergeWithHistory } from "@/lib/customer-sales";
 import { findByHubCategoryName, indexCategoriesByName } from "@/lib/hub-category";
+import { assertHubCompany } from "@/lib/hub-company";
 import { parseDashboardLayout, type DashboardItem } from "@/lib/dashboard-layout";
 import { filaDeMeta } from "@/lib/kpi-metas";
 import { logError, logWarn } from "@/lib/logger";
@@ -60,7 +65,20 @@ import type {
  * módulo comprueba la sesión: el llamador ya llamó a requireApproved() y le pasa la
  * empresa o el usuario de ESA sesión. Por eso este módulo no es "use server" y no se
  * importa desde el cliente (AGENTS.md, regla 1).
+ *
+ * Es también el ÚNICO módulo de la app que importa las consultas del hub (src/db/hub-*):
+ * toda lectura del hub recibe la empresa de la sesión y llama a assertHubCompany() antes
+ * de consultar (SEC-035, HUB_COMPANY_ID). Lo vigila hub-company-scope.test.ts.
  */
+
+/**
+ * Agregado de ventas del hub (categoría × tipo × año × mes) para la empresa de la
+ * sesión. Lo usan readSalesData y el análisis de agrupaciones (grouping-actions).
+ */
+export async function readHubSalesRows(companyId: string): Promise<HubSalesRow[]> {
+  assertHubCompany(companyId);
+  return getHubSalesRows();
+}
 
 // ── Ventas agregadas (sales_records o el hub) ────────────────────────────────
 
@@ -86,8 +104,10 @@ export async function readSalesData(companyId: string, filters: SalesFilters): P
   // de la app. Mismo resultado que sales_records (validado al céntimo) pero en
   // tiempo real. Si HUB_DB_URL no está → fallback a sales_records (abajo).
   if (hubEnabled()) {
+    // SEC-035: antes de lanzar ninguna consulta (ni la de categorías).
+    assertHubCompany(companyId);
     const [hubRows, cats] = await Promise.all([
-      getHubSalesRows(),
+      readHubSalesRows(companyId),
       db
         .select({ id: categories.id, name: categories.name, color: categories.color })
         .from(categories)
@@ -232,12 +252,15 @@ export async function readDashboardLayout(userId: string): Promise<DashboardItem
 // Validan los filtros ANTES de consultar: un filtro absurdo no debe llegar a Postgres.
 // Lanzan si no validan (ZodError): la acción lo deja subir a react-query y la ruta GET
 // lo convierte en 400.
+// Todas reciben la empresa de la sesión y la comprueban lo primero (SEC-035): una
+// empresa que no es la dueña del hub recibe FORBIDDEN (403) sin llegar a consultar.
 
 function checkCustomer(customer: string | undefined) {
   if (customer !== undefined) hubCustomerSchema.parse(customer);
 }
 
 export async function readCustomerSales(companyId: string, filters: CustomerSalesFilters): Promise<CustomerYearRow[]> {
+  assertHubCompany(companyId);
   hubYearRangeSchema.parse(filters);
   checkCustomer(filters.customer);
 
@@ -268,38 +291,45 @@ export async function readCustomerSales(companyId: string, filters: CustomerSale
   return mergeWithHistory(hubRows, histRows, HISTORICAL_LAST_YEAR);
 }
 
-export async function readCustomerItemSales(f: CustomerItemFilters): Promise<CustomerItemRow[]> {
+export async function readCustomerItemSales(companyId: string, f: CustomerItemFilters): Promise<CustomerItemRow[]> {
+  assertHubCompany(companyId);
   hubYearSchema.parse(f.anio);
   checkCustomer(f.customer);
   return getHubCustomerItemSales(f);
 }
 
-export async function readCustomerMonthSales(f: CustomerMonthFilters): Promise<CustomerMonthRow[]> {
+export async function readCustomerMonthSales(companyId: string, f: CustomerMonthFilters): Promise<CustomerMonthRow[]> {
+  assertHubCompany(companyId);
   hubYearSchema.parse(f.anio);
   checkCustomer(f.customer);
   return getHubCustomerMonthSales(f);
 }
 
-export async function readCategoryMonthSales(f: CategoryMonthFilters): Promise<CategoryMonthRow[]> {
+export async function readCategoryMonthSales(companyId: string, f: CategoryMonthFilters): Promise<CategoryMonthRow[]> {
+  assertHubCompany(companyId);
   hubYearSchema.parse(f.anio);
   return getHubCategoryMonthSales(f);
 }
 
-export async function readItemSales(f: ItemSalesFilters): Promise<ItemSalesRow[]> {
+export async function readItemSales(companyId: string, f: ItemSalesFilters): Promise<ItemSalesRow[]> {
+  assertHubCompany(companyId);
   hubDateRangeSchema.parse(f);
   return getHubItemSales(f);
 }
 
-export async function readMarginByYear(f: MarginByYearFilters): Promise<MarginYearRow[]> {
+export async function readMarginByYear(companyId: string, f: MarginByYearFilters): Promise<MarginYearRow[]> {
+  assertHubCompany(companyId);
   return getHubMarginByYear(f);
 }
 
-export async function readMarginByItem(f: MarginFilters): Promise<MarginItemRow[]> {
+export async function readMarginByItem(companyId: string, f: MarginFilters): Promise<MarginItemRow[]> {
+  assertHubCompany(companyId);
   hubYearSchema.parse(f.anio);
   return getHubMarginByItem(f);
 }
 
-export async function readMarginByCustomer(f: MarginCustomerFilters): Promise<MarginCustomerRow[]> {
+export async function readMarginByCustomer(companyId: string, f: MarginCustomerFilters): Promise<MarginCustomerRow[]> {
+  assertHubCompany(companyId);
   hubYearSchema.parse(f.anio);
   checkCustomer(f.customer);
   return getHubMarginByCustomer(f);
@@ -307,7 +337,8 @@ export async function readMarginByCustomer(f: MarginCustomerFilters): Promise<Ma
 
 // ── KPIs comerciales ─────────────────────────────────────────────────────────
 
-export async function readSalespeople(): Promise<string[]> {
+export async function readSalespeople(companyId: string): Promise<string[]> {
+  assertHubCompany(companyId);
   return getHubSalespeople();
 }
 
@@ -334,31 +365,45 @@ export async function readKpiTargets(companyId: string, year: number, salesperso
 }
 
 /** Ventas por cliente y mes del año, opcionalmente de un solo comercial. */
-export async function readKpiMonthlySales(tipo: RecordType, anio: number, owner: KpiScope) {
+export async function readKpiMonthlySales(companyId: string, tipo: RecordType, anio: number, owner: KpiScope) {
+  assertHubCompany(companyId);
   hubYearSchema.parse(anio);
   return getHubCustomerMonthByOwner({ tipo, anio, owner });
 }
 
 /** Tratos por cuenta y mes del año, opcionalmente de un solo comercial. */
-export async function readKpiDealsMonthly(anio: number, owner: KpiScope): Promise<DealMonthRow[]> {
+export async function readKpiDealsMonthly(companyId: string, anio: number, owner: KpiScope): Promise<DealMonthRow[]> {
+  assertHubCompany(companyId);
   hubYearSchema.parse(anio);
   return getHubDealsMonth({ anio, owner });
 }
 
 /** Tratos ganados por cuenta y mes del año, opcionalmente de un solo comercial. */
-export async function readKpiWonDealsMonthly(anio: number, owner: KpiScope): Promise<DealMonthRow[]> {
+export async function readKpiWonDealsMonthly(companyId: string, anio: number, owner: KpiScope): Promise<DealMonthRow[]> {
+  assertHubCompany(companyId);
   hubYearSchema.parse(anio);
   return getHubWonDealsMonth({ anio, owner });
 }
 
 /** Cambios de fase de "Notificación Comercial" del año (de compañía). */
-export async function readKpiTicketsChanges(year: number): Promise<CambioFase[]> {
+export async function readKpiTicketsChanges(companyId: string, year: number): Promise<CambioFase[]> {
+  assertHubCompany(companyId);
   const anio = hubYearSchema.parse(year);
   return getHubCommercialNotificationChanges(anio);
 }
 
+/**
+ * Órdenes de venta del año que casan con la búsqueda, para marcarlas como ingresos de
+ * proyecto. La búsqueda y el año ya llegan validados por la acción.
+ */
+export async function readSalesOrderSearch(companyId: string, query: string, anio: number): Promise<HubOrderRow[]> {
+  assertHubCompany(companyId);
+  return searchHubSalesOrders(query, anio);
+}
+
 /** Órdenes ya marcadas como ingresos de proyecto de la empresa, con su importe en vivo. */
 export async function readKpiProjectOrders(companyId: string): Promise<HubOrderRow[]> {
+  assertHubCompany(companyId);
   const marcadas = await db
     .select({ hub_order_id: kpiProjectOrders.hub_order_id })
     .from(kpiProjectOrders)

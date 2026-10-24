@@ -138,22 +138,22 @@ describe("ficha de cliente: filtrar en el servidor = traer todo y filtrar en el 
   });
 
   it.each(CLIENTES)("artículos: mezcla y top (%s)", async (customer) => {
-    const todo = await readCustomerItemSales({ tipo: "INVOICE", anio: 2025 });
-    const uno = await readCustomerItemSales({ tipo: "INVOICE", anio: 2025, customer });
+    const todo = await readCustomerItemSales(COMPANY, { tipo: "INVOICE", anio: 2025 });
+    const uno = await readCustomerItemSales(COMPANY, { tipo: "INVOICE", anio: 2025, customer });
     expect(uno).toEqual(todo.filter((r) => r.customer === customer));
     expect(customerTopItems(uno, customer, 15)).toEqual(customerTopItems(todo, customer, 15));
     expect(customerBuckets(uno, customer, MAPA)).toEqual(customerBuckets(todo, customer, MAPA));
   });
 
   it.each(CLIENTES)("estacionalidad (%s)", async (customer) => {
-    const todo = await readCustomerMonthSales({ tipo: "SALES_ORDER", anio: 2025 });
-    const uno = await readCustomerMonthSales({ tipo: "SALES_ORDER", anio: 2025, customer });
+    const todo = await readCustomerMonthSales(COMPANY, { tipo: "SALES_ORDER", anio: 2025 });
+    const uno = await readCustomerMonthSales(COMPANY, { tipo: "SALES_ORDER", anio: 2025, customer });
     expect(customerMonths(uno, customer)).toEqual(customerMonths(todo, customer));
   });
 
   it.each(CLIENTES)("margen (%s)", async (customer) => {
-    const todo = await readMarginByCustomer({ tipo: "INVOICE", anio: 2025 });
-    const uno = await readMarginByCustomer({ tipo: "INVOICE", anio: 2025, customer });
+    const todo = await readMarginByCustomer(COMPANY, { tipo: "INVOICE", anio: 2025 });
+    const uno = await readMarginByCustomer(COMPANY, { tipo: "INVOICE", anio: 2025, customer });
     expect(customerMarginKpi(uno, customer)).toEqual(customerMarginKpi(todo, customer));
   });
 });
@@ -162,9 +162,9 @@ describe("validación de las lecturas compartidas", () => {
   const year = new Date().getFullYear();
 
   it("rechaza un cliente vacío o demasiado largo sin consultar", async () => {
-    await expect(readCustomerItemSales({ tipo: "INVOICE", anio: year, customer: "" })).rejects.toMatchObject({ name: "ZodError" });
-    await expect(readCustomerMonthSales({ tipo: "INVOICE", anio: year, customer: "x".repeat(301) })).rejects.toMatchObject({ name: "ZodError" });
-    await expect(readMarginByCustomer({ tipo: "INVOICE", anio: year, customer: "" })).rejects.toMatchObject({ name: "ZodError" });
+    await expect(readCustomerItemSales(COMPANY, { tipo: "INVOICE", anio: year, customer: "" })).rejects.toMatchObject({ name: "ZodError" });
+    await expect(readCustomerMonthSales(COMPANY, { tipo: "INVOICE", anio: year, customer: "x".repeat(301) })).rejects.toMatchObject({ name: "ZodError" });
+    await expect(readMarginByCustomer(COMPANY, { tipo: "INVOICE", anio: year, customer: "" })).rejects.toMatchObject({ name: "ZodError" });
     await expect(
       readCustomerSales(COMPANY, { tipo: "INVOICE", desdeAnio: 2021, hastaAnio: year, customer: "" }),
     ).rejects.toMatchObject({ name: "ZodError" });
@@ -173,8 +173,8 @@ describe("validación de las lecturas compartidas", () => {
   });
 
   it("rechaza años fuera de rango sin consultar", async () => {
-    await expect(readCustomerItemSales({ tipo: "INVOICE", anio: 2014 })).rejects.toMatchObject({ name: "ZodError" });
-    await expect(readMarginByCustomer({ tipo: "INVOICE", anio: year + 2 })).rejects.toMatchObject({ name: "ZodError" });
+    await expect(readCustomerItemSales(COMPANY, { tipo: "INVOICE", anio: 2014 })).rejects.toMatchObject({ name: "ZodError" });
+    await expect(readMarginByCustomer(COMPANY, { tipo: "INVOICE", anio: year + 2 })).rejects.toMatchObject({ name: "ZodError" });
     expect(state.queries).toHaveLength(0);
   });
 

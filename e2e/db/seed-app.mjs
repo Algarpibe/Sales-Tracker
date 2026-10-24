@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import pg from "pg";
 import bcrypt from "bcryptjs";
+import { E2E_COMPANY_ID } from "./config.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const USERS = JSON.parse(await readFile(path.resolve(HERE, "../fixtures/users.json"), "utf8"));
@@ -72,9 +73,10 @@ export async function seedApp(connectionString) {
   try {
     await client.query("BEGIN");
 
+    // Id fijo: es el HUB_COMPANY_ID del servidor de E2E (SEC-035, playwright.config.ts).
     const { rows: [company] } = await client.query(
-      `INSERT INTO companies (name, country) VALUES ($1, 'CO') RETURNING id`,
-      [COMPANY_NAME],
+      `INSERT INTO companies (id, name, country) VALUES ($1, $2, 'CO') RETURNING id`,
+      [E2E_COMPANY_ID, COMPANY_NAME],
     );
 
     const categoryIds = new Map();

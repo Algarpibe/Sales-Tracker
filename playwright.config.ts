@@ -1,5 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
-import { APP_SERVER_URL, HUB_URL } from "./e2e/db/config.mjs";
+import { APP_SERVER_URL, E2E_COMPANY_ID, HUB_URL } from "./e2e/db/config.mjs";
 
 const PORT = Number(process.env.E2E_PORT ?? 3100);
 const BASE_URL = `http://127.0.0.1:${PORT}`;
@@ -57,6 +57,9 @@ export default defineConfig({
     env: {
       DATABASE_URL: APP_SERVER_URL,
       HUB_DB_URL: HUB_URL,
+      // SEC-035: la empresa sembrada es la dueña del hub de E2E. Así la suite recorre
+      // la comprobación de empresa en cada lectura del hub, como producción.
+      HUB_COMPANY_ID: E2E_COMPANY_ID,
       // Secreto de un entorno efímero: no se usa en ningún sitio real.
       BETTER_AUTH_SECRET: "e2e-secret-solo-para-tests-0123456789abcdef",
       BETTER_AUTH_URL: BASE_URL,

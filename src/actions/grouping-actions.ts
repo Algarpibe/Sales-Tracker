@@ -10,8 +10,8 @@ import {
   salesRecords,
 } from "@/db/schema";
 import { hubEnabled } from "@/db/hub";
-import { getHubSalesRows } from "@/db/hub-sales";
 import { requireRole, requireApproved } from "@/lib/auth/guards";
+import { readHubSalesRows } from "@/lib/data-reads";
 import { runAction, AppError, type ActionResult } from "@/lib/errors";
 import { audit } from "@/lib/audit";
 import { bucketsPorCategoriaId, buildMacroEvolution } from "@/lib/macro-evolution";
@@ -318,7 +318,8 @@ type AnalysisRecord = {
  * Ventas de la compañía de un tipo de registro, con el id de la categoría de la app.
  * Vienen del hub en vivo (si HUB_DB_URL está) o de sales_records. En el hub la categoría
  * llega por nombre: se casa con las de la app en minúsculas y se descartan las ventas
- * cuya categoría no existe en la app.
+ * cuya categoría no existe en la app. Las del hub pasan por readHubSalesRows, que
+ * comprueba que la empresa es la dueña del hub (SEC-035, HUB_COMPANY_ID).
  *
  * NO se exporta: en un fichero "use server" toda función exportada es una acción que el
  * navegador puede invocar, y esta recibe el companyId sin comprobar la sesión. Quien la
@@ -330,7 +331,7 @@ async function loadSalesRecordsByType(
 ): Promise<AnalysisRecord[]> {
   if (hubEnabled()) {
     const [hubRows, cats] = await Promise.all([
-      getHubSalesRows(),
+      readHubSalesRows(companyId),
       db
         .select({ id: categories.id, name: categories.name })
         .from(categories)

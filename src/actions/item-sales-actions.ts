@@ -6,6 +6,6 @@ import type { ItemSalesFilters, ItemSalesRow } from "@/types/database";
 
 // Lectura: lanza en error (react-query lo maneja). Requiere el hub (HUB_DB_URL).
 export async function getItemSales(filters: ItemSalesFilters): Promise<ItemSalesRow[]> {
-  await requireApproved();
-  return readItemSales(filters);
+  const { profile } = await requireApproved();
+  return readItemSales(profile.company_id, filters);
 }
