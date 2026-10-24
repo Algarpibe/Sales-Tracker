@@ -89,8 +89,23 @@ jobs:
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
 
+      # reset.mjs migra la base del app con el runner de producción (DATA-047):
+      # `up` sobre la base vacía y `status --strict` para confirmar que no queda nada.
       - name: "Preparar la BD de E2E (crea ambas bases, migra y siembra)"
         run: npm run e2e:db:reset
+
+      # Segunda pasada sobre la base ya migrada y sembrada: `up` no debe reaplicar nada
+      # (0011 no es idempotente) y `status --strict` sale con error si hay pendientes,
+      # modificadas o filas sin fichero. MIGRATIONS_DATABASE_URL solo existe en este
+      # paso y usa postgres, como el operador en producción; no se exporta DATABASE_URL.
+      - name: "Runner de migraciones: up idempotente y status sin pendientes"
+        run: |
+          set -o pipefail
+          npm run db:migrate -- up | tee up.log
+          grep -q "Nada pendiente" up.log
+          npm run db:migrate -- status --strict
+        env:
+          MIGRATIONS_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/salestracker_e2e
 
       # OJO: este paso NO debe exportar DATABASE_URL. Playwright se lo pasa al
       # servidor Next por el bloque webServer.env de playwright.config.ts. Si se
