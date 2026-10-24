@@ -16,6 +16,61 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # Secretos e infraestructura (SEC-022): gitleaks con .gitleaks.toml (reglas por defecto
+  # + las propias, las mismas que el hook de pre-commit) SOLO sobre los commits nuevos:
+  # los del PR o los del push. Binario oficial fijado por versión y sha256, sin acción de
+  # terceros (gitleaks-action pide licencia en organizaciones y es otra dependencia).
+  secrets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GITLEAKS_VERSION: "8.30.1"
+      # sha256 de gitleaks_8.30.1_linux_x64.tar.gz, tomado de gitleaks_8.30.1_checksums.txt
+      # de la release oficial: https://github.com/gitleaks/gitleaks/releases/tag/v8.30.1
+      GITLEAKS_SHA256: "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Historia completa: el rango base..head del PR (o before..after del push)
+          # tiene que existir en el clon.
+          fetch-depth: 0
+
+      - name: Instalar gitleaks (versión y sha256 fijados)
+        run: |
+          set -euo pipefail
+          tarball="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/$tarball" \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/${tarball}"
+          echo "${GITLEAKS_SHA256}  $RUNNER_TEMP/$tarball" | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/gitleaks"
+          tar -xzf "$RUNNER_TEMP/$tarball" -C "$RUNNER_TEMP/gitleaks" gitleaks
+          echo "$RUNNER_TEMP/gitleaks" >> "$GITHUB_PATH"
+
+      - name: Gitleaks sobre los commits nuevos
+        env:
+          EVENT: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          PUSH_AFTER: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" = "pull_request" ]; then
+            range="$PR_BASE..$PR_HEAD"
+          elif [ -n "$PUSH_BEFORE" ] && [ "$PUSH_BEFORE" != "0000000000000000000000000000000000000000" ] \
+            && git cat-file -e "$PUSH_BEFORE^{commit}" 2>/dev/null; then
+            range="$PUSH_BEFORE..$PUSH_AFTER"
+          elif git cat-file -e "$PUSH_AFTER~1^{commit}" 2>/dev/null; then
+            # Force-push con el commit anterior inalcanzable: el último commit y, si es
+            # un merge, lo que trajo su rama (main entra por merges; su diff va vacío).
+            range="$PUSH_AFTER~1..$PUSH_AFTER"
+          else
+            range="-1 $PUSH_AFTER"
+          fi
+          echo "Rango escaneado: $range"
+          gitleaks git . --log-opts="$range" --config .gitleaks.toml \
+            --redact --exit-code 1 --no-banner --verbose
+
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 15
