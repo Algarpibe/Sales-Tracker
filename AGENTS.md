@@ -43,11 +43,17 @@ contradice a este, manda este. Lo que hay en `docs/archive/` está obsoleto: no 
 
 ## Base de datos y migraciones
 
-- Las migraciones están en `drizzle/` y se aplican **a mano, como `postgres`**, nunca con
-  el `DATABASE_URL` del app (que debe usar el rol de mínimo privilegio
-  `salestracker_app`). Procedimiento y estado del cambio de rol:
+- Las migraciones están en `drizzle/` y las aplica el operador **a mano, como
+  `postgres`**, con el runner `npm run db:migrate -- <status|baseline|up|down>`
+  (`scripts/migrate/`), que lee solo `MIGRATIONS_DATABASE_URL` y registra lo aplicado en
+  `migrations.applied`. **Nunca con el `DATABASE_URL` del app** (rol de mínimo privilegio
+  `salestracker_app`, sin DDL): el runner se niega. Procedimiento:
+  [docs/runbooks/migrations.md](docs/runbooks/migrations.md); rol del app:
   [docs/runbooks/db-least-privilege.md](docs/runbooks/db-least-privilege.md).
-- Una migración ya aplicada en producción no se edita: se añade otra.
+- Migraciones nuevas: SQL escrito a mano (`NNNN_descripcion.sql`, sin `BEGIN`/`COMMIT`),
+  nunca `drizzle-kit generate`/`migrate`/`push` (el journal se quedó en 0001).
+- Una migración ya aplicada (o marcada por baseline) no se edita: se añade otra. El
+  runner detecta el cambio por checksum y se niega a seguir.
 - Las migraciones versionadas no llevan secretos ni datos de clientes.
 
 ## Datos sensibles y git

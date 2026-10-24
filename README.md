@@ -42,6 +42,7 @@ Variables que lee el código:
 | `RATE_LIMIT_MUTATIONS_PER_MINUTE` | Opcional. Mutaciones (Server Actions de escritura y subida de avatar) por usuario y minuto (por defecto 120). |
 | `RATE_LIMIT_EXPORTS_PER_MINUTE` | Opcional. Exportaciones a Excel por usuario y minuto (por defecto 30). |
 | `DRIZZLE_DATABASE_URL` | Opcional, solo para `drizzle-kit`. Debe ser una URL con el usuario `postgres`. |
+| `MIGRATIONS_DATABASE_URL` | Solo para `npm run db:migrate`, nunca en el app. URL de la BD del app con el usuario `postgres`; el runner se niega si coincide con `DATABASE_URL` o si el usuario es `salestracker_app`. |
 
 Nunca se commitean `.env*` reales (solo `.env.example`).
 
@@ -60,12 +61,24 @@ Nunca se commitean `.env*` reales (solo `.env.example`).
 | `npm run e2e:db:up` | Arranca el Postgres de E2E en Docker (puerto `E2E_PG_PORT`, 55432 por defecto). |
 | `npm run e2e:db:reset` | Recrea las BD de E2E, aplica migraciones y siembra datos ficticios. |
 | `npm run e2e:db:down` | Para el contenedor y borra su volumen. |
+| `npm run db:migrate -- <comando>` | Runner de migraciones (`status`, `baseline`, `up`, `down`) con `MIGRATIONS_DATABASE_URL`. Ver [docs/runbooks/migrations.md](docs/runbooks/migrations.md). |
 
 ## Migraciones
 
-Están en `drizzle/` y se aplican **a mano, como `postgres`**, nunca con el
-`DATABASE_URL` del app (que debe usar el rol de mínimo privilegio `salestracker_app`,
-sin permisos de DDL). El procedimiento está en
+Están en `drizzle/` y las aplica el operador **a mano, como `postgres`**, con el runner
+`npm run db:migrate`, nunca con el `DATABASE_URL` del app (que debe usar el rol de
+mínimo privilegio `salestracker_app`, sin permisos de DDL). La conexión sale solo de
+`MIGRATIONS_DATABASE_URL`, y la tabla `migrations.applied` registra qué se aplicó en
+cada base:
+
+```bash
+npm run db:migrate -- status            # aplicada / baseline / pendiente / MODIFICADA / SIN FICHERO
+npm run db:migrate -- up --dry-run      # qué aplicaría
+npm run db:migrate -- up                # aplica las pendientes, cada una en su transacción
+```
+
+Baseline inicial de producción, backup, rollback y cómo añadir una migración:
+[docs/runbooks/migrations.md](docs/runbooks/migrations.md). El rol del app:
 [docs/runbooks/db-least-privilege.md](docs/runbooks/db-least-privilege.md).
 
 ## Despliegue

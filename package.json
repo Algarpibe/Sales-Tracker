@@ -17,6 +17,7 @@
     "e2e:db:up": "docker compose -f e2e/docker-compose.e2e.yml up -d --wait",
     "e2e:db:down": "docker compose -f e2e/docker-compose.e2e.yml down -v",
     "e2e:db:reset": "node e2e/db/reset.mjs",
+    "db:migrate": "node scripts/migrate/cli.mjs",
     "test:e2e": "npm run e2e:db:up && npm run e2e:db:reset && playwright test",
     "test:e2e:ui": "playwright test --ui",
     "prepare": "husky || true"
