@@ -29,6 +29,10 @@ export async function proxy(req: NextRequest) {
     return isAuthPage ? NextResponse.next() : NextResponse.redirect(new URL("/login", req.url));
   }
 
+  // Consulta por clave primaria (~1 ms) en cada petición, a propósito: así desactivar
+  // o rechazar a un usuario surte efecto de inmediato. Guardarla en la cookie de sesión
+  // retrasaría la revocación hasta el maxAge del cookieCache (5 min, auth.ts).
+  // Decisión del 2026-10-24 (DATA-007 aceptado).
   const [p] = await db
     .select({
       approved: profiles.is_approved,

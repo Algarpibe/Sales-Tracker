@@ -1,1 +1,4 @@
+# Secretos e infraestructura en lo preparado (SEC-022): IPs públicas, hosts de panel,
+# URLs de Postgres con contraseña. Va antes de lint-staged para fallar rápido.
+node scripts/secret-scan/scan-staged.mjs
 npx lint-staged

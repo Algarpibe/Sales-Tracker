@@ -1,0 +1,66 @@
+# GENERADO por `npm run secrets:config` desde scripts/secret-scan/rules.mjs (SEC-022).
+# No editar a mano: cambia rules.mjs y regenera. Un test de vitest falla si este fichero
+# no coincide con las reglas, así el hook de pre-commit y gitleaks en CI aplican lo mismo.
+
+title = "SalesTracker Pro: secretos e infraestructura"
+
+# Reglas por defecto de gitleaks (tokens de nube, claves privadas, etc.) más las propias.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Lockfile de npm"
+paths = ['''(?:^|/)package-lock\.json$''']
+
+[[allowlists]]
+description = "Imágenes SVG"
+paths = ['''(?i)\.svg$''']
+
+[[rules]]
+id = "ipv4-publica"
+description = "Dirección IPv4 pública (infraestructura real: usa <VPS_IP> o una IP RFC 5737)"
+regex = '''(?m)(?:^|[^0-9A-Za-z._-])((?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])(?:\.(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])){3})(?:$|[^0-9A-Za-z._-]|\.(?:$|[^0-9A-Za-z]))'''
+secretGroup = 1
+
+[[rules.allowlists]]
+description = "Rangos que no son infraestructura pública: privados, reservados y de documentación"
+regexes = [
+  '''^0\.''',
+  '''^10\.''',
+  '''^127\.''',
+  '''^169\.254\.''',
+  '''^172\.(?:1[6-9]|2[0-9]|3[01])\.''',
+  '''^192\.168\.''',
+  '''^100\.(?:6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.''',
+  '''^192\.0\.2\.''',
+  '''^198\.51\.100\.''',
+  '''^203\.0\.113\.''',
+  '''^198\.1[89]\.''',
+  '''^2(?:2[4-9]|[3-5][0-9])\.''',
+]
+
+[[rules]]
+id = "hostname-panel"
+description = "Hostname de panel de despliegue o DNS comodín (usa <dominio-app> o <host-interno>)"
+regex = '''(?i)([a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*\.(?:easypanel\.host|sslip\.io|nip\.io|traefik\.me))'''
+secretGroup = 1
+keywords = ["easypanel.host", "sslip.io", "nip.io", "traefik.me"]
+
+[[rules]]
+id = "postgres-url-con-password"
+description = "URL de Postgres con contraseña en línea (usa ${VAR}, <password> o un marcador)"
+regex = '''(?i)postgres(?:ql)?://[^:@/\s'"\x60]+:([^@/\s'"\x60]+)@'''
+secretGroup = 1
+keywords = ["postgres"]
+
+[[rules.allowlists]]
+description = "Marcadores evidentes y credenciales de usar y tirar de CI/tests locales"
+regexes = [
+  '''^<[^>]*>$''',
+  '''^\$\{[^}]*\}$''',
+  '''^\$[A-Za-z_][A-Za-z0-9_]*$''',
+  '''^\*+$''',
+  '''^(?:build|password|postgres|pass|pw|p|u|x|otra|changeme|secret)$''',
+  '''^secreto(?:-[a-z0-9-]+)?$''',
+  '''^ci-[a-z0-9-]+$''',
+]

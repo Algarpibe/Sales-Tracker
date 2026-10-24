@@ -87,7 +87,9 @@ describe("assertRuntimeEnv", () => {
     it.each([
       ["DATABASE_URL", "postgres://u:secreto@db.example.com:5432/app"],
       ["DATABASE_URL", "postgres://u:secreto@203.0.113.9:5432/app?sslmode=disable"],
-      ["HUB_DB_URL", "postgres://u:secreto@172.32.0.1:5432/hub"],
+      // 172.32/16 queda justo fuera del rango privado 172.16/12: es una IP pública a
+      // propósito, de frontera, no infraestructura real (SEC-022).
+      ["HUB_DB_URL", "postgres://u:secreto@172.32.0.1:5432/hub"], // gitleaks:allow
       ["HUB_DB_URL", "postgres://u:secreto@hub.example.com:5432/hub?sslmode=prefer"],
     ])("avisa si %s apunta a un host externo sin TLS obligatorio, sin el valor", (name, url) => {
       const { warnings } = assertRuntimeEnv({ ...PROD_OK, [name]: url });

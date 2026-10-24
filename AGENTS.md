@@ -79,6 +79,18 @@ contradice a este, manda este. Lo que hay en `docs/archive/` está obsoleto: no 
   (IPs, hosts internos, dominios, usuarios SSH, rutas locales). En documentación se usan
   marcadores: `Cliente A`, `$X`, `<VPS_IP>`, `<host-interno>`, `<dominio-app>`.
 - Los datos reales (p. ej. el histórico de clientes) van a la BD, nunca al repositorio.
+- **Escáner de secretos (SEC-022).** El pre-commit (`scripts/secret-scan/scan-staged.mjs`)
+  revisa las líneas añadidas de lo preparado y bloquea IPs públicas, hostnames de panel
+  (`*.easypanel.host`, `sslip.io`…) y URLs de Postgres con contraseña. En CI, gitleaks
+  (reglas por defecto + las mismas propias) revisa los commits del PR. Las reglas viven en
+  `scripts/secret-scan/rules.mjs`; `.gitleaks.toml` se genera con `npm run secrets:config`
+  y no se edita a mano (un test comprueba que coinciden).
+- Las reglas llevan solo patrones genéricos, nunca un valor real. En tests y docs, IPs de
+  documentación RFC 5737 (`192.0.2.x`, `198.51.100.x`, `203.0.113.x`) o valores
+  construidos en tiempo de ejecución.
+- **Falso positivo:** comentario `gitleaks:allow` en esa línea o una entrada justificada
+  en `rules.mjs` (`allow` de la regla o `PATH_ALLOWLIST`) y `npm run secrets:config`.
+  `git commit --no-verify` salta todos los hooks y CI lo vuelve a revisar: último recurso.
 - **No hacer `git add`, `git commit` ni `git push` sin que el usuario lo pida
   expresamente** (ver `.agent/rules/limites.md`). Commits en formato *conventional
   commits*. No reescribir historia publicada.
